@@ -190,7 +190,7 @@ export async function operationsRoutes(app: FastifyInstance, opts: { hub: Hub })
 
               // Favoritos del mesero: los más pedidos quedan a la mano
               await db.prepare(
-                          "INSERT INTO user_favorites (user_id,product_id,uses) VALUES (?,?,?) ON CONFLICT(user_id,product_id) DO UPDATE SET uses=uses+excluded.uses",
+                          "INSERT INTO user_favorites (user_id,product_id,uses) VALUES (?,?,?) ON CONFLICT(user_id,product_id) DO UPDATE SET uses=user_favorites.uses+excluded.uses",
                         ).run(req.user.sub, p.id, it.quantity);
 
               // Lo retenido no se produce ni descuenta inventario hasta que se dispare ese tiempo
@@ -367,7 +367,7 @@ export async function operationsRoutes(app: FastifyInstance, opts: { hub: Hub })
             // La mesa de la cuenta absorbida queda unida a la cuenta destino (mesa 1 + mesa 2)
             await db.prepare("UPDATE table_links SET account_id=? WHERE account_id=?").run(targetId, sourceAccountId);
             if (source.table_id && source.table_id !== target.table_id) {
-              await db.prepare("INSERT OR REPLACE INTO table_links (table_id, account_id, created_at) VALUES (?,?,?)").run(source.table_id, targetId, Date.now());
+              await db.prepare("INSERT INTO table_links (table_id, account_id, created_at) VALUES (?,?,?) ON CONFLICT(table_id) DO UPDATE SET account_id=excluded.account_id, created_at=excluded.created_at").run(source.table_id, targetId, Date.now());
             }
             const g = await db.prepare("SELECT guests FROM accounts WHERE id=?").get(sourceAccountId) as { guests: number };
             await db.prepare("UPDATE accounts SET guests=guests+? WHERE id=?").run(g.guests, targetId);

@@ -106,16 +106,23 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
   app.setErrorHandler((err: Error & { statusCode?: number }, _req, reply) => {
     if (err instanceof ZodError) return reply.code(400).send({ error: "validacion", issues: err.issues });
     if (err instanceof HttpError) return reply.code(err.statusCode).send({ error: err.code, message: err.message });
-    if (/UNIQUE|FOREIGN KEY|CHECK|NOT NULL/.test(err.message)) {
+    const pgCode = (err as { code?: string }).code;
+    const constraint = (err as { constraint?: string }).constraint ?? "";
+    // Texto que PostgreSQL no admite (p. ej. el byte NUL): es una entrada inválida, no un fallo del servidor
+    if (pgCode === "22021" || pgCode === "22P05") return reply.code(400).send({ error: "validacion", message: "Texto con caracteres no válidos" });
+    if (/UNIQUE|FOREIGN KEY|CHECK|NOT NULL/.test(err.message) || (pgCode && pgCode.startsWith("23"))) {
       // Mensajes comprensibles para los casos más comunes; el detalle técnico se conserva en `detail`
-      const friendly = /UNIQUE constraint failed: tables_\.number/.test(err.message) ? "Ya existe una mesa con ese número"
-        : /UNIQUE constraint failed: zones/.test(err.message) ? "Ya existe un área con ese nombre"
-        : /UNIQUE constraint failed: products\.sku/.test(err.message) ? "Ya existe un producto con ese SKU"
-        : /UNIQUE/.test(err.message) ? "Ya existe un registro con ese valor"
-        : /FOREIGN KEY/.test(err.message) ? "No se puede completar: está relacionado con otros datos"
+      const unique = /UNIQUE/.test(err.message) || pgCode === "23505";
+      const friendly = unique && (/UNIQUE constraint failed: tables_\.number/.test(err.message) || constraint.startsWith("tables__number")) ? "Ya existe una mesa con ese número"
+        : unique && (/UNIQUE constraint failed: zones/.test(err.message) || constraint.startsWith("zones_")) ? "Ya existe un área con ese nombre"
+        : unique && (/UNIQUE constraint failed: products\.sku/.test(err.message) || constraint.startsWith("products_sku")) ? "Ya existe un producto con ese SKU"
+        : unique ? "Ya existe un registro con ese valor"
+        : /FOREIGN KEY/.test(err.message) || pgCode === "23503" ? "No se puede completar: está relacionado con otros datos"
         : err.message;
+      if (process.env.NODO_DEBUG) console.error("[409]", err.message);
       return reply.code(409).send({ error: "conflicto", message: friendly, detail: err.message });
     }
+    if (process.env.NODO_DEBUG) console.error("[500]", err.message);
     return reply.code(err.statusCode ?? 500).send({ error: err.message });
   });
 

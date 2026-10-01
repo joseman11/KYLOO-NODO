@@ -797,7 +797,7 @@ export async function seedDemo(db: Db, opts: { photosDir: string; now?: number; 
         // ── Favoritos de cada mesero (más pedidos) y algunos fijados ──
         for (const [key, uses] of favs) {
           const [user, product] = key.split("|") as [string, string];
-          if (meseros.includes(user)) await run("INSERT INTO user_favorites (user_id,product_id,uses,pinned) VALUES (?,?,?,0) ON CONFLICT(user_id,product_id) DO UPDATE SET uses=uses+excluded.uses", user, product, uses);
+          if (meseros.includes(user)) await run("INSERT INTO user_favorites (user_id,product_id,uses,pinned) VALUES (?,?,?,0) ON CONFLICT(user_id,product_id) DO UPDATE SET uses=user_favorites.uses+excluded.uses", user, product, uses);
         }
         for (const n of ["Cerveza Corona", "Aguachile verde", "Taco de camarón"]) {
           await run("UPDATE user_favorites SET pinned=1 WHERE user_id=? AND product_id=?", staff["Juan"]!.id, products.find((p) => p.name === n)!.id);

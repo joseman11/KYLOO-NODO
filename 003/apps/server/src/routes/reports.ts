@@ -37,7 +37,7 @@ export async function reportRoutes(app: FastifyInstance, opts: { backupDir: stri
       ...totals,
       average_ticket_cents: totals.tickets ? Math.round(totals.sales_cents / totals.tickets) : 0,
       by_hour: await db
-              .prepare("SELECT strftime('%H', created_at/1000,'unixepoch','localtime') hour, COUNT(DISTINCT account_id) tickets, SUM(total_cents) sales_cents FROM payments WHERE created_at>=? AND created_at<? GROUP BY hour ORDER BY hour")
+              .prepare("SELECT strftime('%H', created_at/1000,'unixepoch','localtime') AS hour, COUNT(DISTINCT account_id) tickets, SUM(total_cents) sales_cents FROM payments WHERE created_at>=? AND created_at<? GROUP BY hour ORDER BY hour")
               .all(from, to),
       by_waiter: await db
               .prepare(
@@ -49,7 +49,7 @@ export async function reportRoutes(app: FastifyInstance, opts: { backupDir: stri
       by_product: await db
               .prepare(
                 `SELECT i.name product, SUM(i.quantity) units, SUM(i.quantity*i.unit_price_cents) sales_cents FROM order_items i
-           WHERE i.status='activo' AND i.account_id IN ${paidAccounts} GROUP BY i.product_id ORDER BY units DESC`,
+           WHERE i.status='activo' AND i.account_id IN ${paidAccounts} GROUP BY i.product_id, i.name ORDER BY units DESC`,
               )
               .all(from, to),
       by_method: await db

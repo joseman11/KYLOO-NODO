@@ -82,7 +82,7 @@ export async function analyticsRoutes(app: FastifyInstance) {
       change_tickets_pct: pct(cur.tickets, prev.tickets),
       by_hour: await db
               .prepare(
-                `SELECT CAST(strftime('%H', created_at/1000,'unixepoch','localtime') AS INTEGER) hour, COUNT(DISTINCT account_id) tickets, SUM(total_cents) sales_cents
+                `SELECT CAST(strftime('%H', created_at/1000,'unixepoch','localtime') AS INTEGER) AS hour, COUNT(DISTINCT account_id) tickets, SUM(total_cents) sales_cents
            FROM payments WHERE created_at>=? AND created_at<? GROUP BY hour ORDER BY hour`,
               )
               .all(from, to),
@@ -118,7 +118,7 @@ export async function analyticsRoutes(app: FastifyInstance) {
             `SELECT i.name product, SUM(i.quantity) units, SUM(i.quantity*i.unit_price_cents) sales_cents
          FROM order_items i JOIN orders o ON o.id=i.order_id
          WHERE i.status='activo' AND o.created_at>=? AND o.created_at<? AND i.account_id IN (SELECT account_id FROM payments)
-         GROUP BY i.product_id ORDER BY sales_cents DESC`,
+         GROUP BY i.product_id, i.name ORDER BY sales_cents DESC`,
           )
           .all(from, to) as { product: string; units: number; sales_cents: number }[];
     const total = rows.reduce((s, r) => s + r.sales_cents, 0);
@@ -137,14 +137,14 @@ export async function analyticsRoutes(app: FastifyInstance) {
     const perDay = await db
           .prepare(
             `SELECT CAST(strftime('%w', created_at/1000,'unixepoch','localtime') AS INTEGER) weekday,
-                strftime('%Y-%m-%d', created_at/1000,'unixepoch','localtime') day, COUNT(DISTINCT account_id) tickets, SUM(total_cents) sales_cents
-         FROM payments WHERE created_at>=? GROUP BY day`,
+                strftime('%Y-%m-%d', created_at/1000,'unixepoch','localtime') AS day, COUNT(DISTINCT account_id) tickets, SUM(total_cents) sales_cents
+         FROM payments WHERE created_at>=? GROUP BY weekday, day`,
           )
           .all(since) as { weekday: number; day: string; tickets: number; sales_cents: number }[];
     const peak = await db
           .prepare(
             `SELECT CAST(strftime('%w', created_at/1000,'unixepoch','localtime') AS INTEGER) weekday,
-                CAST(strftime('%H', created_at/1000,'unixepoch','localtime') AS INTEGER) hour, SUM(total_cents) sales_cents
+                CAST(strftime('%H', created_at/1000,'unixepoch','localtime') AS INTEGER) AS hour, SUM(total_cents) sales_cents
          FROM payments WHERE created_at>=? GROUP BY weekday, hour`,
           )
           .all(since) as { weekday: number; hour: number; sales_cents: number }[];

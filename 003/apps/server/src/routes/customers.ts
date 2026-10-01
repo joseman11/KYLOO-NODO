@@ -60,7 +60,7 @@ export async function customerRoutes(app: FastifyInstance) {
     const favorites = await db
           .prepare(
             `SELECT i.name, SUM(i.quantity) units FROM order_items i JOIN accounts a ON a.id=i.account_id
-         WHERE a.customer_id=? AND i.status='activo' GROUP BY i.product_id ORDER BY units DESC LIMIT 5`,
+         WHERE a.customer_id=? AND i.status='activo' GROUP BY i.product_id, i.name ORDER BY units DESC LIMIT 5`,
           )
           .all(cid);
     return { customer, visits, total_spent_cents: visits.reduce((s, v) => s + v.total_cents, 0), favorites };

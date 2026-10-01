@@ -48,10 +48,12 @@ beforeEach(async () => {
 
 describe("migración", () => {
   it("las cuentas aceptan table_id nulo y conservan datos tras la reconstrucción", async () => {
-    const cols = await db.prepare("PRAGMA table_info(accounts)").all() as { name: string; notnull: number }[];
+    const cols = (db.dialect === "pg"
+      ? (await db.prepare("SELECT column_name AS name, CASE WHEN is_nullable='NO' THEN 1 ELSE 0 END AS notnull FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='accounts'").all())
+      : (await db.prepare("PRAGMA table_info(accounts)").all())) as { name: string; notnull: number }[];
     expect(cols.find((c) => c.name === "table_id")!.notnull).toBe(0);
     expect(cols.map((c) => c.name)).toEqual(expect.arrayContaining(["kind", "label", "customer_id"]));
-    expect(await db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+    if (db.dialect === "sqlite") expect(await db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
   });
 });
 

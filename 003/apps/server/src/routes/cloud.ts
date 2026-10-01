@@ -36,7 +36,7 @@ export async function buildSalesDays(db: Db, days = 7, now = Date.now()) {
     const products = await db
           .prepare(
             `SELECT i.name product, SUM(i.quantity) units, SUM(i.quantity*i.unit_price_cents) sales_cents FROM order_items i
-         WHERE i.status='activo' AND i.account_id IN (SELECT account_id FROM payments WHERE created_at>=? AND created_at<?) GROUP BY i.product_id`,
+         WHERE i.status='activo' AND i.account_id IN (SELECT account_id FROM payments WHERE created_at>=? AND created_at<?) GROUP BY i.product_id, i.name`,
           )
           .all(a, b);
     out.push({ day: localDay(a), tickets: s.tickets, sales_cents: s.sales, tips_cents: s.tips, discounts_cents: discounts, cancelled_items: cancelled, products });
