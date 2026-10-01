@@ -56,7 +56,10 @@ const CARTA: [string, string][] = [
   ["Tiempos y retención", "Retén el plato fuerte y dispáralo cuando la entrada ya salió."],
   ["Cobro en partes", "Cuenta completa, partes iguales o por asiento, con tarjetas de regalo."],
   ["Propinas y checador", "Reparto por política, horas por trabajador y reporte del periodo."],
-  ["Inventario con recetas", "Descuenta insumos al vender, avisa mínimos y registra mermas y compras."],
+  ["Inventario por áreas", "Cocina, barra, limpieza… con tus propias categorías (perecederos, mariscos, enlatados), mínimos, máximos y aviso de cuándo pedir."],
+  ["Listas de compras", "Se arman solas con lo que falta o a mano, y las compartes por enlace o WhatsApp para que quien compra las vaya marcando."],
+  ["Recetario", "Guarda recetas de comida, tragos o salsas con tus categorías, escala las porciones y ve el costo por porción."],
+  ["Comanda con mesa en grande", "El número de mesa sale enorme en el ticket de cocina: se lee de lejos, sin entrecerrar los ojos."],
   ["Reservaciones", "Agenda con mesa asignada y aviso en el mapa."],
   ["Para llevar y a domicilio", "Pedidos fuera de mesa con contacto, repartidor y cargo de envío."],
   ["Menú por QR", "El comensal ve el menú con fotos desde su teléfono."],
@@ -81,7 +84,9 @@ const FAQ: [string, string][] = [
 
 const OTRAS = [
   ["analitica", "Analítica", "Ventas por hora, platillo y mesero."],
-  ["inventario", "Inventario", "Recetas que descuentan al vender."],
+  ["inventario", "Inventario por áreas", "Categorías propias, mínimos y máximos."],
+  ["listas", "Listas de compras", "Automáticas o manuales, compartibles."],
+  ["recetas", "Recetario", "Por categorías, con costo por porción."],
   ["config-equipo", "Tu equipo", "Cada trabajador con su foto y PIN."],
   ["config-tickets", "Tickets", "Vista previa del ticket antes de imprimir."],
 ] as const;

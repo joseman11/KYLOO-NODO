@@ -112,11 +112,11 @@ describe("pantalla de acceso", () => {
 
 describe("módulos visibles por rol", () => {
   const casos: [string, string, string[]][] = [
-    ["Juan", "1111", ["Mesas", "Pase", "Llevar", "Reservas"]],
-    ["Caja", "3333", ["Caja"]],
-    ["Chef Ramón", "7777", ["Pase", "Cocina"]],
-    ["Barman Toño", "8888", ["Pase", "Cocina"]],
-    ["Sofía Ramírez", "6666", ["Mesas", "Pase", "Llevar", "Reservas", "Caja", "Inventario", "Analítica", "Admin"]],
+    ["Juan", "1111", ["Mesas", "Pase", "Llevar", "Reservas", "Recetas"]],
+    ["Caja", "3333", ["Caja", "Recetas"]],
+    ["Chef Ramón", "7777", ["Pase", "Cocina", "Recetas"]],
+    ["Barman Toño", "8888", ["Pase", "Cocina", "Recetas"]],
+    ["Sofía Ramírez", "6666", ["Mesas", "Pase", "Llevar", "Reservas", "Caja", "Inventario", "Recetas", "Analítica", "Admin"]],
   ];
   for (const [name, pin, esperados] of casos) {
     it(`${name} ve exactamente: ${esperados.join(", ")}`, async () => {
@@ -135,10 +135,10 @@ describe("módulos visibles por rol", () => {
     });
   }
 
-  it("el administrador ve los diez módulos", async () => {
+  it("el administrador ve los once módulos", async () => {
     const { page, ctx } = await newPage(browser, nodo.url);
     await (await import("./harness")).adminSession(page, nodo.url);
-    expect((await railLabels(page)).length).toBe(10);
+    expect((await railLabels(page)).length).toBe(11);
     await ctx.close();
   });
 });

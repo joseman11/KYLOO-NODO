@@ -79,7 +79,7 @@ for (const vp of VIEWPORTS) {
 
     it("todos los módulos del menú caben sin desplazarse", async () => {
       const labels = await railModules(page);
-      expect(labels.length).toBe(10);
+      expect(labels.length).toBe(11); // incluye Recetas
       // con el menú colapsado (≤900 px) solo quedan los iconos: se toca por posición
       for (const [i, l] of labels.entries()) {
         const rects = await page.$$eval(".rail-btn", (bs) => bs.map((b) => { const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }));

@@ -53,12 +53,12 @@ function Stock({ items }: { items: { data: Item[] | null; reload: () => void } }
       <AreaBar areas={meta.areas} cats={meta.cats} area={area} cat={cat} onArea={setArea} onCat={setCat}
         extra={edit ? <><button className="btn sm" onClick={() => setManage(true)}>Áreas y categorías</button><button className="btn primary sm" style={{ minHeight: 40 }} onClick={() => setForm("new")}>+ Nuevo insumo</button></> : undefined} />
       <section className="card fillcard">
-        <PagedRows items={shown} rowH={48} empty={<p className="muted">{area ? "No hay insumos en esta selección" : "Aún no hay insumos"}</p>}
-          head={<tr><th>Insumo</th><th>Área › Categoría</th><th className="r">Existencia</th><th className="r">Mín. / Máx.</th><th>Estado</th><th /></tr>}
+        <PagedRows fixed items={shown} rowH={48} empty={<p className="muted">{area ? "No hay insumos en esta selección" : "Aún no hay insumos"}</p>}
+          head={<tr><th>Insumo</th><th style={{ width: "19%" }}>Área › Categoría</th><th className="r" style={{ width: 104 }}>Existencia</th><th className="r" style={{ width: 128 }}>Mín. / Máx.</th><th style={{ width: 64 }}>Estado</th><th style={{ width: 188 }} /></tr>}
           row={(i) => (
             <>
-              <td className="ellipsis" style={{ maxWidth: 220 }}>{i.name}</td>
-              <td className="small ellipsis" style={{ maxWidth: 190 }}>{[areaName(i.area_id), catName(i.category_id)].filter(Boolean).join(" › ") || "—"}</td>
+              <td className="ellipsis">{i.name}</td>
+              <td className="small ellipsis">{[areaName(i.area_id), catName(i.category_id)].filter(Boolean).join(" › ") || "—"}</td>
               <td className="r num">{fmt(i.stock)} {i.unit}</td>
               <td className="r num small">{i.min_stock ? fmt(i.min_stock) : "—"} / {i.max_stock != null ? fmt(i.max_stock) : "—"}</td>
               <td>{alertOf(i.id) ? <span className="tag ember">{alertOf(i.id)}</span> : <span className="tag">ok</span>}</td>
