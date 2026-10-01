@@ -42,7 +42,7 @@ export async function syncRoutes(app: FastifyInstance) {
       }
       const op = parsed.data;
 
-      const seen = db.prepare("SELECT status, result FROM sync_ops WHERE id=?").get(op.id) as { status: string; result: string | null } | undefined;
+      const seen = await db.prepare("SELECT status, result FROM sync_ops WHERE id=?").get(op.id) as { status: string; result: string | null } | undefined;
       if (seen) {
         const stored = seen.result ? (JSON.parse(seen.result) as { code?: string }) : undefined;
         // Un reenvío devuelve el resultado original: lo que fue conflicto o error sigue siéndolo
@@ -57,7 +57,7 @@ export async function syncRoutes(app: FastifyInstance) {
           results.push({ id: op.id, status: "conflict", code: "cuenta_no_abierta", message: "La mesa no pudo abrirse" });
           continue;
         }
-        accountId = op.accountId ?? (ref ? ((db.prepare("SELECT id FROM accounts WHERE client_id=?").get(ref) as { id: string } | undefined)?.id ?? "") : "");
+        accountId = op.accountId ?? (ref ? ((await db.prepare("SELECT id FROM accounts WHERE client_id=?").get(ref) as { id: string } | undefined)?.id ?? "") : "");
         if (!accountId) {
           results.push({ id: op.id, status: "error", code: "cuenta_desconocida", message: "Indica accountId o accountRef" });
           continue;
@@ -75,7 +75,7 @@ export async function syncRoutes(app: FastifyInstance) {
       const status = res.statusCode < 400 ? "ok" : CONFLICTS.has(body.error ?? "") ? "conflict" : "error";
       const result = { id: op.id, status, ...(status !== "ok" ? { code: body.error, message: body.message } : { data: body }) } as (typeof results)[number];
       if (status !== "ok" && op.type === "open_table") failedAccounts.add(op.id);
-      db.prepare("INSERT INTO sync_ops (id,user_id,type,status,result,created_at) VALUES (?,?,?,?,?,?)").run(op.id, req.user.sub, op.type, status, JSON.stringify(result.data ?? { code: result.code }), Date.now());
+      await db.prepare("INSERT INTO sync_ops (id,user_id,type,status,result,created_at) VALUES (?,?,?,?,?,?)").run(op.id, req.user.sub, op.type, status, JSON.stringify(result.data ?? { code: result.code }), Date.now());
       results.push(result);
     }
     return { results };

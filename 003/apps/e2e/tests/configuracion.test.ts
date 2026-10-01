@@ -19,7 +19,7 @@ beforeAll(async () => {
 });
 afterAll(async () => { await browser?.close(); await nodo?.close(); rmSync(tmp, { recursive: true, force: true }); });
 
-const one = <T>(sql: string, ...a: unknown[]) => nodo.db.prepare(sql).get(...a) as T;
+const one = async <T>(sql: string, ...a: unknown[]) => await nodo.db.prepare(sql).get(...a) as T;
 const goConfig = async (p: Page, tab: string) => {
   await tap(p, "Config", ".rail-btn");
   await tap(p, tab, ".view > .row.wrap > .chip");
@@ -59,7 +59,7 @@ describe("equipo: alta, foto, edición y baja", () => {
     await tap(p, "Guardar", ".sheet button");
     await until(async () => !(await p.$(".sheet")) || null, "cierre de la ventana");
     expect(await pagedHasText(p, "Valeria Prueba")).toBe(true);
-    const u = one<{ id: string; role: string; photo: string | null; active: number }>("SELECT id, role, photo, active FROM users WHERE name='Valeria Prueba'");
+    const u = await one<{ id: string; role: string; photo: string | null; active: number }>("SELECT id, role, photo, active FROM users WHERE name='Valeria Prueba'");
     expect(u.role).toBe("mesero");
     expect(u.photo).toMatch(/^[a-f0-9]{24}-[a-f0-9]{8}\.(jpg|png|webp)$/);
     expect(u.active).toBe(1);
@@ -85,7 +85,7 @@ describe("equipo: alta, foto, edición y baja", () => {
     await p.type(".sheet input[inputmode=numeric]", "9876");
     await tap(p, "Guardar", ".sheet button");
     await until(async () => !(await p.$(".sheet")) || null, "cierre");
-    expect(one<{ role: string }>("SELECT role FROM users WHERE name='Valeria Prueba'").role).toBe("cajero");
+    expect((await one<{ role: string }>("SELECT role FROM users WHERE name='Valeria Prueba'")).role).toBe("cajero");
     const users = (await nodo.app.inject({ method: "GET", url: "/api/auth/users" })).json() as { id: string; name: string }[];
     const id = users.find((u) => u.name === "Valeria Prueba")!.id;
     expect((await nodo.app.inject({ method: "POST", url: "/api/auth/pin", payload: { userId: id, pin: "4321" } })).statusCode).toBe(401);
@@ -101,12 +101,12 @@ describe("equipo: alta, foto, edición y baja", () => {
     await until(async () => !(await p.$(".sheet")) || (await p.$(".sheet .err").then(async (e) => (e ? await e.evaluate((x) => (x as HTMLElement).innerText) : null))) || null, "cierre");
     const stuck = await p.$eval(".sheet", (x) => (x as HTMLElement).innerText.split("\n").join(" | ")).catch(() => null);
     if (stuck) throw new Error("ventana abierta: ..." + stuck.slice(-170));
-    expect(one<{ photo: string | null }>("SELECT photo FROM users WHERE name='Valeria Prueba'").photo).toBeNull();
+    expect((await one<{ photo: string | null }>("SELECT photo FROM users WHERE name='Valeria Prueba'")).photo).toBeNull();
     await click();
     await p.click(".sheet input[type=checkbox]");
     await tap(p, "Guardar", ".sheet button");
     await until(async () => !(await p.$(".sheet")) || null, "cierre");
-    expect(one<{ active: number }>("SELECT active FROM users WHERE name='Valeria Prueba'").active).toBe(0);
+    expect((await one<{ active: number }>("SELECT active FROM users WHERE name='Valeria Prueba'")).active).toBe(0);
     const n = await newPage(browser, nodo.url);
     expect(await n.page.$$eval(".user-card", (e) => e.some((x) => (x as HTMLElement).innerText.includes("Valeria")))).toBe(false);
     await n.ctx.close();
@@ -139,15 +139,15 @@ describe("menú: productos y áreas", () => {
     await p.select(".sheet select", cat!);
     await tap(p, "Crear producto", ".sheet button");
     await until(async () => !(await p.$(".sheet")) || null, "cierre");
-    const prod = one<{ id: string; price_cents: number; category_id: string }>("SELECT id, price_cents, category_id FROM products WHERE name='Pulpo al ajillo de prueba'");
+    const prod = await one<{ id: string; price_cents: number; category_id: string }>("SELECT id, price_cents, category_id FROM products WHERE name='Pulpo al ajillo de prueba'");
     expect(prod.price_cents).toBe(28950);
-    expect(one<{ c: number }>("SELECT COUNT(*) c FROM product_routes WHERE product_id=?", prod.id).c).toBeGreaterThan(0); // heredó la estación de su categoría
+    expect((await one<{ c: number }>("SELECT COUNT(*) c FROM product_routes WHERE product_id=?", prod.id)).c).toBeGreaterThan(0); // heredó la estación de su categoría
   });
 
   it("el producto nuevo se vende desde el comandero de un mesero", async () => {
     const w = await newPage(browser, nodo.url);
     await sessionFor(w.page, nodo.url, "Juan", "1111");
-    const free = one<{ number: string }>("SELECT number FROM tables_ WHERE status='disponible' ORDER BY number LIMIT 1").number;
+    const free = (await one<{ number: string }>("SELECT number FROM tables_ WHERE status='disponible' ORDER BY number LIMIT 1")).number;
     await until(async () => (await rectOf(w.page, free, ".table-card")) || null, "mapa");
     await tap(w.page, free, ".table-card");
     await tap(w.page, "Abrir mesa", "button");
@@ -178,7 +178,7 @@ describe("menú: productos y áreas", () => {
       return null;
     }, "fila de Agua mineral", 20_000);
     await p.mouse.click(found.x, found.y);
-    await until(() => one<{ availability: string }>("SELECT availability FROM products WHERE name='Agua mineral'").availability === "agotado" || null, "producto agotado");
+    await until(async () => (await one<{ availability: string }>("SELECT availability FROM products WHERE name='Agua mineral'")).availability === "agotado" || null, "producto agotado");
   });
 
   it("la vista previa del ticket usa el nombre del negocio y la mesa en grande", async () => {

@@ -24,8 +24,8 @@ async function pin(name: string, p: string) {
 }
 let adm = "";
 beforeEach(async () => {
-  db = openDb(":memory:");
-  seed(db, "admin1234");
+  db = await openDb(":memory:");
+  await seed(db, "admin1234");
   photosDir = mkdtempSync(join(tmpdir(), "recetario-"));
   app = buildApp(db, { photosDir });
   adm = (await app.inject({ method: "POST", url: "/api/auth/login", payload: { username: "admin", password: "admin1234" } })).json().token as string;
@@ -201,6 +201,6 @@ describe("fotos y permisos del recetario", () => {
     const id = await recipe({ name: "<img src=x onerror=alert(1)>", instructions: "'); DROP TABLE recipe_book; --", ingredients: [{ name: "<b>sal</b>", quantity: 1, note: "' OR 1=1 --" }] });
     const r = (await c(adm, "GET", `/api/recipe-book/${id}`)).body;
     expect(r.name).toContain("<img");
-    expect((db.prepare("SELECT COUNT(*) c FROM recipe_book").get() as { c: number }).c).toBe(1);
+    expect((await db.prepare("SELECT COUNT(*) c FROM recipe_book").get() as { c: number }).c).toBe(1);
   });
 });

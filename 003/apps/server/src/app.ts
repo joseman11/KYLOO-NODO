@@ -177,7 +177,7 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
 
   // Plan SaaS: con licencia instalada se aplican funciones y límites; sin licencia (instalación propia) no hay límites
   app.addHook("onRequest", async (req, reply) => {
-    const lic = getLicense(db);
+    const lic = await getLicense(db);
     if (!lic) return;
     const path = req.url.split("?")[0]!;
     for (const [re, feature] of FEATURE_ROUTES) {
@@ -186,7 +186,7 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
       }
     }
     if (req.method === "POST") {
-      const u = usage(db);
+      const u = await usage(db);
       const hit = path === "/api/users" ? (lic.limits.users !== null && u.users >= lic.limits.users ? "usuarios" : null)
         : path === "/api/printers" ? (lic.limits.printers !== null && u.printers >= lic.limits.printers ? "impresoras" : null)
         : null;

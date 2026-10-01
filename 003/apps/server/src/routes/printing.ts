@@ -23,7 +23,7 @@ export async function printingRoutes(app: FastifyInstance, opts: { hub: Hub; tra
 
   // Estado de conexión de todas las impresoras activas (HU-020)
   app.get("/api/printers/status", { preHandler: app.authorize() }, async () => {
-    const printers = db.prepare("SELECT * FROM printers WHERE active=1").all() as PrinterRow[];
+    const printers = await db.prepare("SELECT * FROM printers WHERE active=1").all() as PrinterRow[];
     return Promise.all(
       printers.map(async (p) => ({ id: p.id, name: p.name, online: await transport.ping({ host: p.host, port: p.port }) })),
     );
@@ -32,12 +32,12 @@ export async function printingRoutes(app: FastifyInstance, opts: { hub: Hub; tra
   // Imprimir prueba (HU-019): se envía directo para dar el resultado al instante
   app.post("/api/printers/:id/test", { preHandler: app.authorize("printer.manage") }, async (req) => {
     const { id: printerId } = id.parse(req.params);
-    const p = db.prepare("SELECT * FROM printers WHERE id=?").get(printerId) as PrinterRow | undefined;
+    const p = await db.prepare("SELECT * FROM printers WHERE id=?").get(printerId) as PrinterRow | undefined;
     if (!p) throw new HttpError(404, "no_encontrado");
-    const jobId = enqueue(db, { kind: "prueba", printerId, lines: renderTest(p.name, p.paper_width) });
+    const jobId = await enqueue(db, { kind: "prueba", printerId, lines: renderTest(p.name, p.paper_width) });
     await processQueue(db, transport, hub);
-    const job = db.prepare("SELECT status, last_error FROM print_jobs WHERE id=?").get(jobId) as { status: string; last_error: string | null };
-    audit(db, req.user.sub, "imprimir_prueba", "printer", printerId, { status: job.status });
+    const job = await db.prepare("SELECT status, last_error FROM print_jobs WHERE id=?").get(jobId) as { status: string; last_error: string | null };
+    await audit(db, req.user.sub, "imprimir_prueba", "printer", printerId, { status: job.status });
     return { ok: job.status === "impreso", status: job.status, error: job.last_error };
   });
 
@@ -52,12 +52,12 @@ export async function printingRoutes(app: FastifyInstance, opts: { hub: Hub; tra
   app.post("/api/print-jobs/:id/retry", { preHandler: app.authorize("comanda.reprint") }, async (req) => {
     const { id: jobId } = id.parse(req.params);
     const { printerId } = z.object({ printerId: z.string().optional() }).parse(req.body ?? {});
-    const job = db.prepare("SELECT * FROM print_jobs WHERE id=?").get(jobId) as { id: string; status: string } | undefined;
+    const job = await db.prepare("SELECT * FROM print_jobs WHERE id=?").get(jobId) as { id: string; status: string } | undefined;
     if (!job) throw new HttpError(404, "no_encontrado");
     if (job.status === "impreso") throw new HttpError(409, "ya_impreso");
-    if (printerId && !db.prepare("SELECT 1 FROM printers WHERE id=?").get(printerId)) throw new HttpError(404, "impresora_no_encontrada");
-    db.prepare("UPDATE print_jobs SET status='pendiente', attempts=0, next_attempt_at=?, printer_id=COALESCE(?, printer_id) WHERE id=?").run(Date.now(), printerId ?? null, jobId);
-    audit(db, req.user.sub, "reintentar_impresion", "print_job", jobId, { printerId });
+    if (printerId && !await db.prepare("SELECT 1 FROM printers WHERE id=?").get(printerId)) throw new HttpError(404, "impresora_no_encontrada");
+    await db.prepare("UPDATE print_jobs SET status='pendiente', attempts=0, next_attempt_at=?, printer_id=COALESCE(?, printer_id) WHERE id=?").run(Date.now(), printerId ?? null, jobId);
+    await audit(db, req.user.sub, "reintentar_impresion", "print_job", jobId, { printerId });
     return { ok: true };
   });
 
@@ -65,13 +65,13 @@ export async function printingRoutes(app: FastifyInstance, opts: { hub: Hub; tra
   app.post("/api/tickets/:id/reprint", { preHandler: app.authorize("comanda.reprint") }, async (req) => {
     const { id: ticketId } = id.parse(req.params);
     const { reason } = z.object({ reason: z.string().min(2) }).parse(req.body);
-    const original = db
-      .prepare("SELECT * FROM print_jobs WHERE ticket_id=? AND kind IN ('comanda','adicion') ORDER BY created_at LIMIT 1")
-      .get(ticketId) as { printer_id: string; fallback_printer_id: string | null; content: string; kind: string } | undefined;
+    const original = await db
+          .prepare("SELECT * FROM print_jobs WHERE ticket_id=? AND kind IN ('comanda','adicion') ORDER BY created_at LIMIT 1")
+          .get(ticketId) as { printer_id: string; fallback_printer_id: string | null; content: string; kind: string } | undefined;
     if (!original) throw new HttpError(404, "sin_impresion_previa");
     const lines = [`${BOLD}*** REIMPRESION ***`, ...(JSON.parse(original.content) as string[])];
-    const jobId = enqueue(db, { kind: original.kind, ticketId, printerId: original.printer_id, fallbackPrinterId: original.fallback_printer_id, lines });
-    audit(db, req.user.sub, "reimprimir_comanda", "ticket", ticketId, { reason, jobId, printerId: original.printer_id });
+    const jobId = await enqueue(db, { kind: original.kind, ticketId, printerId: original.printer_id, fallbackPrinterId: original.fallback_printer_id, lines });
+    await audit(db, req.user.sub, "reimprimir_comanda", "ticket", ticketId, { reason, jobId, printerId: original.printer_id });
     return { ok: true, jobId };
   });
 }

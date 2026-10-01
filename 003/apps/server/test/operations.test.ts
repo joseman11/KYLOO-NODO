@@ -46,9 +46,9 @@ async function openTable(token: string, number = "1") {
   return { tableId: t.id, res: r, accountId: r.json().id as string };
 }
 
-beforeEach(() => {
-  db = openDb(":memory:");
-  seed(db, "admin1234");
+beforeEach(async () => {
+  db = await openDb(":memory:");
+  await seed(db, "admin1234");
   transport = new FakeTransport();
   hub = new Hub();
   app = buildApp(db, { transport, hub });
@@ -72,7 +72,7 @@ describe("mesas y comandas", () => {
     }));
     const r = await app.inject({ method: "POST", url: `/api/accounts/${accountId}/orders`, headers: H(juan.token), payload: { items, clientId: "cliente-0001" } });
     expect(r.statusCode).toBe(201);
-    expect(db.prepare("SELECT COUNT(*) c FROM production_tickets").get()).toEqual({ c: 3 });
+    expect(await db.prepare("SELECT COUNT(*) c FROM production_tickets").get()).toEqual({ c: 3 });
 
     await processQueue(db, transport, hub);
     expect(transport.sent.map((s) => s.host).sort()).toEqual(["192.168.1.50", "192.168.1.51", "192.168.1.52"]);
@@ -80,7 +80,7 @@ describe("mesas y comandas", () => {
     // reenviar con el mismo clientId no duplica (idempotencia)
     const dup = await app.inject({ method: "POST", url: `/api/accounts/${accountId}/orders`, headers: H(juan.token), payload: { items, clientId: "cliente-0001" } });
     expect(dup.json().duplicate).toBe(true);
-    expect(db.prepare("SELECT COUNT(*) c FROM orders").get()).toEqual({ c: 1 });
+    expect(await db.prepare("SELECT COUNT(*) c FROM orders").get()).toEqual({ c: 1 });
   });
 
   it("la adición imprime solo lo nuevo (sec. 15)", async () => {
@@ -120,7 +120,7 @@ describe("mesas y comandas", () => {
     expect(o.statusCode).toBe(201);
     const acct = (await app.inject({ method: "GET", url: `/api/accounts/${accountId}`, headers: H(juan.token) })).json();
     const item = acct.items[0];
-    const ticket = db.prepare("SELECT id FROM production_tickets").get() as { id: string };
+    const ticket = await db.prepare("SELECT id FROM production_tickets").get() as { id: string };
 
     // antes de producción: libre, con motivo
     const early = await app.inject({ method: "POST", url: `/api/items/${item.id}/cancel`, headers: H(juan.token), payload: { reason: "Error de captura" } });
@@ -128,7 +128,7 @@ describe("mesas y comandas", () => {
 
     // nuevo ítem, la cocina lo recibe → cancelar requiere autorización
     await app.inject({ method: "POST", url: `/api/accounts/${accountId}/orders`, headers: H(juan.token), payload: { items: [{ productId: prods[0]!.id }] } });
-    const t2 = db.prepare("SELECT id FROM production_tickets WHERE status='pendiente' AND id!=?").get(ticket.id) as { id: string };
+    const t2 = await db.prepare("SELECT id FROM production_tickets WHERE status='pendiente' AND id!=?").get(ticket.id) as { id: string };
     const chef = await (async () => {
       await app.inject({ method: "POST", url: "/api/users", headers: H(adm), payload: { name: "Chef", role: "cocina", pin: "4444" } });
       return pin("Chef", "4444");
@@ -174,9 +174,9 @@ describe("impresión", () => {
     const adm = await admin();
     const juan = await pin("Juan", "1111");
     // secundaria para la estación de calientes
-    const [st] = db.prepare("SELECT id FROM stations WHERE name='Plancha'").all() as { id: string }[];
-    const sec = db.prepare("SELECT id FROM printers WHERE name='Caja'").get() as { id: string };
-    db.prepare("UPDATE stations SET secondary_printer_id=? WHERE id=?").run(sec.id, st!.id);
+    const [st] = await db.prepare("SELECT id FROM stations WHERE name='Plancha'").all() as { id: string }[];
+    const sec = await db.prepare("SELECT id FROM printers WHERE name='Caja'").get() as { id: string };
+    await db.prepare("UPDATE stations SET secondary_printer_id=? WHERE id=?").run(sec.id, st!.id);
     transport.down.add("192.168.1.50");
 
     const { accountId } = await openTable(juan.token);
@@ -189,7 +189,7 @@ describe("impresión", () => {
       now += 60_000;
     }
     expect(transport.sent.map((s) => s.host)).toEqual(["192.168.1.53"]);
-    expect(db.prepare("SELECT status FROM print_jobs").get()).toEqual({ status: "impreso" });
+    expect(await db.prepare("SELECT status FROM print_jobs").get()).toEqual({ status: "impreso" });
   });
 
   it("sin secundaria, el trabajo queda en error y se puede reintentar", async () => {
@@ -206,14 +206,14 @@ describe("impresión", () => {
       await processQueue(db, transport, hub, now);
       now += 60_000;
     }
-    const job = db.prepare("SELECT id, status FROM print_jobs").get() as { id: string; status: string };
+    const job = await db.prepare("SELECT id, status FROM print_jobs").get() as { id: string; status: string };
     expect(job.status).toBe("error");
     expect(errors).toHaveLength(1);
 
     transport.down.clear();
     expect((await app.inject({ method: "POST", url: `/api/print-jobs/${job.id}/retry`, headers: H(adm), payload: {} })).statusCode).toBe(200);
     await processQueue(db, transport, hub);
-    expect(db.prepare("SELECT status FROM print_jobs").get()).toEqual({ status: "impreso" });
+    expect(await db.prepare("SELECT status FROM print_jobs").get()).toEqual({ status: "impreso" });
   });
 
   it("imprimir prueba responde con el resultado", async () => {
@@ -253,7 +253,7 @@ describe("caja y cobro", () => {
     expect(r1.statusCode).toBe(201);
     const r2 = await app.inject({ method: "POST", url: `/api/accounts/${accountId}/payments`, headers: H(caja.token), payload });
     expect(r2.json().duplicate).toBe(true);
-    expect(db.prepare("SELECT COUNT(*) c FROM payments").get()).toEqual({ c: 1 });
+    expect(await db.prepare("SELECT COUNT(*) c FROM payments").get()).toEqual({ c: 1 });
     const floor = (await app.inject({ method: "GET", url: "/api/floor", headers: H(juan.token) })).json() as { number: string; status: string }[];
     expect(floor.find((t) => t.number === "1")!.status).toBe("disponible");
     // cuenta cerrada no admite más comandas (RN-009)
@@ -271,8 +271,8 @@ describe("caja y cobro", () => {
     const w = await app.inject({ method: "POST", url: "/api/cash/movements", headers: H(caja.token), payload: { kind: "retiro", amount_cents: 10000, reason: "Pago proveedor" } });
     expect(w.statusCode).toBe(403); // el cajero necesita autorización
     const adm = await admin();
-    const mgr = db.prepare("SELECT id FROM users WHERE username='admin'").get() as { id: string };
-    db.prepare("UPDATE users SET pin_hash=(SELECT pin_hash FROM users WHERE name='Caja') WHERE id=?").run(mgr.id); // PIN 3333 para el admin de prueba
+    const mgr = await db.prepare("SELECT id FROM users WHERE username='admin'").get() as { id: string };
+    await db.prepare("UPDATE users SET pin_hash=(SELECT pin_hash FROM users WHERE name='Caja') WHERE id=?").run(mgr.id); // PIN 3333 para el admin de prueba
     const w2 = await app.inject({ method: "POST", url: "/api/cash/movements", headers: H(caja.token), payload: { kind: "retiro", amount_cents: 10000, reason: "Pago proveedor", authorizerId: mgr.id, authorizerPin: "3333" } });
     expect(w2.statusCode).toBe(201);
 

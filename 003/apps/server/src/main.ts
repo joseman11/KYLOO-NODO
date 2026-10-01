@@ -14,7 +14,7 @@ const file = process.env.DB_FILE ?? "data/003.sqlite";
 const backupDir = process.env.BACKUP_DIR ?? resolve(dirname(file), "backups");
 mkdirSync(dirname(file), { recursive: true });
 
-const db = openDb(file);
+const db = await openDb(file);
 const hub = new Hub();
 const webDir = process.env.WEB_DIR ?? resolve(dirname(fileURLToPath(import.meta.url)), "../../web/dist");
 const isHq = process.env.ROLE === "hq";

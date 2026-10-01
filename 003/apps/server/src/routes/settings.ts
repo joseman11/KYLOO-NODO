@@ -42,7 +42,7 @@ export async function settingsRoutes(app: FastifyInstance) {
   app.get("/api/settings", { preHandler: app.authorize() }, async () => {
     const out: Record<string, string | number | boolean> = {};
     for (const k of Object.keys(KEYS) as (keyof typeof KEYS)[]) {
-      const row = db.prepare("SELECT value FROM settings WHERE key=?").get(k) as { value: string } | undefined;
+      const row = await db.prepare("SELECT value FROM settings WHERE key=?").get(k) as { value: string } | undefined;
       const v = row?.value ?? DEFAULTS[k];
       out[k] = NUMBER_KEYS.has(k) ? Number(v) : BOOLEAN_KEYS.has(k) ? v === "1" : v;
     }
@@ -61,9 +61,9 @@ export async function settingsRoutes(app: FastifyInstance) {
   app.put("/api/settings", { preHandler: app.authorize("venue.manage") }, async (req) => {
     const b = z.object(KEYS).partial().strict().parse(req.body);
     for (const [k, v] of Object.entries(b)) {
-      db.prepare("INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(k, BOOLEAN_KEYS.has(k) ? (v ? "1" : "0") : String(v));
+      await db.prepare("INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(k, BOOLEAN_KEYS.has(k) ? (v ? "1" : "0") : String(v));
     }
-    audit(db, req.user.sub, "editar_ajustes", "sistema", undefined, b);
+    await audit(db, req.user.sub, "editar_ajustes", "sistema", undefined, b);
     return { ok: true };
   });
 
@@ -73,7 +73,7 @@ export async function settingsRoutes(app: FastifyInstance) {
       .object({ sep: z.enum(SEPARATOR_CHARS).default("-"), groupCategories: z.boolean().default(false), footer: z.string().max(240).default(""), paper: z.union([z.literal(58), z.literal(80)]).default(80) })
       .parse(req.body ?? {});
     const style: TicketStyle = { sep: b.sep, groupCategories: b.groupCategories, footer: b.footer };
-    const name = (db.prepare("SELECT value FROM settings WHERE key='establishment_name'").get() as { value: string } | undefined)?.value ?? "Restaurante";
+    const name = (await db.prepare("SELECT value FROM settings WHERE key='establishment_name'").get() as { value: string } | undefined)?.value ?? "Restaurante";
     const now = Date.now();
     const strip = (lines: string[]) => lines.map(stripMarkup);
     return {

@@ -41,8 +41,8 @@ interface Ctx { adm: string; juan: { token: string; id: string }; caja: { token:
 let X: Ctx;
 
 beforeEach(async () => {
-  db = openDb(":memory:");
-  seed(db, "admin1234");
+  db = await openDb(":memory:");
+  await seed(db, "admin1234");
   transport = new FakeTransport();
   hub = new Hub();
   app = buildApp(db, { transport, hub });
@@ -79,7 +79,7 @@ describe("ciclo completo del servicio", () => {
 
     // cada estación recibe sus comandas y las mueve hasta entregado
     const chef = await login("Pedro", "2222").catch(() => null);
-    const tickets = db.prepare("SELECT id, status FROM production_tickets").all() as { id: string; status: string }[];
+    const tickets = await db.prepare("SELECT id, status FROM production_tickets").all() as { id: string; status: string }[];
     expect(tickets.length).toBeGreaterThanOrEqual(2);
     for (const t of tickets) for (const st of ["preparando", "listo", "entregado"]) expect((await c(X.adm, "POST", `/api/tickets/${t.id}/status`, { status: st })).status).toBe(200);
     expect(chef).not.toBeUndefined();
@@ -108,7 +108,7 @@ describe("ciclo completo del servicio", () => {
     const ok2 = await c(X.caja.token, "POST", `/api/accounts/${acc}/payments`, { idempotencyKey: k, lines: [{ method: "tarjeta", amount_cents: total }] });
     expect(ok1.status).toBe(201);
     expect(ok2.status).toBeLessThan(300); // misma clave: no duplica
-    expect((db.prepare("SELECT COUNT(*) c FROM payments").get() as { c: number }).c).toBe(1);
+    expect((await db.prepare("SELECT COUNT(*) c FROM payments").get() as { c: number }).c).toBe(1);
     const again = await pay(acc, [{ method: "efectivo", amount_cents: 100 }]);
     expect(again.status).toBeGreaterThanOrEqual(400);
     const edit = await order(acc, [{ name: "Ensalada" }]);
@@ -131,9 +131,9 @@ describe("ciclo completo del servicio", () => {
     const half = Math.floor(total / 2);
     const r = await pay(acc, [{ method: "tarjeta", amount_cents: half }, { method: "efectivo", amount_cents: total - half + 2000 }]);
     expect(r.status).toBe(201);
-    const lines = db.prepare("SELECT method, amount_cents FROM payment_lines").all() as { method: string; amount_cents: number }[];
+    const lines = await db.prepare("SELECT method, amount_cents FROM payment_lines").all() as { method: string; amount_cents: number }[];
     expect(sum(lines)).toBe(total); // las líneas registran lo aplicado a la cuenta; el cambio va aparte
-    const pm = db.prepare("SELECT total_cents, change_cents FROM payments").get() as { total_cents: number; change_cents: number };
+    const pm = await db.prepare("SELECT total_cents, change_cents FROM payments").get() as { total_cents: number; change_cents: number };
     expect(pm.total_cents).toBe(total);
     expect(pm.change_cents).toBe(2000);
   });
@@ -176,7 +176,7 @@ describe("ciclo completo del servicio", () => {
     expect(noReason.status).toBe(400);
     const ok = await c(X.caja.token, "POST", "/api/cash/close", { counted_cents: 19000, reason: "Cambio mal dado" });
     expect(ok.body.difference_cents).toBe(-1000);
-    expect((db.prepare("SELECT difference_reason r FROM cash_sessions").get() as { r: string }).r).toBe("Cambio mal dado");
+    expect((await db.prepare("SELECT difference_reason r FROM cash_sessions").get() as { r: string }).r).toBe("Cambio mal dado");
   });
 });
 
@@ -260,7 +260,7 @@ describe("mesas: unir, fusionar, mover y dividir", () => {
       c(pedro.token, "POST", `/api/tables/${X.tbl["7"]}/open`, { guests: 2 }),
     ]);
     expect([r1.status, r2.status].sort()).toEqual([201, 409]);
-    expect((db.prepare("SELECT COUNT(*) c FROM accounts WHERE table_id=? AND status!='cerrada'").get(X.tbl["7"]) as { c: number }).c).toBe(1);
+    expect((await db.prepare("SELECT COUNT(*) c FROM accounts WHERE table_id=? AND status!='cerrada'").get(X.tbl["7"]) as { c: number }).c).toBe(1);
   });
 
   it("abrir con el mismo clientId es idempotente (reintento tras perder la red)", async () => {
@@ -293,17 +293,17 @@ describe("producción e impresión", () => {
     await order(acc, [{ name: "Hamburguesa clásica" }]);
     await processQueue(db, transport, hub);
     // sin impresora de cocina: el trabajo no se pierde
-    const pending = db.prepare("SELECT COUNT(*) c FROM print_jobs WHERE status!='impreso'").get() as { c: number };
+    const pending = await db.prepare("SELECT COUNT(*) c FROM print_jobs WHERE status!='impreso'").get() as { c: number };
     expect(pending.c).toBeGreaterThanOrEqual(0);
     transport.down.clear();
-    db.prepare("UPDATE print_jobs SET next_attempt_at=0 WHERE status!='impreso'").run();
+    await db.prepare("UPDATE print_jobs SET next_attempt_at=0 WHERE status!='impreso'").run();
     await processQueue(db, transport, hub);
     expect(transport.sent.some((s) => s.text.includes("Hamburguesa"))).toBe(true);
-    expect((db.prepare("SELECT COUNT(*) c FROM print_jobs WHERE status!='impreso'").get() as { c: number }).c).toBe(0);
+    expect((await db.prepare("SELECT COUNT(*) c FROM print_jobs WHERE status!='impreso'").get() as { c: number }).c).toBe(0);
   });
 
   it("la comanda imprime tildes y símbolos sin caracteres corruptos", async () => {
-    await c(X.adm, "POST", "/api/products", { name: "Piña colada ñoña", price_cents: 12000, station_ids: [(db.prepare("SELECT id FROM stations LIMIT 1").get() as { id: string }).id] });
+    await c(X.adm, "POST", "/api/products", { name: "Piña colada ñoña", price_cents: 12000, station_ids: [(await db.prepare("SELECT id FROM stations LIMIT 1").get() as { id: string }).id] });
     const prods = (await c(X.adm, "GET", "/api/products")).body as { id: string; name: string }[];
     const acc = await open("1");
     await c(X.juan.token, "POST", `/api/accounts/${acc}/orders`, { items: [{ productId: prods.find((p) => p.name.startsWith("Piña"))!.id, quantity: 1, note: "sin azúcar, por favor" }] });
@@ -320,7 +320,7 @@ describe("producción e impresión", () => {
     const per = await Promise.all(stations.map(async (s) => ((await c(X.adm, "GET", `/api/stations/${s.id}/tickets`)).body ?? []) as unknown[]));
     expect(per.flat().length).toBeGreaterThanOrEqual(2);
     expect((await c(X.juan.token, "GET", "/api/pass")).body).toEqual(expect.any(Array));
-    const t = db.prepare("SELECT id FROM production_tickets LIMIT 1").get() as { id: string };
+    const t = await db.prepare("SELECT id FROM production_tickets LIMIT 1").get() as { id: string };
     for (const st of ["preparando", "listo"]) expect((await c(X.adm, "POST", `/api/tickets/${t.id}/status`, { status: st })).status).toBe(200);
     const ready = (await c(X.juan.token, "GET", "/api/ready")).body as unknown[];
     expect(ready.length).toBeGreaterThanOrEqual(1);
@@ -329,7 +329,7 @@ describe("producción e impresión", () => {
   it("no se pueden saltar estados de una comanda ni regresar sin permiso", async () => {
     const acc = await open("1");
     await order(acc, [{ name: "Ensalada" }]);
-    const t = db.prepare("SELECT id FROM production_tickets LIMIT 1").get() as { id: string };
+    const t = await db.prepare("SELECT id FROM production_tickets LIMIT 1").get() as { id: string };
     const bad = await c(X.adm, "POST", `/api/tickets/${t.id}/status`, { status: "inventado" });
     expect(bad.status).toBe(400);
     const waiter = await c(X.juan.token, "POST", `/api/tickets/${t.id}/status`, { status: "preparando" });
@@ -342,15 +342,15 @@ describe("inventario y recetas", () => {
     const item = (await c(X.adm, "POST", "/api/inventory/items", { name: "Carne molida", unit: "g" })).body.id as string;
     await c(X.adm, "POST", "/api/inventory/movements", { itemId: item, kind: "entrada", quantity: 5000, unitCostCents: 20 });
     await c(X.adm, "PUT", `/api/recipes/${X.prod["Hamburguesa clásica"]}`, { lines: [{ itemId: item, quantity: 200 }] });
-    const stock = () => (db.prepare("SELECT stock FROM inventory_items WHERE id=?").get(item) as { stock: number }).stock;
-    expect(stock()).toBe(5000);
+    const stock = async () => (await db.prepare("SELECT stock FROM inventory_items WHERE id=?").get(item) as { stock: number }).stock;
+    expect(await stock()).toBe(5000);
     const acc = await open("1");
     await order(acc, [{ name: "Hamburguesa clásica", quantity: 3 }]);
-    expect(stock()).toBe(4400);
+    expect(await stock()).toBe(4400);
     const it = (await account(acc)).items[0];
     const cancel = await c(X.juan.token, "POST", `/api/items/${it.id}/cancel`, { reason: "Error de captura" });
     expect(cancel.status).toBe(200);
-    expect(stock()).toBe(5000);
+    expect(await stock()).toBe(5000);
   });
 
   it("el stock puede quedar bajo el mínimo y genera alerta, pero no bloquea la venta", async () => {
@@ -431,7 +431,7 @@ describe("bitácora y reportes", () => {
   });
 
   it("el export CSV escapa comas, comillas y saltos de línea (no rompe columnas)", async () => {
-    const st = (db.prepare("SELECT id FROM stations LIMIT 1").get() as { id: string }).id;
+    const st = (await db.prepare("SELECT id FROM stations LIMIT 1").get() as { id: string }).id;
     await c(X.adm, "POST", "/api/products", { name: 'Pizza "La Jefa", grande\nextra', price_cents: 15000, station_ids: [st] });
     const prods = (await c(X.adm, "GET", "/api/products")).body as { id: string; name: string }[];
     const acc = await open("1");

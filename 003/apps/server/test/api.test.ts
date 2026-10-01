@@ -6,9 +6,9 @@ import { seed } from "../src/seed";
 
 let app: FastifyInstance;
 
-beforeEach(() => {
-  const db = openDb(":memory:");
-  seed(db, "admin1234");
+beforeEach(async () => {
+  const db = await openDb(":memory:");
+  await seed(db, "admin1234");
   app = buildApp(db);
 });
 
@@ -93,10 +93,10 @@ describe("catálogo", () => {
 });
 
 describe("estructura", () => {
-  it("la bitácora es append-only", () => {
-    const db = openDb(":memory:");
-    db.prepare("INSERT INTO audit_log (ts, action) VALUES (1,'x')").run();
-    expect(() => db.prepare("DELETE FROM audit_log").run()).toThrow(/append-only/);
+  it("la bitácora es append-only", async () => {
+    const db = await openDb(":memory:");
+    await db.prepare("INSERT INTO audit_log (ts, action) VALUES (1,'x')").run();
+    await expect(db.prepare("DELETE FROM audit_log").run()).rejects.toThrow(/append-only/);
   });
 
   it("lista mesas ordenadas numéricamente", async () => {

@@ -48,9 +48,9 @@ const open = async (t: string, num = "1", guests = 1) => (await c(t, "POST", `/a
 
 const jpeg = (size = 400) => `data:image/jpeg;base64,${Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(size, 7)]).toString("base64")}`;
 
-beforeEach(() => {
-  db = openDb(":memory:");
-  seed(db, "admin1234");
+beforeEach(async () => {
+  db = await openDb(":memory:");
+  await seed(db, "admin1234");
   hub = new Hub();
   transport = new FakeTransport();
   app = buildApp(db, { transport, hub, photosDir });
@@ -144,7 +144,7 @@ describe("asientos", () => {
     await c(juan.token, "POST", `/api/accounts/${acc}/orders`, { items: [{ productId: await prod(t, "Hamburguesa clásica"), seat: 2 }] });
     await processQueue(db, transport, hub);
     expect(transport.sent.find((x) => x.host === "192.168.1.50")!.text).toContain("(A2)");
-    expect(db.prepare("SELECT seat FROM order_items").get()).toEqual({ seat: 2 });
+    expect(await db.prepare("SELECT seat FROM order_items").get()).toEqual({ seat: 2 });
     expect((await c(juan.token, "POST", `/api/accounts/${acc}/orders`, { items: [{ productId: await prod(t, "Ensalada"), seat: 99 }] })).status).toBe(400);
   });
 });
@@ -164,8 +164,8 @@ describe("tiempos retenidos (hold & fire)", () => {
     await c(juan.token, "POST", `/api/accounts/${acc}/orders`, { items: [{ productId: marg, course: "Para empezar" }, { productId: burger, course: "Plato fuerte", hold: true }] });
 
     // solo la bebida llegó a producción
-    expect(db.prepare("SELECT s.name FROM production_tickets pt JOIN stations s ON s.id=pt.station_id").all()).toEqual([{ name: "Barra" }]);
-    expect((db.prepare("SELECT stock FROM inventory_items WHERE id=?").get(item) as { stock: number }).stock).toBe(1000);
+    expect(await db.prepare("SELECT s.name FROM production_tickets pt JOIN stations s ON s.id=pt.station_id").all()).toEqual([{ name: "Barra" }]);
+    expect((await db.prepare("SELECT stock FROM inventory_items WHERE id=?").get(item) as { stock: number }).stock).toBe(1000);
     const detail = (await c(juan.token, "GET", `/api/accounts/${acc}`)).body;
     expect(detail.items.find((i: { name: string }) => i.name === "Hamburguesa clásica").held).toBe(1);
     expect(detail.total_cents).toBe(8900 + 14900); // lo retenido ya cuenta en la cuenta
@@ -178,13 +178,13 @@ describe("tiempos retenidos (hold & fire)", () => {
     transport.sent.length = 0;
     const fire = await c(juan.token, "POST", `/api/accounts/${acc}/fire`, { course: "Plato fuerte" });
     expect(fire.body).toMatchObject({ ok: true, fired: 1 });
-    expect(db.prepare("SELECT COUNT(*) c FROM production_tickets").get()).toEqual({ c: 2 });
-    expect((db.prepare("SELECT stock FROM inventory_items WHERE id=?").get(item) as { stock: number }).stock).toBe(800);
+    expect(await db.prepare("SELECT COUNT(*) c FROM production_tickets").get()).toEqual({ c: 2 });
+    expect((await db.prepare("SELECT stock FROM inventory_items WHERE id=?").get(item) as { stock: number }).stock).toBe(800);
     await processQueue(db, transport, hub);
     const cocina = transport.sent.find((x) => x.host === "192.168.1.50")!;
     expect(cocina.text).toContain("SALE: Plato fuerte");
     expect(cocina.text).toContain("Hamburguesa");
-    expect(db.prepare("SELECT held FROM order_items WHERE name='Hamburguesa clásica'").get()).toEqual({ held: 0 });
+    expect(await db.prepare("SELECT held FROM order_items WHERE name='Hamburguesa clásica'").get()).toEqual({ held: 0 });
 
     // ya no queda nada retenido
     expect((await c(juan.token, "POST", `/api/accounts/${acc}/fire`, {})).status).toBe(404);
@@ -197,7 +197,7 @@ describe("tiempos retenidos (hold & fire)", () => {
     const burger = await prod(t, "Hamburguesa clásica");
     await c(juan.token, "POST", `/api/accounts/${acc}/orders`, { items: [{ productId: burger, course: "Postre", hold: true }, { productId: burger, hold: true }] });
     // el que no tiene nombre de tiempo no se retiene: sale de inmediato
-    expect(db.prepare("SELECT COUNT(*) c FROM production_tickets").get()).toEqual({ c: 1 });
+    expect(await db.prepare("SELECT COUNT(*) c FROM production_tickets").get()).toEqual({ c: 1 });
     const held = ((await c(juan.token, "GET", `/api/accounts/${acc}`)).body.items as { id: string; held: number }[]).find((i) => i.held)!;
     const r = await c(juan.token, "POST", `/api/items/${held.id}/cancel`, { reason: "Cliente canceló" });
     expect(r.body).toMatchObject({ ok: true, afterProduction: false });
@@ -248,7 +248,7 @@ describe("cobro en partes iguales y por asiento", () => {
 
   it("tres partes iguales: cada pago cubre su parte, el último cierra la cuenta y la mesa se libera", async () => {
     const t = await admin();
-    const station = (db.prepare("SELECT id FROM stations WHERE name='Plancha'").get() as { id: string }).id;
+    const station = (await db.prepare("SELECT id FROM stations WHERE name='Plancha'").get() as { id: string }).id;
     await c(t, "POST", "/api/products", { name: "Prueba centavos", price_cents: 10001, station_ids: [station] });
     const { juan, caja, acc } = await setup([{ name: "Prueba centavos" }]);
 
@@ -386,8 +386,8 @@ describe("checador de personal", () => {
     const juan = await pin("Juan", "1111");
     const H = 3_600_000;
     const now = Date.now();
-    db.prepare("INSERT INTO time_entries (id,user_id,clock_in,clock_out) VALUES ('a',?,?,?)").run(juan.id, now - 10 * H, now - 6 * H); // 4 h
-    db.prepare("INSERT INTO time_entries (id,user_id,clock_in,clock_out) VALUES ('b',?,?,NULL)").run(juan.id, now - 2 * H); // abierto, 2 h
+    await db.prepare("INSERT INTO time_entries (id,user_id,clock_in,clock_out) VALUES ('a',?,?,?)").run(juan.id, now - 10 * H, now - 6 * H); // 4 h
+    await db.prepare("INSERT INTO time_entries (id,user_id,clock_in,clock_out) VALUES ('b',?,?,NULL)").run(juan.id, now - 2 * H); // abierto, 2 h
     const rep = (await c(t, "GET", `/api/clock/report?from=${now - 8 * H}&to=${now}`)).body as { name: string; hours: number; shifts: number; on_shift: boolean }[];
     const j = rep.find((r) => r.name === "Juan")!;
     expect(j.shifts).toBe(2);
@@ -455,8 +455,8 @@ describe("reparto de propinas", () => {
     await c(caja.token, "POST", `/api/accounts/${acc}/payments`, { idempotencyKey: key(), lines: [{ method: "tarjeta", amount_cents: 14900 }], tip_cents: 2000, tip_method: "tarjeta" });
     const H = 3_600_000;
     const now = Date.now();
-    db.prepare("INSERT INTO time_entries (id,user_id,clock_in,clock_out) VALUES ('j',?,?,?)").run(juan.id, now - 4 * H, now - H);
-    db.prepare("INSERT INTO time_entries (id,user_id,clock_in,clock_out) VALUES ('k',?,?,?)").run(chef.id, now - 4 * H, now - H);
+    await db.prepare("INSERT INTO time_entries (id,user_id,clock_in,clock_out) VALUES ('j',?,?,?)").run(juan.id, now - 4 * H, now - H);
+    await db.prepare("INSERT INTO time_entries (id,user_id,clock_in,clock_out) VALUES ('k',?,?,?)").run(chef.id, now - 4 * H, now - H);
 
     await c(t, "PUT", "/api/settings", { tip_policy: "individual", tip_support_pct: 25 });
     const range = `?from=${now - 6 * H}&to=${now + 60_000}`; // rango explícito: no depende de la hora del día en que corra la prueba

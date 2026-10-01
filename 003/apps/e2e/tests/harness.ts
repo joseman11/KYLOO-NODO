@@ -36,9 +36,9 @@ export interface Nodo {
 
 export async function startNodo(): Promise<Nodo> {
   if (!existsSync(join(WEB_DIST, "index.html"))) throw new Error("Falta compilar la app: pnpm --filter @003/web build");
-  const db = openDb(":memory:");
+  const db = await openDb(":memory:");
   const photosDir = mkdtempSync(join(tmpdir(), "nodo-e2e-"));
-  seedDemo(db, { photosDir });
+  await seedDemo(db, { photosDir });
   const hub = new Hub();
   const transport = new FakeTransport();
   const app = buildApp(db, { webDir: WEB_DIST, photosDir, hub, transport });

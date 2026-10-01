@@ -22,8 +22,8 @@ const roleUser: Record<string, { id: string; token: string }> = {};
 let admin = "";
 
 beforeAll(async () => {
-  db = openDb(":memory:");
-  seed(db, "admin1234");
+  db = await openDb(":memory:");
+  await seed(db, "admin1234");
   app = buildApp(db);
   admin = await adminToken();
   for (const [i, role] of TEST_ROLES.entries()) {
@@ -95,7 +95,7 @@ describe("autenticación", () => {
     expect(locked.statusCode).toBe(429);
     const ghost = await pinLogin("no-existe", "0000");
     expect(ghost.statusCode).toBe(401); // misma respuesta que un PIN malo, sin pista
-    db.prepare("UPDATE users SET failed_attempts=0, locked_until=0 WHERE id=?").run(u.id);
+    await db.prepare("UPDATE users SET failed_attempts=0, locked_until=0 WHERE id=?").run(u.id);
   });
 
   it("valida el formato del PIN y de las credenciales", async () => {
@@ -141,7 +141,7 @@ describe("robustez ante entradas hostiles", () => {
     expect([200, 201]).toContain(p.status);
     const list = (await call(admin, "GET", "/api/products")).body as { name: string }[];
     expect(list.some((x) => x.name === nasty)).toBe(true);
-    expect((db.prepare("SELECT COUNT(*) c FROM users").get() as { c: number }).c).toBeGreaterThan(5);
+    expect((await db.prepare("SELECT COUNT(*) c FROM users").get() as { c: number }).c).toBeGreaterThan(5);
   });
 
   it("los errores de validación son 400 con mensaje, nunca 500", async () => {

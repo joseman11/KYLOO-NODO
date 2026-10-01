@@ -39,19 +39,19 @@ async function openAccount(token: string, num = "1") {
 }
 const send = (token: string, accountId: string, items: unknown[]) => call(token, "POST", `/api/accounts/${accountId}/orders`, { items });
 
-beforeEach(() => {
-  db = openDb(":memory:");
-  seed(db, "admin1234");
+beforeEach(async () => {
+  db = await openDb(":memory:");
+  await seed(db, "admin1234");
   hub = new Hub();
   app = buildApp(db, { transport: okTransport, hub });
 });
 
 describe("migración", () => {
-  it("las cuentas aceptan table_id nulo y conservan datos tras la reconstrucción", () => {
-    const cols = db.prepare("PRAGMA table_info(accounts)").all() as { name: string; notnull: number }[];
+  it("las cuentas aceptan table_id nulo y conservan datos tras la reconstrucción", async () => {
+    const cols = await db.prepare("PRAGMA table_info(accounts)").all() as { name: string; notnull: number }[];
     expect(cols.find((c) => c.name === "table_id")!.notnull).toBe(0);
     expect(cols.map((c) => c.name)).toEqual(expect.arrayContaining(["kind", "label", "customer_id"]));
-    expect(db.pragma("foreign_key_check")).toEqual([]);
+    expect(await db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
   });
 });
 
@@ -68,15 +68,15 @@ describe("inventario y recetas", () => {
     await call(adm, "PUT", `/api/recipes/${burger}`, { lines: [{ itemId: carne, quantity: 180 }, { itemId: pan, quantity: 1 }] });
     return { adm, carne, pan, burger };
   }
-  const stock = (adm: string, id: string) => db.prepare("SELECT stock FROM inventory_items WHERE id=?").get(id) as { stock: number } & unknown && (db.prepare("SELECT stock FROM inventory_items WHERE id=?").get(id) as { stock: number }).stock;
+  const stock = async (adm: string, id: string) => await db.prepare("SELECT stock FROM inventory_items WHERE id=?").get(id) as { stock: number } & unknown && (await db.prepare("SELECT stock FROM inventory_items WHERE id=?").get(id) as { stock: number }).stock;
 
   it("enviar una comanda descuenta los ingredientes de la receta", async () => {
     const { adm, carne, pan, burger } = await setup();
     const juan = await pin("Juan", "1111");
     const acc = await openAccount(juan.token);
     await send(juan.token, acc, [{ productId: burger, quantity: 2 }]);
-    expect(stock(adm, carne)).toBe(640);
-    expect(stock(adm, pan)).toBe(8);
+    expect(await stock(adm, carne)).toBe(640);
+    expect(await stock(adm, pan)).toBe(8);
   });
 
   it("cancelar antes de producción devuelve el inventario; después de producción no", async () => {
@@ -86,18 +86,18 @@ describe("inventario y recetas", () => {
     await send(juan.token, acc, [{ productId: burger }]);
     const item = ((await call(juan.token, "GET", `/api/accounts/${acc}`)).body.items as { id: string }[])[0]!;
     await call(juan.token, "POST", `/api/items/${item.id}/cancel`, { reason: "Error de captura" });
-    expect(stock(adm, carne)).toBe(1000);
+    expect(await stock(adm, carne)).toBe(1000);
 
     await send(juan.token, acc, [{ productId: burger }]);
-    expect(stock(adm, carne)).toBe(820);
-    const t = db.prepare("SELECT id FROM production_tickets WHERE status='pendiente'").get() as { id: string };
+    expect(await stock(adm, carne)).toBe(820);
+    const t = await db.prepare("SELECT id FROM production_tickets WHERE status='pendiente'").get() as { id: string };
     await call(adm, "POST", `/api/tickets/${t.id}/status`, { status: "preparando" });
     const item2 = ((await call(juan.token, "GET", `/api/accounts/${acc}`)).body.items as { id: string; status: string }[]).find((i) => i.status === "activo")!;
     await call(adm, "POST", "/api/users", { name: "Gerente", role: "gerente", pin: "5555" });
     const g = await pin("Gerente", "5555");
     const r = await call(juan.token, "POST", `/api/items/${item2.id}/cancel`, { reason: "Cliente canceló", authorizerId: g.id, authorizerPin: "5555" });
     expect(r.status).toBe(200);
-    expect(stock(adm, carne)).toBe(820); // ya se preparó: es consumo
+    expect(await stock(adm, carne)).toBe(820); // ya se preparó: es consumo
   });
 
   it("emite alerta de stock bajo y permite stock negativo", async () => {
@@ -119,17 +119,17 @@ describe("inventario y recetas", () => {
     const juan = await pin("Juan", "1111");
     const acc = await openAccount(juan.token);
     await send(juan.token, acc, [{ productId: await prod(adm, "Margarita") }]);
-    expect(stock(adm, carne)).toBe(1000);
+    expect(await stock(adm, carne)).toBe(1000);
   });
 
   it("la merma y el ajuste exigen motivo; el inventario físico genera ajustes", async () => {
     const { adm, carne } = await setup();
     expect((await call(adm, "POST", "/api/inventory/movements", { itemId: carne, kind: "merma", quantity: 50 })).status).toBe(400);
     expect((await call(adm, "POST", "/api/inventory/movements", { itemId: carne, kind: "merma", quantity: 50, reason: "Caducó" })).status).toBe(201);
-    expect(stock(adm, carne)).toBe(950);
+    expect(await stock(adm, carne)).toBe(950);
     const r = await call(adm, "POST", "/api/inventory/count", { lines: [{ itemId: carne, counted: 900 }] });
     expect(r.body.adjusted[0].difference).toBe(-50);
-    expect(stock(adm, carne)).toBe(900);
+    expect(await stock(adm, carne)).toBe(900);
   });
 
   it("un mesero no puede ver ni modificar inventario", async () => {
@@ -147,7 +147,7 @@ describe("compras y costos", () => {
     const sup = (await call(adm, "POST", "/api/suppliers", { name: "Lácteos SA" })).body.id as string;
     const po = (await call(adm, "POST", "/api/purchase-orders", { supplierId: sup, lines: [{ itemId: item, quantity: 10, unit_cost_cents: 20 }] })).body.id as string;
     expect((await call(adm, "POST", `/api/purchase-orders/${po}/receive`, { invoice_ref: "F-1" })).status).toBe(200);
-    const row = db.prepare("SELECT stock, unit_cost_cents FROM inventory_items WHERE id=?").get(item) as { stock: number; unit_cost_cents: number };
+    const row = await db.prepare("SELECT stock, unit_cost_cents FROM inventory_items WHERE id=?").get(item) as { stock: number; unit_cost_cents: number };
     expect(row.stock).toBe(20);
     expect(row.unit_cost_cents).toBe(15);
     // no se puede recibir dos veces
@@ -188,7 +188,7 @@ describe("descuentos y promociones", () => {
     expect(a.discount_cents).toBe(2080 + 8320);
     expect(a.total_cents).toBe(41600 - 2080 - 8320);
     // el descuento queda auditado con quien lo autorizó
-    const log = db.prepare("SELECT detail FROM audit_log WHERE action='descuento' ORDER BY id DESC").get() as { detail: string };
+    const log = await db.prepare("SELECT detail FROM audit_log WHERE action='descuento' ORDER BY id DESC").get() as { detail: string };
     expect(JSON.parse(log.detail).authorizedBy).toBe(g.id);
   });
 
@@ -279,7 +279,7 @@ describe("para llevar y delivery", () => {
     const r = await call(juan.token, "POST", "/api/orders/external", { kind: "llevar", contact_name: "Luis", phone: "555" });
     expect(r.body.label).toBe("L1");
     await send(juan.token, r.body.id, [{ productId: await prod(adm, "Hamburguesa clásica") }]);
-    const queue = db.prepare("SELECT id FROM stations WHERE name='Plancha'").get() as { id: string };
+    const queue = await db.prepare("SELECT id FROM stations WHERE name='Plancha'").get() as { id: string };
     const q = (await call(adm, "GET", `/api/stations/${queue.id}/queue`)).body as { table_number: string }[];
     expect(q[0]!.table_number).toBe("L1");
     const caja = await pin("Caja", "3333");
@@ -298,12 +298,12 @@ describe("para llevar y delivery", () => {
     await send(juan.token, d.body.id, [{ productId: await prod(adm, "Hamburguesa clásica") }]);
     expect((await call(juan.token, "GET", `/api/accounts/${d.body.id}`)).body.total_cents).toBe(14900 + 3000);
 
-    const ticket = db.prepare("SELECT id FROM production_tickets").get() as { id: string };
+    const ticket = await db.prepare("SELECT id FROM production_tickets").get() as { id: string };
     await call(adm, "POST", `/api/tickets/${ticket.id}/status`, { status: "preparando" });
-    const status = () => ((db.prepare("SELECT status FROM delivery_info").get() as { status: string }).status);
-    expect(status()).toBe("preparando");
+    const status = async () => ((await db.prepare("SELECT status FROM delivery_info").get() as { status: string }).status);
+    expect(await status()).toBe("preparando");
     await call(adm, "POST", `/api/tickets/${ticket.id}/status`, { status: "listo" });
-    expect(status()).toBe("listo");
+    expect(await status()).toBe("listo");
 
     expect((await call(juan.token, "POST", `/api/delivery/${d.body.id}/status`, { status: "en_camino" })).status).toBe(400); // sin repartidor
     expect((await call(juan.token, "POST", `/api/delivery/${d.body.id}/status`, { status: "en_camino", driver: "Carlos" })).status).toBe(200);
@@ -318,7 +318,7 @@ describe("para llevar y delivery", () => {
     const juan = await pin("Juan", "1111");
     const acc = await openAccount(juan.token);
     await send(juan.token, acc, [{ productId: await prod(adm, "Ensalada") }]);
-    const t = db.prepare("SELECT id FROM production_tickets").get() as { id: string };
+    const t = await db.prepare("SELECT id FROM production_tickets").get() as { id: string };
     await call(adm, "POST", `/api/tickets/${t.id}/status`, { status: "preparando" });
     await call(adm, "POST", `/api/tickets/${t.id}/status`, { status: "listo" });
     const ready = (await call(juan.token, "GET", "/api/ready")).body as { table_number: string; station: string }[];
@@ -355,7 +355,7 @@ describe("menú QR", () => {
     const acc = await openAccount(juan.token, "2");
     const r = await app.inject({ method: "POST", url: "/api/public/order", payload: body });
     expect(r.statusCode).toBe(201);
-    expect(db.prepare("SELECT source FROM orders").get()).toEqual({ source: "qr" });
+    expect(await db.prepare("SELECT source FROM orders").get()).toEqual({ source: "qr" });
     expect((await call(juan.token, "GET", `/api/accounts/${acc}`)).body.total_cents).toBe(17800);
     // no puede ordenar más de 10 renglones
     const many = await app.inject({ method: "POST", url: "/api/public/order", payload: { t, items: Array(11).fill(body.items[0]) } });

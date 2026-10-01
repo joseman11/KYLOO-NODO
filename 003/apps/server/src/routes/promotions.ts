@@ -65,7 +65,7 @@ export function promoAmount(p: Promotion, lines: Line[]): number {
   }
 }
 
-const discountLimitPct = (db: Db) => Number((db.prepare("SELECT value FROM settings WHERE key='discount_limit_pct'").get() as { value: string } | undefined)?.value ?? 10);
+const discountLimitPct = async (db: Db) => Number((await db.prepare("SELECT value FROM settings WHERE key='discount_limit_pct'").get() as { value: string } | undefined)?.value ?? 10);
 
 /** Descuentos manuales y promociones (Fase 2, sec. 33 y 46). */
 export async function promotionRoutes(app: FastifyInstance) {
@@ -89,28 +89,28 @@ export async function promotionRoutes(app: FastifyInstance) {
     },
   });
 
-  const openAccount = (accountId: string) => {
-    const a = db.prepare("SELECT id, status FROM accounts WHERE id=?").get(accountId) as { id: string; status: string } | undefined;
+  const openAccount = async (accountId: string) => {
+    const a = await db.prepare("SELECT id, status FROM accounts WHERE id=?").get(accountId) as { id: string; status: string } | undefined;
     if (!a) throw new HttpError(404, "no_encontrado");
     if (a.status === "cerrada") throw new HttpError(409, "cuenta_cerrada", "Una cuenta cerrada no puede modificarse (RN-009)");
     return a;
   };
-  const lines = (accountId: string) =>
-    db
-      .prepare(
-        `SELECT i.product_id, p.category_id, i.quantity, i.unit_price_cents FROM order_items i JOIN products p ON p.id=i.product_id
+  const lines = async (accountId: string) =>
+    await db
+            .prepare(
+              `SELECT i.product_id, p.category_id, i.quantity, i.unit_price_cents FROM order_items i JOIN products p ON p.id=i.product_id
          WHERE i.account_id=? AND i.status='activo'`,
-      )
-      .all(accountId) as Line[];
-  const room = (accountId: string) => Math.max(0, accountSubtotal(db, accountId) - accountDiscounts(db, accountId));
+            )
+            .all(accountId) as Line[];
+  const room = async (accountId: string) => Math.max(0, await accountSubtotal(db, accountId) - await accountDiscounts(db, accountId));
 
   // Promociones vigentes que aplican a la cuenta, con el ahorro calculado
   app.get("/api/accounts/:id/promotions", { preHandler: app.authorize() }, async (req) => {
     const { id: accountId } = id.parse(req.params);
-    openAccount(accountId);
-    const applied = new Set((db.prepare("SELECT promotion_id FROM account_discounts WHERE account_id=? AND promotion_id IS NOT NULL").all(accountId) as { promotion_id: string }[]).map((r) => r.promotion_id));
-    const ls = lines(accountId);
-    return (db.prepare("SELECT * FROM promotions").all() as Promotion[])
+    await openAccount(accountId);
+    const applied = new Set((await db.prepare("SELECT promotion_id FROM account_discounts WHERE account_id=? AND promotion_id IS NOT NULL").all(accountId) as { promotion_id: string }[]).map((r) => r.promotion_id));
+    const ls = await lines(accountId);
+    return (await db.prepare("SELECT * FROM promotions").all() as Promotion[])
       .filter((p) => isPromoActive(p) && !applied.has(p.id))
       .map((p) => ({ id: p.id, name: p.name, kind: p.kind, amount_cents: promoAmount(p, ls) }))
       .filter((p) => p.amount_cents > 0);
@@ -118,16 +118,16 @@ export async function promotionRoutes(app: FastifyInstance) {
 
   app.post("/api/accounts/:id/promotions/:promoId/apply", { preHandler: app.authorize() }, async (req, reply) => {
     const { id: accountId, promoId } = z.object({ id: z.string(), promoId: z.string() }).parse(req.params);
-    openAccount(accountId);
-    const p = db.prepare("SELECT * FROM promotions WHERE id=?").get(promoId) as Promotion | undefined;
+    await openAccount(accountId);
+    const p = await db.prepare("SELECT * FROM promotions WHERE id=?").get(promoId) as Promotion | undefined;
     if (!p || !isPromoActive(p)) throw new HttpError(409, "promocion_no_vigente");
-    const amount = Math.min(promoAmount(p, lines(accountId)), room(accountId));
+    const amount = Math.min(promoAmount(p, await lines(accountId)), await room(accountId));
     if (amount <= 0) throw new HttpError(409, "promocion_no_aplica", "La cuenta no cumple las condiciones");
     const did = newId();
-    db.prepare("INSERT INTO account_discounts (id,account_id,kind,value,amount_cents,reason,promotion_id,user_id,created_at) VALUES (?,?,?,?,?,?,?,?,?)").run(
-      did, accountId, "promocion", p.value, amount, p.name, p.id, req.user.sub, Date.now(),
-    );
-    audit(db, req.user.sub, "aplicar_promocion", "account", accountId, { promotion: p.name, amount });
+    await db.prepare("INSERT INTO account_discounts (id,account_id,kind,value,amount_cents,reason,promotion_id,user_id,created_at) VALUES (?,?,?,?,?,?,?,?,?)").run(
+            did, accountId, "promocion", p.value, amount, p.name, p.id, req.user.sub, Date.now(),
+          );
+    await audit(db, req.user.sub, "aplicar_promocion", "account", accountId, { promotion: p.name, amount });
     hub.emit({ type: "order.updated", accountId });
     return reply.code(201).send({ id: did, amount_cents: amount });
   });
@@ -144,33 +144,33 @@ export async function promotionRoutes(app: FastifyInstance) {
         authorizerPin: z.string().optional(),
       })
       .parse(req.body);
-    openAccount(accountId);
-    const subtotal = accountSubtotal(db, accountId);
+    await openAccount(accountId);
+    const subtotal = await accountSubtotal(db, accountId);
     if (b.kind === "porcentaje" && b.value > 100) throw new HttpError(400, "validacion", "El porcentaje no puede superar 100");
-    const amount = Math.min(b.kind === "porcentaje" ? Math.floor((subtotal * b.value) / 100) : b.value, room(accountId));
+    const amount = Math.min(b.kind === "porcentaje" ? Math.floor((subtotal * b.value) / 100) : b.value, await room(accountId));
     if (amount <= 0) throw new HttpError(409, "descuento_nulo");
 
     const pct = subtotal ? (amount / subtotal) * 100 : 0;
     let authorizedBy: string | null = null;
-    if (pct > discountLimitPct(db)) {
+    if (pct > await discountLimitPct(db)) {
       const own = DEFAULT_ROLE_PERMISSIONS[req.user.role as Role]?.includes("discount.apply");
-      authorizedBy = own ? req.user.sub : authorize(db, b.authorizerId, b.authorizerPin, "discount.apply");
+      authorizedBy = own ? req.user.sub : await authorize(db, b.authorizerId, b.authorizerPin, "discount.apply");
     }
     const did = newId();
-    db.prepare("INSERT INTO account_discounts (id,account_id,kind,value,amount_cents,reason,user_id,authorized_by,created_at) VALUES (?,?,?,?,?,?,?,?,?)").run(
-      did, accountId, b.kind, b.value, amount, b.reason, req.user.sub, authorizedBy, Date.now(),
-    );
-    audit(db, req.user.sub, "descuento", "account", accountId, { kind: b.kind, value: b.value, amount, authorizedBy, reason: b.reason });
+    await db.prepare("INSERT INTO account_discounts (id,account_id,kind,value,amount_cents,reason,user_id,authorized_by,created_at) VALUES (?,?,?,?,?,?,?,?,?)").run(
+            did, accountId, b.kind, b.value, amount, b.reason, req.user.sub, authorizedBy, Date.now(),
+          );
+    await audit(db, req.user.sub, "descuento", "account", accountId, { kind: b.kind, value: b.value, amount, authorizedBy, reason: b.reason });
     hub.emit({ type: "order.updated", accountId });
     return reply.code(201).send({ id: did, amount_cents: amount });
   });
 
   app.delete("/api/accounts/:id/discounts/:did", { preHandler: app.authorize("discount.apply") }, async (req) => {
     const { id: accountId, did } = z.object({ id: z.string(), did: z.string() }).parse(req.params);
-    openAccount(accountId);
-    const r = db.prepare("DELETE FROM account_discounts WHERE id=? AND account_id=?").run(did, accountId);
+    await openAccount(accountId);
+    const r = await db.prepare("DELETE FROM account_discounts WHERE id=? AND account_id=?").run(did, accountId);
     if (r.changes === 0) throw new HttpError(404, "no_encontrado");
-    audit(db, req.user.sub, "quitar_descuento", "account", accountId, { did });
+    await audit(db, req.user.sub, "quitar_descuento", "account", accountId, { did });
     hub.emit({ type: "order.updated", accountId });
     return { ok: true };
   });
