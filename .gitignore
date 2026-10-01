@@ -1,0 +1,27 @@
+# dependencias y compilados
+node_modules/
+dist/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# datos locales (bases de datos, respaldos, fotos subidas): nunca al repositorio
+**/data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# secretos
+.env
+.env.*
+!.env.example
+
+# artefactos de trabajo
+landing/video-src/preview/
+landing/video-src/render.log
+landing/video-src/render.err
+landing/video-src/film/app/
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,31 @@
+{
+  "name": "@003/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "seed": "tsx src/seed-cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "seed:demo": "tsx src/seed-demo-cli.ts --reset"
+  },
+  "dependencies": {
+    "@003/shared": "workspace:*",
+    "@fastify/jwt": "^9.0.0",
+    "@fastify/static": "^10.1.5",
+    "@fastify/websocket": "^11.3.1",
+    "better-sqlite3": "^13.0.3",
+    "fastify": "^5.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

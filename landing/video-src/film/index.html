@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Nodo · película</title>
+<script src="states.js"></script>
+<script>
+  // CSS compilado de la app: da a las pantallas capturadas exactamente el mismo aspecto
+  const l = document.createElement("link");
+  l.rel = "stylesheet";
+  l.href = window.APP_CSS;
+  document.head.appendChild(l);
+</script>
+<style>
+  @font-face { font-family: "Plex Mono"; src: url("fonts/plex-mono-400.woff2") format("woff2"); font-weight: 400; }
+  @font-face { font-family: "Plex Mono"; src: url("fonts/plex-mono-500.woff2") format("woff2"); font-weight: 500; }
+  @font-face { font-family: "Plex Mono"; src: url("fonts/plex-mono-600.woff2") format("woff2"); font-weight: 600; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #f0ebe0 !important; user-select: none; }
+  #stage { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; background: #efe9dc; }
+  #bg { position: absolute; inset: 0; }
+  #vp { position: absolute; inset: 0; }
+  #world { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; will-change: transform; }
+  #hud { position: absolute; inset: 0; pointer-events: none; font-family: "Bricolage Grotesque Variable", "Inter Variable", sans-serif; }
+  #veil { position: absolute; inset: 0; background: #efe9dc; opacity: 0; pointer-events: none; z-index: 50; }
+
+  .dev { position: absolute; }
+  .dev .bezel { position: absolute; inset: -16px; border-radius: 30px; background: #19150f; box-shadow: 0 50px 90px rgba(40, 28, 10, 0.32), 0 12px 24px rgba(40, 28, 10, 0.18), inset 0 0 0 2px #2c261d; }
+  .dev .scr { position: absolute; left: 0; top: 0; width: 1280px; height: 800px; transform-origin: 0 0; overflow: hidden; border-radius: 12px; background: #fff; }
+  .dev .app { position: absolute; inset: 0; width: 1280px; height: 800px; overflow: hidden; }
+  .dev .fx { position: absolute; inset: 0; pointer-events: none; z-index: 40; }
+  .dev .focus { position: absolute; border: 3px solid #ff5900; border-radius: 12px; box-shadow: 0 0 0 6px rgba(255, 89, 0, 0.18); opacity: 0; }
+  .dev .rip { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; border: 4px solid #ff5900; background: rgba(255, 89, 0, 0.22); opacity: 0; }
+  .dev .cur { position: absolute; width: 38px; height: 38px; margin: -4px 0 0 -6px; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.4)); opacity: 0; }
+  .dev .label { position: absolute; left: 0; top: -58px; font: 600 22px "Plex Mono", monospace; letter-spacing: 0.08em; color: #6b6354; text-transform: uppercase; }
+
+  .cap { position: absolute; left: 70px; width: 440px; opacity: 0; }
+  .cap .n { font: 500 22px "Plex Mono", monospace; color: #ff5900; letter-spacing: 0.1em; }
+  .cap .t { font: 700 56px/1.02 "Bricolage Grotesque Variable", sans-serif; letter-spacing: -0.035em; color: #14110f; margin-top: 8px; }
+  .cap .s { font: 500 23px/1.4 "Inter Variable", sans-serif; color: #5d564a; margin-top: 16px; }
+
+  .pq { position: absolute; width: 300px; font: 500 13px/1.45 "Plex Mono", monospace; color: #1a1612; }
+  .pq .slot { height: 16px; border-radius: 8px; background: #231e17; box-shadow: 0 6px 12px rgba(40, 28, 10, 0.35); position: relative; z-index: 2; }
+  .pq .name { position: absolute; left: 0; right: 0; top: -34px; text-align: center; font: 600 15px "Plex Mono", monospace; letter-spacing: 0.14em; color: #6b6354; }
+  .pq .paper { position: relative; margin: 0 14px; background: #fffdf8; overflow: hidden; box-shadow: 0 8px 20px rgba(40, 28, 10, 0.16); }
+  .pq .paper .in { padding: 14px 16px 22px; white-space: pre; }
+  .pq .paper::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 10px; background: linear-gradient(-45deg, transparent 7px, #efe9dc 0) 0 0 / 14px 10px, linear-gradient(45deg, transparent 7px, #efe9dc 0) 0 0 / 14px 10px; }
+  .pq b { font-weight: 600; }
+  .pq .big { font: 600 22px/1.2 "Plex Mono", monospace; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg"></div>
+  <div id="vp"><div id="world"></div></div>
+  <div id="hud"></div>
+  <div id="veil"></div>
+</div>
+<script src="engine.js"></script>
+<script src="scenes.js"></script>
+</body>
+</html>
