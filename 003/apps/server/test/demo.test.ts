@@ -180,3 +180,42 @@ describe("demo de mariscos: la API responde con estos datos", () => {
     expect(s2.salesLast14Days).toEqual(summary.salesLast14Days);
   });
 });
+
+describe("demo de mariscos: inventario por áreas, listas y recetario", () => {
+  it("todos los insumos están en un área y una categoría coherentes, con mínimo y máximo", () => {
+    expect(one<{ c: number }>("SELECT COUNT(*) c FROM inventory_items WHERE area_id IS NULL OR category_id IS NULL").c).toBe(0);
+    expect(one<{ c: number }>("SELECT COUNT(*) c FROM inventory_items i JOIN inventory_categories c ON c.id=i.category_id WHERE c.area_id!=i.area_id").c).toBe(0);
+    expect(one<{ c: number }>("SELECT COUNT(*) c FROM inventory_items WHERE min_stock>0 AND (max_stock IS NULL OR max_stock<min_stock)").c).toBe(0);
+    const areas = all<{ name: string }>("SELECT name FROM inventory_areas").map((a) => a.name);
+    expect(areas).toEqual(expect.arrayContaining(["Cocina", "Barra", "Limpieza y desechables"]));
+    const cats = all<{ name: string }>("SELECT name FROM inventory_categories").map((a) => a.name);
+    expect(cats).toEqual(expect.arrayContaining(["Mariscos y pescados", "Perecederos", "Enlatados y salsas", "Cervezas", "Licores y vinos"]));
+  });
+
+  it("hay insumos por pedir y la lista automática refleja justo eso", () => {
+    const low = one<{ c: number }>("SELECT COUNT(*) c FROM inventory_items WHERE min_stock>0 AND stock<=min_stock").c;
+    expect(low).toBeGreaterThanOrEqual(5);
+    const auto = one<{ id: string }>("SELECT id FROM shopping_lists WHERE kind='auto' AND status='abierta'");
+    expect(one<{ c: number }>("SELECT COUNT(*) c FROM shopping_list_items WHERE list_id=?", auto.id).c).toBe(low);
+  });
+
+  it("incluye una lista compartida con su enlace público y una ya comprada", async () => {
+    const shared = one<{ share_token: string }>("SELECT share_token FROM shopping_lists WHERE status='compartida'");
+    const r = await app.inject({ method: "GET", url: `/api/shared/shopping/${shared.share_token}` });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().lines.length).toBeGreaterThanOrEqual(5);
+    expect(one<{ c: number }>("SELECT COUNT(*) c FROM shopping_lists WHERE status='comprada'").c).toBe(1);
+  });
+
+  it("el recetario trae comida, tragos, salsas y postres con ingredientes ligados al inventario y pasos", async () => {
+    const cats = all<{ name: string; n: number }>("SELECT c.name, COUNT(*) n FROM recipe_book r JOIN recipe_categories c ON c.id=r.category_id GROUP BY c.name");
+    for (const k of ["Comida", "Bebidas y tragos", "Salsas y preparaciones", "Postres"]) expect(cats.find((c) => c.name === k)?.n, k).toBeGreaterThan(0);
+    expect(one<{ c: number }>("SELECT COUNT(*) c FROM recipe_book").c).toBeGreaterThanOrEqual(10);
+    expect(one<{ c: number }>("SELECT COUNT(*) c FROM recipe_book WHERE instructions IS NULL OR instructions=''").c).toBe(0);
+    expect(one<{ c: number }>("SELECT COUNT(*) c FROM recipe_book_items WHERE item_id IS NOT NULL").c).toBeGreaterThan(30);
+    const t = (await app.inject({ method: "POST", url: "/api/auth/login", payload: { username: "admin", password: "admin1234" } })).json().token as string;
+    const list = (await app.inject({ method: "GET", url: "/api/recipe-book", headers: { Authorization: `Bearer ${t}` } })).json() as { name: string; cost_per_portion_cents: number }[];
+    const ceviche = list.find((r) => r.name === "Ceviche de pescado")!;
+    expect(ceviche.cost_per_portion_cents).toBeGreaterThan(0);
+  });
+});

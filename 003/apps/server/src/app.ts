@@ -17,6 +17,8 @@ import { cashRoutes } from "./routes/cash";
 import { printingRoutes } from "./routes/printing";
 import { reportRoutes } from "./routes/reports";
 import { inventoryRoutes } from "./routes/inventory";
+import { shoppingRoutes } from "./routes/shopping";
+import { recipeBookRoutes } from "./routes/recipebook";
 import { promotionRoutes } from "./routes/promotions";
 import { customerRoutes } from "./routes/customers";
 import { deliveryRoutes } from "./routes/delivery";
@@ -76,6 +78,12 @@ export interface AppOptions {
 export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
   // Las fotos viajan en base64 (ya reducidas por el cliente): margen para ~800 KB de imagen
   const app = Fastify({ logger: false, bodyLimit: 2 * 1024 * 1024 });
+  // Un cuerpo JSON vacío (p. ej. DELETE desde un cliente que declara JSON) se acepta como «sin cuerpo»; el JSON mal formado sigue siendo 400
+  app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
+    const text = String(body).trim();
+    if (!text) return done(null, undefined);
+    try { done(null, JSON.parse(text)); } catch { const e = new Error("JSON inválido") as Error & { statusCode: number }; e.statusCode = 400; done(e, undefined); }
+  });
   const hub = options.hub ?? new Hub();
   const transport = options.transport ?? tcpTransport;
 
@@ -146,6 +154,8 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
   app.register(printingRoutes, { hub, transport });
   app.register(reportRoutes, { backupDir: options.backupDir ?? "data/backups" });
   app.register(inventoryRoutes);
+  app.register(shoppingRoutes);
+  app.register(recipeBookRoutes);
   app.register(promotionRoutes);
   app.register(customerRoutes);
   app.register(deliveryRoutes);

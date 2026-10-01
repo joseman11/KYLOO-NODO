@@ -367,6 +367,118 @@ export function seedDemo(db: Db, opts: { photosDir: string; now?: number; days?:
       run("INSERT INTO inventory_movements (id,item_id,kind,quantity,reason,user_id,created_at) VALUES (?,?,'merma',?,?,?,?)", newId(), inv[item], -qty, why, staff["Chef Ramón"]!.id, NOW - int(1, 6) * DAY);
     }
 
+    // ── Inventario por áreas y categorías, con límites, proveedor habitual y lista de compras ──
+    {
+      const areaId = (name: string) => (one<{ id: string }>("SELECT id FROM inventory_areas WHERE name=?", name) ?? (() => { const id = newId(); run("INSERT INTO inventory_areas (id,name,sort) VALUES (?,?,?)", id, name, 9); return { id }; })()).id;
+      const catIds = new Map<string, string>();
+      const catId = (area: string, name: string) => {
+        const k = `${area}|${name}`;
+        if (!catIds.has(k)) { const id = newId(); run("INSERT INTO inventory_categories (id,area_id,name,sort) VALUES (?,?,?,?)", id, areaId(area), name, catIds.size); catIds.set(k, id); }
+        return catIds.get(k)!;
+      };
+      const supplierId = (name: string) => one<{ id: string }>("SELECT id FROM suppliers WHERE name=?", name)?.id ?? null;
+      const GROUPS: [string, string, string | null, string[]][] = [
+        ["Cocina", "Mariscos y pescados", "Pescadería del Puerto", ["Camarón", "Filete de pescado", "Pescado entero", "Calamar", "Jaiba", "Atún (lomo)", "Marlín ahumado", "Camarón jumbo", "Langostino", "Huachinango entero", "Tilapia", "Sierra (filete)"]],
+        ["Cocina", "Mariscos y pescados", "Mariscos Don Beto", ["Pulpo", "Ostión", "Callo de hacha", "Almeja", "Mejillón"]],
+        ["Cocina", "Perecederos", "Abarrotes La Estrella", ["Limón", "Aguacate", "Cebolla morada", "Pepino", "Jitomate", "Cebolla blanca", "Cilantro", "Chile serrano", "Chile jalapeño", "Ajo", "Lechuga", "Zanahoria", "Col morada", "Naranja", "Piña", "Mango", "Hierbabuena", "Plátano macho", "Papa"]],
+        ["Cocina", "Lácteos y huevo", "Abarrotes La Estrella", ["Mantequilla", "Crema", "Queso Oaxaca", "Queso panela", "Huevo", "Leche entera", "Leche de coco", "Helado de vainilla (bote)"]],
+        ["Cocina", "Secos y abarrotes", "Abarrotes La Estrella", ["Tostadas", "Tortilla de maíz", "Arroz", "Harina", "Pan molido", "Sal", "Pimienta", "Azúcar", "Aceite vegetal", "Coco rallado", "Chile de árbol", "Jamaica", "Horchata (base)"]],
+        ["Cocina", "Enlatados y salsas", "Abarrotes La Estrella", ["Mayonesa", "Salsa Valentina", "Salsa Maggi", "Salsa inglesa", "Catsup"]],
+        ["Barra", "Cervezas", "Distribuidora de Bebidas del Golfo", ["Cerveza Corona", "Cerveza Victoria", "Cerveza Modelo", "Cerveza Pacífico", "Cerveza Modelo Negra"]],
+        ["Barra", "Refrescos, aguas y jugos", "Distribuidora de Bebidas del Golfo", ["Refresco", "Sprite", "Agua mineral (botella)", "Agua embotellada (botella)", "Jugo de naranja", "Clamato"]],
+        ["Barra", "Licores y vinos", "Distribuidora de Bebidas del Golfo", ["Tequila", "Ron", "Mezcal", "Vodka", "Whisky", "Triple sec", "Vino blanco"]],
+        ["Barra", "Hielo", null, ["Hielo"]],
+        ["Limpieza y desechables", "Desechables", null, ["Servilletas (paquete)", "Bolsas para llevar", "Contenedores desechables", "Popotes", "Rollo térmico 80 mm", "Guantes (caja)"]],
+        ["Limpieza y desechables", "Limpieza", null, ["Jabón para trastes", "Cloro"]],
+        ["Limpieza y desechables", "Combustible", null, ["Gas LP (kg)", "Carbón (saco)"]],
+      ];
+      for (const [area, category, supplier, names] of GROUPS) {
+        for (const n of names) {
+          if (!inv[n]) continue;
+          run("UPDATE inventory_items SET area_id=?, category_id=?, supplier_id=? WHERE id=?", areaId(area), catId(area, category), supplier ? supplierId(supplier) : null, inv[n]);
+        }
+      }
+      // máximo = triple del mínimo (hasta ahí se sugiere pedir); los insumos de piezas se redondean
+      run("UPDATE inventory_items SET max_stock = ROUND(min_stock * 3) WHERE min_stock > 0");
+      // algunos más bajos para que «Por pedir» tenga qué mostrar
+      for (const [n, qty] of [["Aceite vegetal", 12000], ["Aguacate", 20], ["Jitomate", 2600], ["Cerveza Modelo Negra", 30], ["Servilletas (paquete)", 9]] as const) run("UPDATE inventory_items SET stock=? WHERE id=?", qty, inv[n]);
+      bump("categorías de inventario", catIds.size);
+
+      const lowRows = db.prepare("SELECT id, name, unit, stock, min_stock, max_stock FROM inventory_items WHERE active=1 AND min_stock>0 AND stock<=min_stock ORDER BY name").all() as { id: string; name: string; unit: string; stock: number; min_stock: number; max_stock: number | null }[];
+      const listId = newId();
+      run("INSERT INTO shopping_lists (id,name,kind,status,created_by,created_at) VALUES (?,?,'auto','abierta',?,?)", listId, "Por pedir · hoy", staff["Sofía Ramírez"]!.id, NOW - 20 * MIN);
+      lowRows.forEach((r, i) => {
+        const target = r.max_stock && r.max_stock > r.min_stock ? r.max_stock : r.min_stock * 2;
+        let qty = Math.max(target - Math.max(r.stock, 0), r.min_stock - r.stock, 0);
+        qty = r.unit === "pza" ? Math.ceil(qty) : Math.round(qty * 100) / 100;
+        run("INSERT INTO shopping_list_items (id,list_id,item_id,name,unit,quantity,sort) VALUES (?,?,?,?,?,?,?)", newId(), listId, r.id, r.name, r.unit, qty || 1, i);
+      });
+      const mkt = newId();
+      run("INSERT INTO shopping_lists (id,name,kind,status,share_token,notes,created_by,created_at) VALUES (?,?,'manual','compartida',?,?,?,?)", mkt, "Mercado del sábado", "a1b2c3d4e5f60718293a4b5c", "Pagar en efectivo, pedir factura", staff["Sofía Ramírez"]!.id, NOW - 3 * HOUR);
+      [["Limones", "kg", 10, 1], ["Cilantro", "manojo", 12, 1], ["Cebolla morada", "kg", 6, 0], ["Hielo en bolsa", "pza", 20, 0], ["Servilletas de papel", "paq", 8, 0]].forEach(([n, u, q, ck], i) =>
+        run("INSERT INTO shopping_list_items (id,list_id,name,unit,quantity,checked,sort) VALUES (?,?,?,?,?,?,?)", newId(), mkt, n, u, q, ck, i));
+      const old = newId();
+      run("INSERT INTO shopping_lists (id,name,kind,status,created_by,created_at,closed_at) VALUES (?,?,'auto','comprada',?,?,?)", old, "Pedido de la semana pasada", staff["Sofía Ramírez"]!.id, NOW - 6 * DAY, NOW - 5 * DAY);
+      for (const [i, n] of ["Camarón", "Filete de pescado", "Cerveza Corona"].entries()) {
+        const it = one<{ id: string; unit: string }>("SELECT id, unit FROM inventory_items WHERE name=?", n)!;
+        run("INSERT INTO shopping_list_items (id,list_id,item_id,name,unit,quantity,checked,sort) VALUES (?,?,?,?,?,?,1,?)", newId(), old, it.id, n, it.unit, n === "Cerveza Corona" ? 120 : 8000, i);
+      }
+      bump("listas de compras", 3);
+    }
+
+    // ── Recetario: comida, tragos, salsas y postres, con ingredientes ligados al inventario ──
+    {
+      const rcat = (name: string) => one<{ id: string }>("SELECT id FROM recipe_categories WHERE name=?", name)?.id ?? (() => { const id = newId(); run("INSERT INTO recipe_categories (id,name,sort) VALUES (?,?,?)", id, name, 9); return id; })();
+      const prodId = (n: string) => products.find((p) => p.name === n)?.id ?? null;
+      type R = { name: string; cat: string; desc: string; yield: number; unit: string; mins: number; product?: string; steps: string[]; ing: [string | null, string, number, string, string?][] };
+      const RECIPES: R[] = [
+        { name: "Ceviche de pescado", cat: "Comida", desc: "Pescado curado en limón con cebolla morada y pepino.", yield: 1, unit: "porción", mins: 20, product: "Ceviche de pescado",
+          steps: ["Cortar el pescado en cubos de 1 cm y mantenerlo frío", "Exprimir el limón y cubrir el pescado; reposar 10 minutos", "Agregar cebolla morada y pepino en cubos", "Sazonar con sal y servir con tostadas"],
+          ing: [["Filete de pescado", "Filete de pescado", 120, "g"], ["Limón", "Limón", 4, "pza"], ["Cebolla morada", "Cebolla morada", 30, "g"], ["Pepino", "Pepino", 25, "g"], [null, "Sal", 2, "g"]] },
+        { name: "Aguachile verde", cat: "Comida", desc: "Camarón en salsa verde de chile serrano, limón y pepino.", yield: 1, unit: "porción", mins: 15, product: "Aguachile verde",
+          steps: ["Mariposar el camarón y reposar 5 minutos con sal", "Licuar chile serrano, cilantro, limón y pepino", "Bañar el camarón con la salsa", "Servir con cebolla morada en pluma y aguacate"],
+          ing: [["Camarón", "Camarón", 140, "g"], ["Limón", "Limón", 5, "pza"], ["Pepino", "Pepino", 40, "g"], ["Cebolla morada", "Cebolla morada", 20, "g"], ["Chile serrano", "Chile serrano", 10, "g"], ["Cilantro", "Cilantro", 5, "g"]] },
+        { name: "Camarones al mojo de ajo", cat: "Comida", desc: "Camarón salteado en mantequilla y ajo.", yield: 1, unit: "porción", mins: 12, product: "Camarones al mojo de ajo",
+          steps: ["Calentar mantequilla con el ajo picado sin dorarlo", "Saltear el camarón 3 minutos por lado", "Terminar con limón y perejil", "Servir con arroz"],
+          ing: [["Camarón", "Camarón", 200, "g"], ["Mantequilla", "Mantequilla", 30, "g"], ["Ajo", "Ajo", 15, "g"], ["Arroz", "Arroz", 120, "g"], ["Limón", "Limón", 1, "pza"]] },
+        { name: "Pulpo a las brasas", cat: "Comida", desc: "Pulpo cocido y sellado a las brasas.", yield: 4, unit: "porciones", mins: 75, product: "Pulpo a las brasas",
+          steps: ["Cocer el pulpo con cebolla, ajo y sal 50 minutos", "Enfriar y cortar los tentáculos", "Sellar a las brasas con aceite", "Servir con papas y salsa"],
+          ing: [["Pulpo", "Pulpo", 1000, "g"], ["Cebolla blanca", "Cebolla blanca", 150, "g"], ["Ajo", "Ajo", 20, "g"], ["Papa", "Papa", 480, "g"], ["Aceite vegetal", "Aceite vegetal", 60, "ml"]] },
+        { name: "Caldo de camarón", cat: "Comida", desc: "Caldo picoso de camarón con verduras.", yield: 1, unit: "porción", mins: 25, product: "Caldo de camarón",
+          steps: ["Hacer un caldo con las cabezas de camarón", "Agregar jitomate, cebolla y chile", "Hervir el camarón 3 minutos", "Servir con limón y cilantro"],
+          ing: [["Camarón", "Camarón", 140, "g"], ["Jitomate", "Jitomate", 60, "g"], ["Cebolla blanca", "Cebolla blanca", 30, "g"], ["Cilantro", "Cilantro", 5, "g"], ["Limón", "Limón", 2, "pza"]] },
+        { name: "Salsa macha", cat: "Salsas y preparaciones", desc: "Salsa de chile de árbol tostado en aceite.", yield: 20, unit: "cucharadas", mins: 30,
+          steps: ["Tostar el chile de árbol y el ajo", "Calentar el aceite sin que humee", "Moler todo con sal y azúcar", "Reposar un día antes de usar"],
+          ing: [["Chile de árbol", "Chile de árbol", 100, "g"], ["Aceite vegetal", "Aceite vegetal", 250, "ml", "caliente"], ["Ajo", "Ajo", 30, "g"], [null, "Cacahuate", 80, "g"], ["Azúcar", "Azúcar", 10, "g"]] },
+        { name: "Aderezo de chipotle", cat: "Salsas y preparaciones", desc: "Mayonesa ahumada para tostadas y tacos.", yield: 30, unit: "cucharadas", mins: 10,
+          steps: ["Licuar el chipotle con un poco de adobo", "Mezclar con la mayonesa", "Ajustar sal y limón", "Refrigerar en recipiente tapado"],
+          ing: [["Mayonesa", "Mayonesa", 400, "g"], [null, "Chiles chipotles en adobo", 4, "pza"], ["Limón", "Limón", 2, "pza"]] },
+        { name: "Michelada", cat: "Bebidas y tragos", desc: "Cerveza preparada con clamato y limón.", yield: 1, unit: "vaso", mins: 3, product: "Michelada",
+          steps: ["Escarchar el vaso con sal y chile", "Agregar hielo, limón y salsas", "Rellenar con cerveza fría", "Servir con rodaja de limón"],
+          ing: [["Cerveza Corona", "Cerveza Corona", 1, "pza"], ["Limón", "Limón", 1, "pza"], ["Clamato", "Clamato", 120, "ml"], ["Salsa Maggi", "Salsa Maggi", 5, "ml"], ["Hielo", "Hielo", 150, "g"]] },
+        { name: "Margarita", cat: "Bebidas y tragos", desc: "Clásica con borde de sal.", yield: 1, unit: "copa", mins: 4, product: "Margarita",
+          steps: ["Escarchar la copa con sal", "Agitar tequila, triple sec y limón con hielo", "Colar sobre hielo fresco", "Decorar con rodaja de limón"],
+          ing: [["Tequila", "Tequila", 60, "ml"], ["Triple sec", "Triple sec", 20, "ml"], ["Limón", "Limón", 2, "pza"], ["Hielo", "Hielo", 150, "g"]] },
+        { name: "Mojito", cat: "Bebidas y tragos", desc: "Ron, hierbabuena y limón.", yield: 1, unit: "vaso", mins: 4, product: "Mojito",
+          steps: ["Machacar la hierbabuena con azúcar y limón", "Agregar hielo y ron", "Completar con agua mineral", "Mezclar suavemente y decorar"],
+          ing: [["Ron", "Ron", 60, "ml"], ["Hierbabuena", "Hierbabuena", 8, "g"], ["Limón", "Limón", 2, "pza"], ["Azúcar", "Azúcar", 15, "g"], ["Hielo", "Hielo", 150, "g"]] },
+        { name: "Piña colada", cat: "Bebidas y tragos", desc: "Cremosa, con piña y coco.", yield: 1, unit: "vaso", mins: 5, product: "Piña colada",
+          steps: ["Licuar ron, piña, leche de coco y hielo", "Servir en copa fría", "Decorar con piña"],
+          ing: [["Ron", "Ron", 60, "ml"], ["Piña", "Piña", 0.2, "pza"], ["Leche de coco", "Leche de coco", 60, "ml"], ["Hielo", "Hielo", 120, "g"]] },
+        { name: "Flan napolitano", cat: "Postres", desc: "Flan de huevo y leche con caramelo.", yield: 8, unit: "porciones", mins: 80, product: "Flan napolitano",
+          steps: ["Hacer caramelo y cubrir el molde", "Licuar huevos, leche y azúcar", "Hornear a baño maría 50 minutos", "Enfriar toda la noche y desmoldar"],
+          ing: [["Huevo", "Huevo", 8, "pza"], ["Leche entera", "Leche entera", 1200, "ml"], ["Azúcar", "Azúcar", 250, "g"]] },
+      ];
+      for (const r of RECIPES) {
+        const rid = newId();
+        run("INSERT INTO recipe_book (id,name,category_id,description,instructions,yield,yield_unit,prep_minutes,product_id,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+          rid, r.name, rcat(r.cat), r.desc, r.steps.join("\n"), r.yield, r.unit, r.mins, r.product ? prodId(r.product) : null, staff["Chef Ramón"]!.id, NOW - 20 * DAY, NOW - 20 * DAY);
+        r.ing.forEach(([item, name, qty, unit, note], i) =>
+          run("INSERT INTO recipe_book_items (id,recipe_id,item_id,name,quantity,unit,note,sort) VALUES (?,?,?,?,?,?,?,?)", newId(), rid, item ? inv[item] ?? null : null, name, qty, unit, note ?? null, i));
+        bump("recetas");
+      }
+    }
+
     // ── Clientes ──
     const customers: string[] = [];
     for (const [n, ph, rfc] of [["Ana López", "669 100 2001", "LOPA800101AB1"], ["Carlos Medina", "669 100 2002", null], ["Restaurante Casa Blanca (eventos)", "669 100 2003", "CBL100101XY9"], ["Fernanda Ruiz", "669 100 2004", null], ["Luis Ortega", "669 100 2005", null], ["Dra. Paola Núñez", "669 100 2006", "NUPP850505LM2"], ["Familia Gómez", "669 100 2007", null], ["Hugo Beltrán", "669 100 2008", null], ["Mónica Salas", "669 100 2009", null], ["Empresa Pesquera del Pacífico", "669 100 2010", "EPP990909QR5"]] as const) {

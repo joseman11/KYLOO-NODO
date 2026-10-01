@@ -1,58 +1,110 @@
 import { useState } from "react";
 import { api, can, money, useLive } from "../api";
 import { PagedRows, SubTabs } from "../fit";
+import { AreaBar, AreasSheet, fmt, ItemSheet, toNum, useInventoryMeta, type Item, type Supplier } from "./InventoryAreas";
+import { Lists } from "./InventoryLists";
 
-interface Item { id: string; name: string; unit: string; stock: number; min_stock: number; unit_cost_cents: number; }
 interface Product { id: string; name: string; price_cents: number; }
-interface Supplier { id: string; name: string; phone: string | null; }
 interface PO { id: string; supplier: string; status: string; total_cents: number; created_at: number; lines: { item: string; quantity: number; unit: string; unit_cost_cents: number }[]; }
 interface Alert { itemId: string; name: string; level: string; stock: number; }
+interface Reorder { itemId: string; name: string; unit: string; stock: number; min_stock: number; max_stock: number | null; suggested: number; level: "agotado" | "bajo"; area_id: string | null; area: string | null; category_id: string | null; category: string | null; supplier: string | null; }
 
-const toNum = (v: string) => parseFloat(v.replace(",", ".")) || 0;
-const fmt = (n: number) => (Math.round(n * 100) / 100).toString();
+type Tab = "stock" | "reorder" | "listas" | "recetas" | "compras";
 
 export function Inventory() {
-  const [tab, setTab] = useState<"stock" | "recetas" | "compras">("stock");
+  const [tab, setTab] = useState<Tab>("stock");
+  const [openList, setOpenList] = useState<string | null>(null);
+  const reorder = useLive(() => api<Reorder[]>("/api/inventory/reorder"), ["inventory.alert", "order.created"]);
+  const items = useLive(() => api<Item[]>("/api/inventory/items"), ["inventory.alert", "order.created"]);
+  const n = reorder.data?.length ?? 0;
   return (
     <div className="view">
-      <SubTabs value={tab} onChange={setTab} tabs={[{ id: "stock", label: "Existencias" }, { id: "recetas", label: "Recetas y costos" }, { id: "compras", label: "Compras" }]} />
-      {tab === "stock" && <Stock />}
+      <SubTabs value={tab} onChange={setTab} tabs={[
+        { id: "stock", label: "Existencias" },
+        { id: "reorder", label: n ? `Por pedir (${n})` : "Por pedir" },
+        { id: "listas", label: "Listas de compras" },
+        { id: "recetas", label: "Recetas y costos" },
+        { id: "compras", label: "Compras" },
+      ]} />
+      {tab === "stock" && <Stock items={items} />}
+      {tab === "reorder" && <ReorderTab rows={reorder.data ?? []} onList={(id) => { setOpenList(id); setTab("listas"); }} />}
+      {tab === "listas" && <Lists items={items.data ?? []} initialOpen={openList} onOpened={() => setOpenList(null)} />}
       {tab === "recetas" && <Recipes />}
       {tab === "compras" && <Purchases />}
     </div>
   );
 }
 
-function Stock() {
-  const items = useLive(() => api<Item[]>("/api/inventory/items"), ["inventory.alert", "order.created"]);
+function Stock({ items }: { items: { data: Item[] | null; reload: () => void } }) {
   const alerts = useLive(() => api<Alert[]>("/api/inventory/alerts"), ["inventory.alert", "order.created"]);
-  const [f, setF] = useState({ name: "", unit: "g", min: "" });
+  const meta = useInventoryMeta();
+  const [area, setArea] = useState<string | null>(null);
+  const [cat, setCat] = useState<string | null>(null);
   const [move, setMove] = useState<Item | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [form, setForm] = useState<Item | "new" | null>(null);
+  const [manage, setManage] = useState(false);
   const alertOf = (id: string) => alerts.data?.find((a) => a.itemId === id)?.level;
   const edit = can("inventory.modify");
+  const shown = (items.data ?? []).filter((i) => (!area || i.area_id === area) && (!cat || i.category_id === cat));
+  const catName = (id: string | null) => meta.cats.find((c) => c.id === id)?.name ?? "";
+  const areaName = (id: string | null) => meta.areas.find((a) => a.id === id)?.name ?? "";
   return (
-    <section className="card fillcard">
-      {err && <p className="err">{err}</p>}
-      <PagedRows items={items.data ?? []} rowH={48} empty={<p className="muted">Aún no hay insumos</p>}
-        head={<tr><th>Insumo</th><th className="r">Existencia</th><th className="r">Mínimo</th><th className="r">Costo/u</th><th>Estado</th><th /></tr>}
-        row={(i) => (
-          <>
-            <td>{i.name}</td><td className="r num">{fmt(i.stock)} {i.unit}</td><td className="r num">{fmt(i.min_stock)}</td><td className="r num">${(i.unit_cost_cents / 100).toFixed(4)}</td>
-            <td>{alertOf(i.id) ? <span className="tag ember">{alertOf(i.id)}</span> : <span className="tag">ok</span>}</td>
-            <td className="r">{edit && <button className="btn sm" onClick={() => setMove(i)}>Movimiento</button>}</td>
-          </>
-        )} />
-      {edit && (
-        <div className="row wrap" style={{ flex: "none" }}>
-          <input placeholder="Nuevo insumo" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
-          <select value={f.unit} onChange={(e) => setF({ ...f, unit: e.target.value })}>{["g", "kg", "ml", "l", "pza"].map((u) => <option key={u}>{u}</option>)}</select>
-          <input placeholder="Mínimo" inputMode="decimal" style={{ width: 110 }} value={f.min} onChange={(e) => setF({ ...f, min: e.target.value })} />
-          <button className="btn" disabled={!f.name} onClick={() => api("/api/inventory/items", { body: { name: f.name, unit: f.unit, min_stock: toNum(f.min) } }).then(() => { setF({ ...f, name: "", min: "" }); items.reload(); }, (e) => setErr((e as Error).message))}>Agregar</button>
-        </div>
-      )}
+    <>
+      <AreaBar areas={meta.areas} cats={meta.cats} area={area} cat={cat} onArea={setArea} onCat={setCat}
+        extra={edit ? <><button className="btn sm" onClick={() => setManage(true)}>Áreas y categorías</button><button className="btn primary sm" style={{ minHeight: 40 }} onClick={() => setForm("new")}>+ Nuevo insumo</button></> : undefined} />
+      <section className="card fillcard">
+        <PagedRows items={shown} rowH={48} empty={<p className="muted">{area ? "No hay insumos en esta selección" : "Aún no hay insumos"}</p>}
+          head={<tr><th>Insumo</th><th>Área › Categoría</th><th className="r">Existencia</th><th className="r">Mín. / Máx.</th><th>Estado</th><th /></tr>}
+          row={(i) => (
+            <>
+              <td className="ellipsis" style={{ maxWidth: 220 }}>{i.name}</td>
+              <td className="small ellipsis" style={{ maxWidth: 190 }}>{[areaName(i.area_id), catName(i.category_id)].filter(Boolean).join(" › ") || "—"}</td>
+              <td className="r num">{fmt(i.stock)} {i.unit}</td>
+              <td className="r num small">{i.min_stock ? fmt(i.min_stock) : "—"} / {i.max_stock != null ? fmt(i.max_stock) : "—"}</td>
+              <td>{alertOf(i.id) ? <span className="tag ember">{alertOf(i.id)}</span> : <span className="tag">ok</span>}</td>
+              <td className="r">{edit && <span className="row" style={{ justifyContent: "flex-end", gap: 4 }}><button className="btn sm" onClick={() => setMove(i)}>Movimiento</button><button className="btn sm" onClick={() => setForm(i)}>Editar</button></span>}</td>
+            </>
+          )} />
+      </section>
       {move && <MoveSheet item={move} onClose={() => { setMove(null); items.reload(); alerts.reload(); }} />}
-    </section>
+      {form && <ItemSheet item={form === "new" ? null : form} meta={meta} onClose={(changed) => { setForm(null); if (changed) { items.reload(); alerts.reload(); } }} />}
+      {manage && <AreasSheet meta={meta} onClose={() => { setManage(false); meta.reload(); items.reload(); }} />}
+    </>
+  );
+}
+
+/** Lo que ya llegó al mínimo: cuánto hay, cuánto pedir y a quién. De aquí sale la lista de compras. */
+function ReorderTab({ rows, onList }: { rows: Reorder[]; onList: (id: string) => void }) {
+  const meta = useInventoryMeta();
+  const [area, setArea] = useState<string | null>(null);
+  const [cat, setCat] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const shown = rows.filter((r) => (!area || r.area_id === area) && (!cat || r.category_id === cat));
+  return (
+    <>
+      <AreaBar areas={meta.areas} cats={meta.cats} area={area} cat={cat} onArea={setArea} onCat={setCat} />
+      <section className="card fillcard">
+        {err && <p className="err">{err}</p>}
+        <PagedRows items={shown} rowH={52} empty={<p className="muted">Nada por pedir en esta selección. Define el mínimo de cada insumo para recibir el aviso.</p>}
+          head={<tr><th>Insumo</th><th>Área › Categoría</th><th className="r">Hay</th><th className="r">Mínimo</th><th className="r">Pedir</th><th>Proveedor</th></tr>}
+          row={(r) => (
+            <>
+              <td className="ellipsis" style={{ maxWidth: 220 }}><strong>{r.name}</strong> <span className={`tag ${r.level === "agotado" ? "ember" : ""}`}>{r.level}</span></td>
+              <td className="small ellipsis" style={{ maxWidth: 190 }}>{[r.area, r.category].filter(Boolean).join(" › ") || "—"}</td>
+              <td className="r num">{fmt(r.stock)} {r.unit}</td>
+              <td className="r num small">{fmt(r.min_stock)}</td>
+              <td className="r num"><strong>{fmt(r.suggested)} {r.unit}</strong></td>
+              <td className="small ellipsis" style={{ maxWidth: 150 }}>{r.supplier ?? "—"}</td>
+            </>
+          )} />
+        {can("inventory.modify") && (
+          <div className="row spread" style={{ flex: "none" }}>
+            <span className="small">{shown.length} insumo(s) por pedir{area ? " en esta selección" : ""}</span>
+            <button className="btn primary" disabled={shown.length === 0} onClick={() => api<{ id: string }>("/api/shopping-lists", { body: { auto: true, areaId: area ?? undefined, categoryId: cat ?? undefined } }).then((r) => onList(r.id), (e) => setErr((e as Error).message))}>Crear lista de compras con esto</button>
+          </div>
+        )}
+      </section>
+    </>
   );
 }
 

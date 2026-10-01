@@ -40,7 +40,7 @@ export function Config() {
         <div className="split">
           <section className="card fillcard">
             <h3>Impresoras</h3>
-            <PagedRows items={printers.data ?? []} rowH={52} row={(p) => (
+            <PagedRows fixed items={printers.data ?? []} rowH={52} row={(p) => (
               <td style={{ padding: 0 }}><div className="row spread" style={{ height: 52 }}>
                 <span className="ellipsis">{p.name} <span className="small">{p.kind} · {p.host ?? "sin IP"}:{p.port} · {p.paper_width}mm</span></span>
                 <button className="btn ghost sm" onClick={() => run(api(`/api/printers/${p.id}`, { method: "DELETE" }), printers.reload)}>Eliminar</button>
@@ -50,7 +50,7 @@ export function Config() {
           </section>
           <section className="card fillcard" style={{ maxWidth: 520 }}>
             <h3>Impresora de cada estación</h3>
-            <PagedRows items={stations.data ?? []} rowH={56} row={(s) => (
+            <PagedRows fixed items={stations.data ?? []} rowH={56} row={(s) => (
               <td style={{ padding: 0 }}><div className="row" style={{ height: 56 }}>
                 <span style={{ width: 100 }} className="ellipsis">{s.name}</span>
                 {(["primary_printer_id", "secondary_printer_id"] as const).map((f) => (

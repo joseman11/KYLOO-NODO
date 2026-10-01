@@ -649,4 +649,98 @@ CREATE TABLE table_links (
 ALTER TABLE users ADD COLUMN photo TEXT;
 `,
   },
+  {
+    id: 10,
+    name: "inventario_areas_listas_recetario",
+    sql: `
+-- Inventario separado en áreas (Cocina, Barra…) y categorías que crea el usuario (Perecederos, Mariscos, Enlatados…)
+CREATE TABLE inventory_areas (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  sort INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE inventory_categories (
+  id TEXT PRIMARY KEY,
+  area_id TEXT NOT NULL REFERENCES inventory_areas(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  sort INTEGER NOT NULL DEFAULT 0,
+  UNIQUE (area_id, name)
+);
+ALTER TABLE inventory_items ADD COLUMN area_id TEXT REFERENCES inventory_areas(id);
+ALTER TABLE inventory_items ADD COLUMN category_id TEXT REFERENCES inventory_categories(id);
+ALTER TABLE inventory_items ADD COLUMN supplier_id TEXT REFERENCES suppliers(id);
+CREATE INDEX idx_inv_items_area ON inventory_items(area_id, category_id);
+
+-- Listas de compras (armadas con lo que llegó al mínimo o a mano) que se pueden compartir por enlace
+CREATE TABLE shopping_lists (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'manual' CHECK (kind IN ('auto','manual')),
+  status TEXT NOT NULL DEFAULT 'abierta' CHECK (status IN ('abierta','compartida','comprada','archivada')),
+  share_token TEXT UNIQUE,
+  notes TEXT,
+  created_by TEXT,
+  created_at INTEGER NOT NULL,
+  closed_at INTEGER
+);
+CREATE TABLE shopping_list_items (
+  id TEXT PRIMARY KEY,
+  list_id TEXT NOT NULL REFERENCES shopping_lists(id) ON DELETE CASCADE,
+  item_id TEXT REFERENCES inventory_items(id),
+  name TEXT NOT NULL,
+  unit TEXT,
+  quantity REAL NOT NULL CHECK (quantity > 0),
+  checked INTEGER NOT NULL DEFAULT 0,
+  note TEXT,
+  sort INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX idx_sli_list ON shopping_list_items(list_id);
+
+-- Recetario: recetas con sus categorías (comida, tragos, salsas…), ingredientes y preparación
+CREATE TABLE recipe_categories (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  sort INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE recipe_book (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  category_id TEXT REFERENCES recipe_categories(id) ON DELETE SET NULL,
+  description TEXT,
+  instructions TEXT,
+  yield REAL NOT NULL DEFAULT 1 CHECK (yield > 0),
+  yield_unit TEXT NOT NULL DEFAULT 'porciones',
+  prep_minutes INTEGER,
+  photo TEXT,
+  product_id TEXT REFERENCES products(id) ON DELETE SET NULL,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_by TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX idx_recipe_book_cat ON recipe_book(category_id);
+CREATE TABLE recipe_book_items (
+  id TEXT PRIMARY KEY,
+  recipe_id TEXT NOT NULL REFERENCES recipe_book(id) ON DELETE CASCADE,
+  item_id TEXT REFERENCES inventory_items(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  quantity REAL NOT NULL CHECK (quantity > 0),
+  unit TEXT,
+  note TEXT,
+  sort INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX idx_recipe_items_recipe ON recipe_book_items(recipe_id);
+
+-- Punto de partida editable: el usuario puede renombrar, borrar o agregar las suyas
+INSERT INTO inventory_areas (id, name, sort) VALUES
+  (lower(hex(randomblob(12))), 'Cocina', 0),
+  (lower(hex(randomblob(12))), 'Barra', 1),
+  (lower(hex(randomblob(12))), 'Limpieza y desechables', 2);
+INSERT INTO recipe_categories (id, name, sort) VALUES
+  (lower(hex(randomblob(12))), 'Comida', 0),
+  (lower(hex(randomblob(12))), 'Bebidas y tragos', 1),
+  (lower(hex(randomblob(12))), 'Salsas y preparaciones', 2),
+  (lower(hex(randomblob(12))), 'Postres', 3);
+`,
+  },
 ];

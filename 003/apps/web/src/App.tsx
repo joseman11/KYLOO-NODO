@@ -10,6 +10,8 @@ import { Station } from "./views/Station";
 import { Cash } from "./views/Cash";
 import { Admin } from "./views/Admin";
 import { Config } from "./views/Config";
+import { RecipeBook } from "./views/RecipeBook";
+import { SharedShopping } from "./views/SharedShopping";
 import { External } from "./views/External";
 import { Reservations } from "./views/Reservations";
 import { Inventory } from "./views/Inventory";
@@ -18,7 +20,7 @@ import { Analytics } from "./views/Analytics";
 import { Pass } from "./views/Pass";
 import { Hq } from "./views/Hq";
 
-type Tab = "mesas" | "pase" | "pedidos" | "reservas" | "estacion" | "caja" | "inventario" | "analitica" | "admin" | "config";
+type Tab = "mesas" | "pase" | "pedidos" | "reservas" | "estacion" | "caja" | "inventario" | "recetas" | "analitica" | "admin" | "config";
 interface Toast { id: number; text: string; alert?: boolean; }
 
 export function App() {
@@ -26,6 +28,8 @@ export function App() {
   if (location.pathname === "/m") return <PublicMenu />;
   // Consola de la nube (organizaciones): también sin sesión de sucursal
   if (location.pathname === "/hq") return <Hq />;
+  // Lista de compras compartida por enlace: pública, sin sesión
+  if (location.pathname === "/s") return <SharedShopping />;
   return <Staff />;
 }
 
@@ -110,6 +114,7 @@ function Staff() {
     { id: "estacion", label: "Cocina", icon: "cocina", show: can("station.update") || can("item.mark_ready") },
     { id: "caja", label: "Caja", icon: "caja", show: can("payment.take") || can("cash.open") },
     { id: "inventario", label: "Inventario", icon: "inventario", show: can("inventory.view") },
+    { id: "recetas", label: "Recetas", icon: "recetas", show: true },
     { id: "analitica", label: "Analítica", icon: "analitica", show: can("reports.view") },
     { id: "admin", label: "Admin", icon: "admin", show: can("reports.view") || can("printer.manage") },
     { id: "config", label: "Config", icon: "config", show: can("venue.manage") || can("product.create") },
@@ -157,6 +162,7 @@ function Staff() {
               {tab === "estacion" && <Station />}
               {tab === "caja" && <Cash />}
               {tab === "inventario" && <Inventory />}
+              {tab === "recetas" && <RecipeBook />}
               {tab === "analitica" && <Analytics />}
               {tab === "admin" && <Admin />}
               {tab === "config" && <Config />}

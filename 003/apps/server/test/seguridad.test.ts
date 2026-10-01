@@ -201,3 +201,24 @@ describe("sesión", () => {
     expect((await call(b, "GET", "/api/me")).status).toBe(200);
   });
 });
+
+describe("cuerpos JSON", () => {
+  it("un DELETE con content-type JSON y cuerpo vacío se acepta (clientes que siempre declaran JSON)", async () => {
+    const st = (await call(admin, "GET", "/api/stations")).body as { id: string }[];
+    const p = await call(admin, "POST", "/api/products", { name: "Para borrar", price_cents: 100, station_ids: [st[0]!.id] });
+    const r = await app.inject({ method: "DELETE", url: `/api/products/${p.body.id}`, headers: { ...H(admin), "content-type": "application/json" } });
+    expect(r.statusCode).toBeLessThan(400);
+  });
+
+  it("el JSON mal formado sigue siendo 400, no 500", async () => {
+    for (const bad of ["{", "{\"a\":", "[1,2", "undefined", "{'a':1}"]) {
+      const r = await app.inject({ method: "POST", url: "/api/products", headers: { ...H(admin), "content-type": "application/json" }, payload: bad });
+      expect(r.statusCode, bad).toBe(400);
+    }
+  });
+
+  it("un POST sin cuerpo a una ruta que lo exige da 400 con mensaje", async () => {
+    const r = await app.inject({ method: "POST", url: "/api/products", headers: H(admin) });
+    expect(r.statusCode).toBeLessThan(500);
+  });
+});

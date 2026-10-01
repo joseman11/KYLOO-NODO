@@ -47,7 +47,8 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
   try {
     res = await fetch(path, {
       method: opts.method ?? (opts.body ? "POST" : "GET"),
-      headers: { "content-type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      // Sin cuerpo no se declara JSON: el servidor rechaza un DELETE con content-type JSON y cuerpo vacío
+      headers: { ...(opts.body ? { "content-type": "application/json" } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: opts.body ? JSON.stringify(opts.body) : undefined,
     });
   } catch {

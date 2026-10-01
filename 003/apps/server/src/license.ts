@@ -83,7 +83,7 @@ function fallbackFree(): ActiveLicense {
 
 /** Rutas que requieren una función del plan (solo se aplican si hay licencia instalada). */
 export const FEATURE_ROUTES: [RegExp, Feature][] = [
-  [/^\/api\/(inventory|recipes|suppliers|purchase-orders)(\/|$)/, "inventario"],
+  [/^\/api\/(inventory|recipes|suppliers|purchase-orders|shopping-lists)(\/|$)/, "inventario"],
   [/^\/api\/(delivery|orders\/external)(\/|$)/, "delivery"],
   [/^\/api\/public(\/|$)/, "qr"],
   [/^\/api\/tables\/[^/]+\/qr$/, "qr"],

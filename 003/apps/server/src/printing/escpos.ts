@@ -1,4 +1,4 @@
-import { BIG, BOLD } from "./markup";
+import { BIG, BOLD, HUGE } from "./markup";
 
 /** Codificador mínimo ESC/POS para impresoras térmicas (texto, negritas, doble tamaño, corte). */
 
@@ -31,7 +31,8 @@ function encodeText(s: string): number[] {
 export function toEscpos(lines: string[], opts: EscposOptions = {}): Buffer {
   const out: number[] = [ESC, 0x40, ESC, 0x74, 19]; // init + code page CP858
   for (const raw of lines) {
-    if (raw.startsWith(BIG)) out.push(ESC, 0x45, 1, GS, 0x21, 0x11, ...encodeText(raw.slice(1)), GS, 0x21, 0x00, ESC, 0x45, 0);
+    if (raw.startsWith(HUGE)) out.push(ESC, 0x61, 1, ESC, 0x45, 1, GS, 0x21, 0x33, ...encodeText(raw.slice(1)), GS, 0x21, 0x00, ESC, 0x45, 0, ESC, 0x61, 0);
+    else if (raw.startsWith(BIG)) out.push(ESC, 0x45, 1, GS, 0x21, 0x11, ...encodeText(raw.slice(1)), GS, 0x21, 0x00, ESC, 0x45, 0);
     else if (raw.startsWith(BOLD)) out.push(ESC, 0x45, 1, ...encodeText(raw.slice(1)), ESC, 0x45, 0);
     else out.push(...encodeText(raw));
     out.push(0x0a);

@@ -1,4 +1,4 @@
-import { BIG, BOLD } from "./markup";
+import { BIG, BOLD, HUGE } from "./markup";
 
 /** Render de tickets a líneas de texto (el ancho depende del papel: 58mm ≈ 32 cols, 80mm ≈ 42 cols). */
 
@@ -61,7 +61,9 @@ export function renderComanda(d: ComandaData, paper = 80, style: TicketStyle = D
   const out = [
     `${BIG}${d.headline ?? (d.kind === "adicion" ? "ADICION" : "COMANDA")}`,
     `${BOLD}${d.stationLabel}`,
-    `${BIG}Mesa ${d.tableNumber}`,
+    // El número de mesa va enorme y centrado: la cocina lo lee desde lejos
+    `${BOLD}MESA`,
+    `${HUGE}${d.tableNumber}`,
     two(`Mesero: ${d.waiter}`, `#${d.folio}`, w),
     fmtTime(d.createdAt),
     rule(w, style.sep),

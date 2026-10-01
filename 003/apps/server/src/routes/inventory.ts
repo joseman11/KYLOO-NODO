@@ -20,6 +20,29 @@ export async function inventoryRoutes(app: FastifyInstance) {
       max_stock: z.number().min(0).nullable().optional(),
       unit_cost_cents: z.number().min(0).default(0),
       active: z.boolean().default(true),
+      /** Área (Cocina, Barra…), categoría dentro del área (Mariscos, Enlatados…) y proveedor habitual. */
+      area_id: z.string().nullable().optional(),
+      category_id: z.string().nullable().optional(),
+      supplier_id: z.string().nullable().optional(),
+    },
+    validate: (b, rid) => {
+      if (b.max_stock != null && b.min_stock != null && (b.max_stock as number) < (b.min_stock as number)) return "El máximo no puede ser menor que el mínimo";
+      const cur = rid ? (db.prepare("SELECT area_id, category_id, min_stock, max_stock FROM inventory_items WHERE id=?").get(rid) as { area_id: string | null; category_id: string | null; min_stock: number; max_stock: number | null } | undefined) : undefined;
+      const min = (b.min_stock as number | undefined) ?? cur?.min_stock;
+      const max = b.max_stock !== undefined ? (b.max_stock as number | null) : cur?.max_stock;
+      if (max != null && min != null && max < min) return "El máximo no puede ser menor que el mínimo";
+      const area = b.area_id !== undefined ? (b.area_id as string | null) : cur?.area_id ?? null;
+      // Al cambiar de área sin elegir categoría nueva, la anterior ya no aplica
+      if (rid && b.area_id !== undefined && b.category_id === undefined && cur?.category_id && area !== cur.area_id) b.category_id = null;
+      const cat = b.category_id !== undefined ? (b.category_id as string | null) : cur?.category_id ?? null;
+      if (area && !db.prepare("SELECT 1 FROM inventory_areas WHERE id=?").get(area)) return "El área no existe";
+      if (b.supplier_id && !db.prepare("SELECT 1 FROM suppliers WHERE id=?").get(b.supplier_id as string)) return "El proveedor no existe";
+      if (cat) {
+        const c = db.prepare("SELECT area_id FROM inventory_categories WHERE id=?").get(cat) as { area_id: string } | undefined;
+        if (!c) return "La categoría no existe";
+        if (c.area_id !== area) return "La categoría no pertenece a esa área";
+      }
+      return null;
     },
   });
 

@@ -18,6 +18,7 @@ export const PERMISSIONS = [
   "bill.merge",
   "refund.authorize",
   "inventory.modify",
+  "recipe.manage",
   "inventory.view",
   "purchase.manage",
   "promotion.manage",
@@ -57,7 +58,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "order.create", "order.edit", "order.cancel", "item.cancel", "discount.apply",
     "cash.close", "payment.take", "ticket.reprint", "comanda.reprint", "table.change", "table.transfer",
     "bill.split", "bill.merge", "refund.authorize", "reports.view", "data.export",
-    "inventory.view", "inventory.modify", "purchase.manage", "promotion.manage", "reservation.manage", "invoice.manage",
+    "inventory.view", "inventory.modify", "purchase.manage", "promotion.manage", "reservation.manage", "invoice.manage", "recipe.manage",
   ],
   encargado_caja: [
     "cash.open", "cash.close", "cash.withdraw", "payment.take", "drawer.open", "ticket.reprint", "reports.view", "inventory.view", "invoice.manage",
@@ -66,8 +67,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "order.create", "order.edit", "item.cancel", "item.mark_delivered", "table.change", "table.transfer", "bill.split", "bill.merge", "reservation.manage",
   ],
   cajero: ["cash.open", "cash.close", "payment.take", "drawer.open", "ticket.reprint", "invoice.manage"],
-  cocina: ["comanda.reprint", "item.mark_ready", "item.mark_delivered", "station.update"],
-  bar: ["item.mark_ready", "station.update"],
+  cocina: ["comanda.reprint", "item.mark_ready", "item.mark_delivered", "station.update", "recipe.manage"],
+  bar: ["item.mark_ready", "station.update", "recipe.manage"],
   supervisor: ["reports.view", "comanda.reprint", "ticket.reprint", "inventory.view"],
 };
 

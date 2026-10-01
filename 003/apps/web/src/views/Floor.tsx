@@ -41,7 +41,7 @@ export function Floor({ onOpen }: { onOpen: (accountId: string) => void }) {
 
   const select = (t: FloorTable) => {
     setErr(null);
-    const mine = t.accounts.length === 1 && t.accounts[0]!.waiter_id === me?.id;
+    const mine = !t.linked_to && t.accounts.length === 1 && t.accounts[0]!.waiter_id === me?.id; // una mesa unida abre su panel (para poder separarla)
     if (mine) return onOpen(t.accounts[0]!.id); // la tuya: a pedir directo
     setSel(t.id);
     setGuests(String(Math.min(t.capacity, 2)));

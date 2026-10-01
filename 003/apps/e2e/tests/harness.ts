@@ -153,3 +153,50 @@ export const api = async (nodo: Nodo, token: string, method: "GET" | "POST" | "P
 };
 
 export type { Page, Browser };
+
+/** ¿Aparece el texto en alguna página del paginador de la pantalla actual? (recorre las páginas con «›»). */
+export async function pagedHasText(page: Page, text: string, maxPages = 12): Promise<boolean> {
+  for (let i = 0; i < maxPages; i++) {
+    if (await hasText(page, text)) return true;
+    const next = await rectOf(page, "›", ".view .pager button, .sheet .pager button");
+    if (!next) return false;
+    const disabled = await page.evaluate((x, y) => (document.elementFromPoint(x, y) as HTMLButtonElement | null)?.disabled ?? false, next.x + next.w / 2, next.y + next.h / 2);
+    if (disabled) return false;
+    await page.mouse.click(next.x + next.w / 2, next.y + next.h / 2);
+    await sleep(250);
+  }
+  return false;
+}
+
+/** Vuelve a la primera página del paginador (si hay). */
+export async function firstPage(page: Page) {
+  for (let i = 0; i < 12; i++) {
+    const prev = await rectOf(page, "‹", ".view .pager button, .sheet .pager button");
+    if (!prev) return;
+    const disabled = await page.evaluate((x, y) => (document.elementFromPoint(x, y) as HTMLButtonElement | null)?.disabled ?? true, prev.x + prev.w / 2, prev.y + prev.h / 2);
+    if (disabled) return;
+    await page.mouse.click(prev.x + prev.w / 2, prev.y + prev.h / 2);
+    await sleep(200);
+  }
+}
+
+/** Toca el botón `button` de la fila de tabla que contiene `rowText`, buscando en todas las páginas. */
+export async function rowButton(page: Page, rowText: string, button: string, timeout = 15_000) {
+  await firstPage(page);
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeout) {
+    const r = await page.evaluate((rowText, button) => {
+      const tr = [...document.querySelectorAll("tr")].find((x) => (x as HTMLElement).innerText.includes(rowText));
+      const b = tr && [...tr.querySelectorAll("button")].find((x) => (x as HTMLElement).innerText.trim() === button);
+      if (!b) return null;
+      const rc = b.getBoundingClientRect();
+      return { x: rc.x + rc.width / 2, y: rc.y + rc.height / 2 };
+    }, rowText, button);
+    if (r) { await page.mouse.click(r.x, r.y); await sleep(150); return; }
+    const next = await rectOf(page, "›", ".view .pager button, .sheet .pager button");
+    if (!next) break;
+    await page.mouse.click(next.x + next.w / 2, next.y + next.h / 2);
+    await sleep(250);
+  }
+  throw new Error(`No se encontró «${button}» en la fila «${rowText}»`);
+}

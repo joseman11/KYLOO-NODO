@@ -95,4 +95,35 @@ export async function photoRoutes(app: FastifyInstance, opts: { dir: string }) {
     if (user.photo && FILE_RE.test(user.photo)) rmSync(join(opts.dir, user.photo), { force: true });
     return { ok: true };
   });
+
+  // Foto de cada receta del recetario
+  const recipePhoto = (rid: string) => db.prepare("SELECT photo FROM recipe_book WHERE id=? AND active=1").get(rid) as { photo: string | null } | undefined;
+
+  app.post("/api/recipe-book/:id/photo", { preHandler: app.authorize("recipe.manage") }, async (req) => {
+    const { id } = z.object({ id: z.string() }).parse(req.params);
+    const { data } = z.object({ data: z.string().min(100) }).parse(req.body);
+    const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(data);
+    if (!m) throw new HttpError(400, "formato_invalido", "Solo se aceptan imágenes JPG, PNG o WebP");
+    const type = TYPES[m[1]!]!;
+    const bytes = Buffer.from(m[2]!, "base64");
+    if (bytes.length > MAX_BYTES) throw new HttpError(413, "imagen_grande", "La foto pesa demasiado (máximo 800 KB)");
+    if (!type.magic(bytes)) throw new HttpError(400, "formato_invalido", "El archivo no es una imagen válida");
+    const rec = recipePhoto(id);
+    if (!rec) throw new HttpError(404, "no_encontrado");
+    const file = `${id}-${randomBytes(4).toString("hex")}.${type.ext}`;
+    mkdirSync(opts.dir, { recursive: true });
+    writeFileSync(join(opts.dir, file), bytes);
+    db.prepare("UPDATE recipe_book SET photo=? WHERE id=?").run(file, id);
+    if (rec.photo && FILE_RE.test(rec.photo)) rmSync(join(opts.dir, rec.photo), { force: true });
+    return { photo: file };
+  });
+
+  app.delete("/api/recipe-book/:id/photo", { preHandler: app.authorize("recipe.manage") }, async (req) => {
+    const { id } = z.object({ id: z.string() }).parse(req.params);
+    const rec = recipePhoto(id);
+    if (!rec) throw new HttpError(404, "no_encontrado");
+    db.prepare("UPDATE recipe_book SET photo=NULL WHERE id=?").run(id);
+    if (rec.photo && FILE_RE.test(rec.photo)) rmSync(join(opts.dir, rec.photo), { force: true });
+    return { ok: true };
+  });
 }
