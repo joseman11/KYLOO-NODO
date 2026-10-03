@@ -74,9 +74,12 @@ Desde `003/` y con Node 24 (ver `.nvmrc`); el paquete de Windows **se construye 
 
 ```bash
 npx -y pnpm@11.21.0 install
-npx -y pnpm@11.21.0 --filter @003/packaging build -- --platform win32 --arch x64   # ZIP + Nodo-Setup-<v>.exe
-npx -y pnpm@11.21.0 --filter @003/packaging build                                  # plataforma actual
-npx -y pnpm@11.21.0 --filter @003/packaging smoke                                  # prueba de humo del paquete de esta máquina
+# Producción (clave pública de Nodo incrustada; ver LICENCIAS.md):
+npx -y pnpm@11.21.0 --filter @003/packaging build -- --platform win32 --arch x64 --license-public-key ~/.nodo-keys/license-public.pem --hq-url https://<hq>
+# Desarrollo (sin límites de licencia; se marca -dev y NO se distribuye):
+npx -y pnpm@11.21.0 --filter @003/packaging build -- --license open
+npx -y pnpm@11.21.0 --filter @003/packaging smoke                                  # prueba de humo del paquete -dev de esta máquina
+npx -y pnpm@11.21.0 --filter @003/packaging test                                   # el modo de licencia queda fijo en el paquete
 ```
 
 Salida en `003/packaging/dist/` (ignorada por git) con la suma SHA-256 de cada archivo. El `.exe` se genera con NSIS (`brew install makensis`); sin él se omite y se avisa. WinSW y el Node empaquetado se descargan y se verifican por SHA-256 (la suma de WinSW está fijada en `build.mjs`).
@@ -85,6 +88,6 @@ Salida en `003/packaging/dist/` (ignorada por git) con la suma SHA-256 de cada a
 
 - 🔴 **Probar en una PC con Windows real** el instalador, el servicio (arranque con el equipo, reinicio tras caída, parada) y el firewall.
 - 🟠 **Firmar el instalador** (certificado de firma de código): sin firma, Windows SmartScreen muestra una advertencia al ejecutarlo. Es una compra del dueño.
-- 🟠 **Activación de licencia y nube** dentro de la instalación: plan 03 y plan 04.
+- 🟠 **Licencia:** ya se activa con un código (ver [`LICENCIAS.md`](LICENCIAS.md)); falta probarla contra un HQ desplegado (plan 04).
 - 🟡 **Apagado ordenado en Windows:** WinSW detiene el servidor terminando el proceso. Es seguro (SQLite en WAL se recupera solo) pero no registra «apagado completo»; en macOS/Linux la señal SIGTERM sí lo hace (comprobado).
 - 🟡 **Asignación de IP fija y descubrimiento de la dirección** (mDNS/QR): plan 05.

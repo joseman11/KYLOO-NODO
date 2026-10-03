@@ -9,8 +9,10 @@ Aquí vive **toda la documentación persistente** de KYLOO-NODO. Lo que no está
 | [`PLAN-00-ESTRUCTURA-DE-TRABAJO.md`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) | Cómo trabajamos y qué haremos: la estructura del proyecto, el rumbo y el orden de las etapas | **Abierto** (2026-10-03) |
 | [`ESTADO-ACTUAL.md`](ESTADO-ACTUAL.md) | Qué hay hoy: arquitectura, módulos, medidas, deuda, ramas | Vivo |
 | [`PLAN-01-LINEA-BASE-Y-CALIDAD.md`](PLAN-01-LINEA-BASE-Y-CALIDAD.md) | Línea base verde, `nube-web` integrada, herramientas de calidad | **Cerrado** (2026-10-03) |
-| [`PLAN-02-EMPAQUETADO-E-INSTALACION.md`](PLAN-02-EMPAQUETADO-E-INSTALACION.md) | Empaquetado, instalación y primer arranque | **Abierto** (2026-10-03) |
+| [`PLAN-02-EMPAQUETADO-E-INSTALACION.md`](PLAN-02-EMPAQUETADO-E-INSTALACION.md) | Empaquetado, instalación y primer arranque | **Cerrado** (2026-10-03) |
+| [`PLAN-03-LICENCIAS-Y-ACTIVACION.md`](PLAN-03-LICENCIAS-Y-ACTIVACION.md) | Licencias atadas al equipo y activación por código | **Cerrado** (2026-10-03) |
 | [`deploy/INSTALACION.md`](deploy/INSTALACION.md) | Cómo se instala, actualiza y desinstala Nodo en un local | Vivo |
+| [`deploy/LICENCIAS.md`](deploy/LICENCIAS.md) | Cómo se emiten, activan y protegen las licencias | Vivo |
 | [`DESIGN.md`](DESIGN.md) | Sistema visual de Nodo | Vigente |
 | [`DESIGN-reference-brex.md`](DESIGN-reference-brex.md) | Referencia visual externa de la que parte `DESIGN.md` | Referencia |
 | [`INVESTIGACION-COMANDEROS.md`](INVESTIGACION-COMANDEROS.md) | Investigación de la competencia (2026-10-01) | Referencia |

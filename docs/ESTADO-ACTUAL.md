@@ -94,7 +94,7 @@ Es decir, es la base técnica para correr **el mismo código** en el local (SQLi
 | E6 | 🟡 | Historia de git de 3 commits muy grandes; los futuros deben ser pequeños. |
 | E7 | 🟡 | Despliegue de Nodo en el local solo documentado para Windows (servicio por PowerShell). Sin empaquetado, sin actualizaciones remotas, sin Docker. |
 | E8 | ✅ | ✅ Rutas portables (`d014f99`, `7ae9486`). |
-| E9 | 🟡 | Los límites de plan solo se aplican si hay licencia instalada («sin licencia no hay límites»). Una instalación sin licencia es ilimitada. Decisión comercial pendiente. |
+| E9 | ✅ | ✅ En el paquete de producción (`enforced`) sin licencia rige el plan gratuito; el modo sin límites queda solo para desarrollo (`--license open`). |
 | E10 | ⚪ | Nombre de plan «INICIO» (landing) vs `gratis` (código). |
 | E11 | ⚪ | JWT en `localStorage`; sin límite de intentos de PIN comprobado más allá de `attempt()` en `auth.ts` (no auditado). |
 | E13 | 🟠 | **Sin HTTPS ni contexto seguro en la LAN** (verificado: no hay TLS en `app.ts`/`main.ts`). El service worker (`sw.js`) solo se registra con `isSecureContext` (`main.tsx:13`), así que sobre `http://<ip>:3003` no se registra: la app no se instala y, si la tablet recarga sin red, queda en blanco. |
@@ -106,7 +106,7 @@ Es decir, es la base técnica para correr **el mismo código** en el local (SQLi
 | E19 | 🟡 | 🟡 Parcial: hay paquete instalable, instalador `.exe` y servicio (plan 02); falta probarlo en Windows, firmarlo y la actualización remota desde la nube. |
 | E20 | ✅ | ✅ Sin claves de fábrica: asistente de primer arranque, el seed quedó solo para desarrollo (plan 02, `0cde153`). |
 | E21 | ✅ | ✅ Paquete con Node oficial + un solo archivo JS, sin código fuente ni herramientas (plan 02). Falta probarlo en Windows real. |
-| E22 | 🔴 | **La licencia no resiste a un usuario con intención** (verificado en `license.ts` y `routes/cloud.ts`): la firma (Ed25519) es correcta, pero (1) la clave pública se guarda en la tabla `settings` del propio SQLite (`hq_public_key`) y se descarga del HQ cuya URL teclea el usuario: quien monte su HQ propio firma sus licencias; (2) sin licencia o sin clave, `getLicense` devuelve `null` = **sin límites** (E9): borrar la fila basta; (3) el código llega en claro (TypeScript con `tsx`) y se parchea con un editor; (4) no está atada al equipo, así que se copia entre locales. Aplica a todo software instalado en el cliente; ver D13. |
+| E22 | ✅ | ✅ Resuelto en el servidor y el empaquetado (plan 03): clave pública incrustada, licencia atada al equipo, activación por código, sin licencia = plan gratuito, reloj sin retroceso. Falta generar la clave de producción y probar contra un HQ desplegado. Ver `docs/deploy/LICENCIAS.md`. |
 | E12 | ⚪ | Sin auditoría de seguridad, de rendimiento ni de uso real (ninguno de los tres se ha hecho). |
 
 ## 8. Cómo arrancarlo

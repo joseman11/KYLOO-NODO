@@ -1,6 +1,6 @@
 # Plan 03 — Licencias atadas al equipo y activación por código
 
-> **Etapa abierta** (2026-10-03, rama `feature/fundacion`). Continúa a [`PLAN-02`](PLAN-02-EMPAQUETADO-E-INSTALACION.md). Resuelve D13 de [`PLAN-00`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) y el hallazgo E22 de [`ESTADO-ACTUAL`](ESTADO-ACTUAL.md).
+> **Etapa cerrada** (2026-10-03, rama `feature/fundacion`). Continúa a [`PLAN-02`](PLAN-02-EMPAQUETADO-E-INSTALACION.md). Resuelve D13 de [`PLAN-00`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) y el hallazgo E22 de [`ESTADO-ACTUAL`](ESTADO-ACTUAL.md).
 >
 > 🤖 Sesión autónoma (el dueño duerme): lo abierto lo decide la sesión y queda en el Registro.
 >
@@ -55,12 +55,12 @@ Resumen: que una licencia no se pueda fabricar ni copiar entre locales sin esfue
 
 ## 4. Orden
 
-- [ ] **F3.1 — Núcleo en el local:** huella del equipo, contexto de licencia (modos, claves incrustadas, estado y motivo), reloj, CLI `keygen`.
-- [ ] **F3.2 — HQ:** columnas y tablas de activación, emisión y canje de códigos, rotación de llave, licencia con huella, clave de firma por entorno.
-- [ ] **F3.3 — Local:** canje (`/api/license/activate`), sincronización con la huella y las claves incrustadas, estado enriquecido.
-- [ ] **F3.4 — Pantalla:** estado de licencia, huella, activación por código.
-- [ ] **F3.5 — Empaquetado:** `--license`, `--license-public-key`, `--hq-url`; el paquete de producción falla sin clave.
-- [ ] **F3.6 — Documentación y cierre.**
+- [x] **F3.1 — Núcleo en el local:** huella del equipo, contexto de licencia (modos, claves incrustadas, estado y motivo), reloj, CLI `keygen`.
+- [x] **F3.2 — HQ:** columnas y tablas de activación, emisión y canje de códigos, rotación de llave, licencia con huella, clave de firma por entorno.
+- [x] **F3.3 — Local:** canje (`/api/license/activate`), sincronización con la huella y las claves incrustadas, estado enriquecido.
+- [x] **F3.4 — Pantalla:** estado de licencia, huella, activación por código.
+- [x] **F3.5 — Empaquetado:** `--license`, `--license-public-key`, `--hq-url`; el paquete de producción falla sin clave.
+- [x] **F3.6 — Documentación y cierre.**
 
 ## 5. Decidido con el dueño
 
@@ -68,4 +68,22 @@ Resumen: que una licencia no se pueda fabricar ni copiar entre locales sin esfue
 
 ## 6. Registro
 
-*(se rellena al cerrar cada fase)*
+- **2026-10-03 (noche, sesión autónoma)** — Cierre del plan.
+  - **Hecho:** F3.1 a F3.3 en `2fe3026`; F3.4 a F3.6 en el commit de cierre del plan.
+  - **Medido / probado:** 34 pruebas de servidor nuevas (huella, estados de licencia, activación, cambio de equipo, límite de intentos, restringido-no-bloqueado), 4 e2e de la pantalla de activación, 4 del empaquetado (el modo y las claves de un paquete de producción no se cambian con el entorno; sin claves no arranca). Un paquete `enforced` construido con una clave de prueba se **arrancó de verdad** en macOS: queda restringido, opera y se apaga ordenado. La clave de prueba se borró.
+  - **Salió por el camino:**
+    - `getLicense` pasó a recibir un contexto (`LicensingContext`); el comportamiento `open` y las pruebas anteriores no cambiaron (I3.4).
+    - En enforced, la clave guardada en la base (`hq_public_key`) **se ignora**: hay una prueba que lo demuestra con un atacante que firma con su propia clave.
+    - El código de activación solo se guarda con hash; el HQ no puede reimprimirlo (se emite uno nuevo).
+    - Con el equipo sin identificador legible la activación se rechaza con `sin_huella`: no se activa a ciegas.
+  - **Decisiones tomadas por la sesión:** D3.1 a D3.7 del plan; además el paquete de desarrollo se marca `-dev` y el constructor **obliga** a elegir licencia.
+  - **Encontrado de paso, anterior a esta etapa y sin arreglar aquí:** `POST /api/hq/orgs` y `POST /api/hq/branches` devuelven `api_key` en claro por compatibilidad (la activación ya no la necesita); revisar si se retira cuando se ordene el HQ (plan 04).
+  - **Estado de la máquina:** servidores de prueba en `:3005` (demo) y `:3006` (instalación vacía); contenedor `nodo-pg`.
+
+### Cómo retomarlo
+Plan 03 cerrado. Seguir con `PLAN-04` (respaldo en nube y HQ en Railway).
+
+### Pendiente
+- 🔴 Generar la clave de producción y configurar `HQ_SIGNING_KEY` (dueño).
+- 🟠 Probar la activación contra un HQ real.
+- 🟡 Huella en Windows y Linux probada solo por análisis del texto de salida.

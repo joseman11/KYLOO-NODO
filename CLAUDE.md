@@ -13,6 +13,7 @@
 |---|---|---|
 | [`docs/PLAN-02-EMPAQUETADO-E-INSTALACION.md`](docs/PLAN-02-EMPAQUETADO-E-INSTALACION.md) | **Etapa abierta** (2026-10-03), sesión autónoma | Antes de tocar el arranque del servidor, la base local o el instalador. |
 | [`docs/deploy/INSTALACION.md`](docs/deploy/INSTALACION.md) | Vivo | Cómo se instala, actualiza y desinstala Nodo; cómo construir el paquete. |
+| [`docs/PLAN-03-LICENCIAS-Y-ACTIVACION.md`](docs/PLAN-03-LICENCIAS-Y-ACTIVACION.md) · [`docs/deploy/LICENCIAS.md`](docs/deploy/LICENCIAS.md) | **Etapa abierta** (2026-10-03) | Antes de tocar licencias, activación o el HQ. |
 | [`docs/PLAN-01-LINEA-BASE-Y-CALIDAD.md`](docs/PLAN-01-LINEA-BASE-Y-CALIDAD.md) | **Cerrado** (2026-10-03) | Para saber por qué `nube-web` está integrada y cómo se diagnosticaron los rojos de e2e. |
 | [`docs/PLAN-00-ESTRUCTURA-DE-TRABAJO.md`](docs/PLAN-00-ESTRUCTURA-DE-TRABAJO.md) | **Etapa abierta** (2026-10-03), en conversación con el dueño | **Antes de hacer nada.** Es el plan vivo: léelo entero. No se escribe código de producto hasta que sus decisiones estén cerradas. |
 | [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md) | Vivo | Antes de proponer algo: qué existe, qué mide, qué está roto, qué deuda hay. |
@@ -51,6 +52,7 @@
 12. ⚠️ **SQLite local es `node:sqlite` (Node ≥ 24), no `better-sqlite3`** (plan 02, D2.1). Dos trampas: Vitest reescribe `import "node:sqlite"` a `sqlite` y falla, por eso `store/sqlite.ts` usa `process.getBuiltinModule("node:sqlite")`; y `node:sqlite` solo acepta `null`, números, texto y binarios (el adaptador convierte booleanos y `undefined`). Imprime un `ExperimentalWarning`: el paquete lo silencia con `--disable-warning=ExperimentalWarning`.
 13. ✅ **Una instalación nueva no se siembra** (`seed` y `seed:demo` son solo de desarrollo): el asistente de `/api/setup` crea al administrador. No reintroducir claves de fábrica.
 14. ⚠️ **Los respaldos automáticos se llaman `003-…` y las copias previas a migrar `pre-migracion-…`** y tienen retención distinta (14 y 5): no mezclar sus prefijos (`routes/reports.ts`, `db.ts`).
+15. 🔴 **La clave privada de licencias no entra al repo ni a la base de un local** (plan 03, I3.2). Va como `HQ_SIGNING_KEY` del HQ; el paquete de producción lleva solo la pública y falla al construirse sin ella. `--license open` produce un paquete `-dev` sin límites que **no se distribuye**.
 
 ## Estado
 
@@ -72,9 +74,11 @@ p --filter @003/server seed:demo         # demo de mariscos (usa DB_FILE y PHOTO
 p --filter @003/server start             # http://<ip>:3003 (sin base: arranca el asistente de primer arranque)
 
 # Paquete instalable (ver docs/deploy/INSTALACION.md):
-p --filter @003/packaging build                       # plataforma actual
-p --filter @003/packaging build -- --platform win32 --arch x64   # ZIP + Nodo-Setup-<v>.exe (necesita makensis)
-p --filter @003/packaging smoke                       # prueba de humo del paquete
+p --filter @003/packaging build -- --license open     # paquete de DESARROLLO (-dev), sin límites; no distribuir
+p --filter @003/packaging build -- --platform win32 --arch x64 --license-public-key <pem> --hq-url <url>   # producción (necesita makensis para el .exe)
+p --filter @003/packaging smoke                       # prueba de humo del paquete -dev
+p --filter @003/packaging test                        # el modo de licencia de producción queda fijo
+p --filter @003/server keygen -- --out ~/.nodo-keys   # par de claves de licencias (la privada NO va al repo)
 
 # Suite de servidor en PostgreSQL (en lote; ~2 min):
 docker run -d --name nodo-pg -e POSTGRES_PASSWORD=nodo -e POSTGRES_DB=nodo_test -p 5433:5432 postgres:16-alpine
