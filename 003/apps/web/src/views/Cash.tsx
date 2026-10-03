@@ -71,6 +71,29 @@ export function Cash() {
     () => api<External[]>("/api/delivery"),
     ["delivery.updated", "payment.created", "order.created"],
   );
+  // Si la impresora de caja tiene cajón de dinero, se puede abrir a mano (dar cambio, retirar efectivo)
+  const printers = useLive(
+    () => api<{ id: string; kind: string; has_drawer: number }[]>("/api/printers"),
+    [],
+  );
+  const drawer = printers.data?.find((p) => p.kind === "caja" && p.has_drawer);
+  const [drawerMsg, setDrawerMsg] = useState<string | null>(null);
+  const drawerButton = drawer && (
+    <button
+      className="btn"
+      onClick={() =>
+        api<{ ok: boolean; error?: string }>(`/api/printers/${drawer.id}/open-drawer`, {
+          method: "POST",
+          body: {},
+        }).then(
+          (r) => setDrawerMsg(r.ok ? null : "El cajón no respondió; se reintentará solo"),
+          (e) => setDrawerMsg((e as Error).message),
+        )
+      }
+    >
+      Abrir cajón
+    </button>
+  );
   const [paying, setPaying] = useState<{ id: string; table: string } | null>(null);
   const [opening, setOpening] = useState("2000");
   const [err, setErr] = useState<string | null>(null);
@@ -84,6 +107,7 @@ export function Cash() {
         <label className="small">Fondo inicial (efectivo)</label>
         <input inputMode="decimal" value={opening} onChange={(e) => setOpening(e.target.value)} />
         {err && <p className="err">{err}</p>}
+        {drawerButton}
         <button
           className="btn primary"
           disabled={!can("cash.open") || cash.data === undefined}
@@ -120,6 +144,7 @@ export function Cash() {
       <div className="row spread" style={{ flex: "none" }}>
         <h2>Caja</h2>
         <div className="row">
+          {drawerButton}
           <button className="btn" onClick={() => setGift(true)}>
             Tarjeta de regalo
           </button>
@@ -128,6 +153,11 @@ export function Cash() {
           </button>
         </div>
       </div>
+      {drawerMsg && (
+        <p className="err" style={{ flex: "none" }}>
+          {drawerMsg}
+        </p>
+      )}
       {s && (
         <div className="stats">
           <div className="card stat">

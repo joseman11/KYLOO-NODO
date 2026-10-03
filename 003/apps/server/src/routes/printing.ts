@@ -6,6 +6,7 @@ import { enqueue, processQueue } from "../printing/queue";
 import { renderTest } from "../printing/render";
 import { BOLD, DRAWER_PIN2, DRAWER_PIN5 } from "../printing/markup";
 import type { PrinterTransport } from "../printing/transport";
+import { hostsOfSubnet, localSubnets, scanPort } from "../printing/discover";
 import type { Hub } from "../hub";
 
 interface PrinterRow {
@@ -37,6 +38,43 @@ export async function printingRoutes(
       })),
     );
   });
+
+  /**
+   * Busca impresoras en la red: prueba el puerto (9100 por defecto) en las redes /24 del equipo, o en las direcciones
+   * indicadas. Marca las que ya están dadas de alta. Tarda unos segundos (254 direcciones por red).
+   */
+  app.post(
+    "/api/printers/discover",
+    { preHandler: app.authorize("printer.manage") },
+    async (req) => {
+      const b = z
+        .object({
+          port: z.number().int().min(1).max(65535).default(9100),
+          hosts: z.array(z.string().max(64)).max(1024).optional(),
+          timeoutMs: z.number().int().min(50).max(3000).default(400),
+        })
+        .parse(req.body ?? {});
+      const subnets = b.hosts ? [] : localSubnets();
+      const hosts = b.hosts ?? subnets.flatMap(hostsOfSubnet);
+      const t0 = Date.now();
+      const found = await scanPort(hosts, b.port, { timeoutMs: b.timeoutMs });
+      const known = (await db.prepare("SELECT id, name, host, port FROM printers").all()) as {
+        id: string;
+        name: string;
+        host: string | null;
+        port: number;
+      }[];
+      return {
+        subnets,
+        scanned: hosts.length,
+        ms: Date.now() - t0,
+        found: found.map((f) => {
+          const p = known.find((k) => k.host === f.host && k.port === f.port);
+          return { ...f, configured: p ? { id: p.id, name: p.name } : null };
+        }),
+      };
+    },
+  );
 
   // Abrir el cajón a mano (p. ej. dar cambio sin cobro). Va por la cola como un trabajo más y se intenta al instante.
   app.post(

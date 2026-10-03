@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, useLive } from "../api";
 import { PagedRows, SubTabs } from "../fit";
 import { Promotions, QrCodes } from "./ConfigExtra";
@@ -22,6 +22,13 @@ interface Printer {
   host: string | null;
   port: number;
   paper_width: number;
+  has_drawer: number;
+}
+
+interface Found {
+  host: string;
+  port: number;
+  configured: { id: string; name: string } | null;
 }
 
 type Tab =
@@ -44,6 +51,8 @@ export function Config() {
   const stations = useLive(() => api<Station[]>("/api/stations"), []);
   const printers = useLive(() => api<Printer[]>("/api/printers"), []);
   const [err, setErr] = useState<string | null>(null);
+  const [finder, setFinder] = useState(false);
+  const [testMsg, setTestMsg] = useState<string | null>(null);
   const run = (p: Promise<unknown>, after: () => void) =>
     p.then(
       () => {
@@ -81,12 +90,25 @@ export function Config() {
 
       {tab === "productos" && <Products />}
       {tab === "categorias" && <Categories />}
+      {finder && (
+        <PrinterFinder onClose={() => setFinder(false)} onAdded={() => printers.reload()} />
+      )}
       {tab === "areas" && <Areas />}
 
       {tab === "impresoras" && (
         <div className="split">
           <section className="card fillcard">
-            <h3>Impresoras</h3>
+            <div className="row spread" style={{ flex: "none" }}>
+              <h3>Impresoras</h3>
+              <button className="btn sm" onClick={() => setFinder(true)}>
+                Buscar en la red
+              </button>
+            </div>
+            {testMsg && (
+              <p className="small" style={{ flex: "none" }}>
+                {testMsg}
+              </p>
+            )}
             <PagedRows
               fixed
               items={printers.data ?? []}
@@ -100,14 +122,52 @@ export function Config() {
                         {p.kind} · {p.host ?? "sin IP"}:{p.port} · {p.paper_width}mm
                       </span>
                     </span>
-                    <button
-                      className="btn ghost sm"
-                      onClick={() =>
-                        run(api(`/api/printers/${p.id}`, { method: "DELETE" }), printers.reload)
-                      }
-                    >
-                      Eliminar
-                    </button>
+                    <div className="row" style={{ flex: "none", gap: 6 }}>
+                      {p.kind === "caja" && (
+                        <button
+                          className={`btn sm ${p.has_drawer ? "" : "ghost"}`}
+                          title="Cajón de dinero conectado a esta impresora"
+                          onClick={() =>
+                            run(
+                              api(`/api/printers/${p.id}`, {
+                                method: "PATCH",
+                                body: { has_drawer: !p.has_drawer },
+                              }),
+                              printers.reload,
+                            )
+                          }
+                        >
+                          Cajón: {p.has_drawer ? "sí" : "no"}
+                        </button>
+                      )}
+                      <button
+                        className="btn ghost sm"
+                        onClick={() =>
+                          api<{ ok: boolean; error?: string }>(`/api/printers/${p.id}/test`, {
+                            method: "POST",
+                            body: {},
+                          }).then(
+                            (r) =>
+                              setTestMsg(
+                                r.ok
+                                  ? `${p.name}: la prueba se imprimió`
+                                  : `${p.name}: no respondió (${r.error ?? "sin detalle"}); se reintentará`,
+                              ),
+                            (e) => setTestMsg((e as Error).message),
+                          )
+                        }
+                      >
+                        Probar
+                      </button>
+                      <button
+                        className="btn ghost sm"
+                        onClick={() =>
+                          run(api(`/api/printers/${p.id}`, { method: "DELETE" }), printers.reload)
+                        }
+                      >
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
                 </td>
               )}
@@ -169,6 +229,102 @@ export function Config() {
       {tab === "nube" && <Cloud />}
       {tab === "ajustes" && <Settings />}
       {tab === "equipo" && <Users />}
+    </div>
+  );
+}
+
+/** Busca impresoras de red (puerto 9100) en las redes del equipo y deja agregarlas con un toque. */
+function PrinterFinder({ onClose, onAdded }: { onClose: () => void; onAdded: () => void }) {
+  const [found, setFound] = useState<Found[] | null>(null);
+  const [scanning, setScanning] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, { name: string; kind: string }>>({});
+  const scan = () => {
+    setScanning(true);
+    setErr(null);
+    api<{ found: Found[] }>("/api/printers/discover", { method: "POST", body: {} })
+      .then(
+        (r) => setFound(r.found),
+        (e) => setErr((e as Error).message),
+      )
+      .finally(() => setScanning(false));
+  };
+  // biome-ignore lint/correctness/useExhaustiveDependencies: se busca una vez al abrir
+  useEffect(scan, []);
+  const draft = (f: Found) =>
+    drafts[f.host] ?? { name: `Impresora ${f.host.split(".").pop()}`, kind: "cocina" };
+  return (
+    <div className="sheet-bg" onClick={onClose}>
+      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+        <h3>Impresoras en la red</h3>
+        {scanning && <p className="small">Buscando… tarda unos segundos.</p>}
+        {err && <p className="err">{err}</p>}
+        {found && !scanning && found.length === 0 && (
+          <p className="small">
+            No se encontró ninguna. Revisa que estén encendidas, conectadas por cable o WiFi a esta
+            misma red y con el puerto 9100 habilitado.
+          </p>
+        )}
+        {found?.map((f) => (
+          <div key={f.host} className="row" style={{ gap: 6 }}>
+            <span className="num" style={{ minWidth: 120 }}>
+              {f.host}
+            </span>
+            {f.configured ? (
+              <span className="small">ya agregada: {f.configured.name}</span>
+            ) : (
+              <>
+                <input
+                  value={draft(f).name}
+                  style={{ width: 150 }}
+                  onChange={(e) =>
+                    setDrafts({ ...drafts, [f.host]: { ...draft(f), name: e.target.value } })
+                  }
+                />
+                <select
+                  value={draft(f).kind}
+                  onChange={(e) =>
+                    setDrafts({ ...drafts, [f.host]: { ...draft(f), kind: e.target.value } })
+                  }
+                >
+                  {["cocina", "bar", "caja", "recepcion", "admin"].map((k) => (
+                    <option key={k}>{k}</option>
+                  ))}
+                </select>
+                <button
+                  className="btn sm primary"
+                  onClick={() =>
+                    api("/api/printers", {
+                      body: {
+                        name: draft(f).name,
+                        kind: draft(f).kind,
+                        host: f.host,
+                        port: f.port,
+                      },
+                    }).then(
+                      () => {
+                        onAdded();
+                        scan();
+                      },
+                      (e) => setErr((e as Error).message),
+                    )
+                  }
+                >
+                  Agregar
+                </button>
+              </>
+            )}
+          </div>
+        ))}
+        <div className="row">
+          <button className="btn" disabled={scanning} onClick={scan}>
+            Buscar de nuevo
+          </button>
+          <button className="btn primary" onClick={onClose}>
+            Cerrar
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
