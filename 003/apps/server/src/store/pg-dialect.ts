@@ -53,7 +53,9 @@ export function toPg(sql: string): string {
     (_m, fmt, arg) => strftimeToPg(fmt, arg),
   );
   s = s.replace(/\bIS NOT \?/gi, "IS DISTINCT FROM ?");
-  s = s.replace(/\? IS (NOT )?NULL/gi, "CAST(? AS TEXT) IS $1NULL").replace(/IS  NULL/g, "IS NULL");
+  s = s
+    .replace(/\? IS (NOT )?NULL/gi, "CAST(? AS TEXT) IS $1NULL")
+    .replace(/IS {2}NULL/g, "IS NULL");
   // LIKE de SQLite no distingue mayúsculas (ASCII); PostgreSQL sí
   s = s.replace(/\bLIKE\b/g, "ILIKE");
   s = placeholders(s);

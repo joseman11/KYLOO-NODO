@@ -1895,7 +1895,7 @@ export async function seedDemo(
     let folio = 0;
     let takeoutN = 0;
     let deliveryN = 0;
-    let invoiceSeq = 0;
+    const invoiceSeq = 0;
     void invoiceSeq;
 
     interface Line {

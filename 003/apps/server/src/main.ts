@@ -1,56 +1,103 @@
 import { mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { buildApp } from "./app";
+import { loadConfig } from "./config";
 import { openDb } from "./db";
 import { Hub } from "./hub";
+import { Logger, RotatingLog, errorFields } from "./logging";
 import { startPrintWorker } from "./printing/queue";
 import { tcpTransport } from "./printing/transport";
-import { createBackup } from "./routes/reports";
 import { syncWithHq } from "./routes/cloud";
+import { createBackup } from "./routes/reports";
 import { startWebhookWorker } from "./webhooks";
 
-const file = process.env.DB_FILE ?? "data/003.sqlite";
-const backupDir = process.env.BACKUP_DIR ?? resolve(dirname(file), "backups");
-mkdirSync(dirname(file), { recursive: true });
+const config = loadConfig();
+mkdirSync(config.dataDir, { recursive: true });
 
-const db = await openDb(file);
+// Registros en archivo con rotación; en terminal también salen por pantalla
+const stream = new RotatingLog({ dir: config.logDir, echo: process.stdout.isTTY });
+const log = new Logger(stream, config.logLevel === "debug" ? "debug" : "info");
+
+// Un error que nadie atrapó no debe dejar al local sin servicio a medio turno: se registra y se sigue. Una excepción
+// sí detiene el proceso (su estado es dudoso) y el servicio del sistema lo reinicia.
+process.on("unhandledRejection", (e) => log.error("promesa rechazada sin atender", errorFields(e)));
+process.on("uncaughtException", (e) => {
+  log.error("excepción no capturada: el proceso se reinicia", errorFields(e));
+  process.exit(1);
+});
+
+log.info("arrancando", {
+  version: config.version,
+  node: process.version,
+  role: config.role,
+  dataDir: config.dataDir,
+});
+
+const db = await openDb(config.dbFile, {
+  backupDir: config.backupDir,
+  onPreMigrationBackup: (file, pending) =>
+    log.warn("copia de la base antes de migrar", { file, migraciones: pending }),
+});
 const hub = new Hub();
-const webDir =
-  process.env.WEB_DIR ?? resolve(dirname(fileURLToPath(import.meta.url)), "../../web/dist");
-const isHq = process.env.ROLE === "hq";
+const isHq = config.role === "hq";
 const http = (
   url: string,
   init?: { method?: string; headers?: Record<string, string>; body?: string },
 ) => fetch(url, init);
-const photosDir = process.env.PHOTOS_DIR ?? resolve(dirname(file), "photos");
 const app = buildApp(db, {
   hub,
-  backupDir,
-  webDir,
-  photosDir,
+  backupDir: config.backupDir,
+  webDir: config.webDir,
+  photosDir: config.photosDir,
   http,
   hq: isHq ? { adminToken: process.env.HQ_ADMIN_TOKEN } : false,
+  logger: { stream, level: config.logLevel },
+  version: config.version,
 });
 
-startPrintWorker(db, tcpTransport, hub);
-startWebhookWorker(db, (url, init) => fetch(url, init));
+const stopPrint = startPrintWorker(db, tcpTransport, hub);
+const stopWebhooks = startWebhookWorker(db, (url, init) => fetch(url, init));
 
 // Backup automático cada 24 h (y uno al arrancar); se conservan los últimos 14
 const DAY = 24 * 60 * 60 * 1000;
-const backup = () => createBackup(db, backupDir).catch((e) => console.error("Backup falló:", e));
+const backup = () =>
+  createBackup(db, config.backupDir).then(
+    (name) => log.info("respaldo automático", { name }),
+    (e) => log.error("el respaldo automático falló", errorFields(e)),
+  );
 void backup();
-setInterval(backup, DAY).unref();
+const backupTimer = setInterval(backup, DAY);
+backupTimer.unref();
 
 // Sincronización con la nube cada hora si la sucursal está vinculada; sin Internet simplemente se reintenta después
+const timers: NodeJS.Timeout[] = [backupTimer];
 if (!isHq) {
   const sync = () => syncWithHq(db, http).catch(() => undefined);
-  setTimeout(sync, 30_000).unref();
-  setInterval(sync, 60 * 60 * 1000).unref();
+  timers.push(setTimeout(sync, 30_000).unref(), setInterval(sync, 60 * 60 * 1000).unref());
 }
 
-const port = Number(process.env.PORT ?? 3003);
-await app.listen({ port, host: process.env.HOST ?? "0.0.0.0" });
-console.log(
-  `003 ${isHq ? "HQ" : "server"} escuchando en el puerto ${port}${isHq ? "" : " (accesible desde la red local)"}`,
-);
+await app.listen({ port: config.port, host: config.host });
+log.info("escuchando", { port: config.port, host: config.host });
+
+// Apagado ordenado: deja de aceptar peticiones, termina las que van y cierra la base (el WAL queda consolidado)
+let closing = false;
+async function shutdown(signal: string) {
+  if (closing) return;
+  closing = true;
+  log.info("apagando", { signal });
+  // Si algo se queda colgado (una conexión abierta), no se espera para siempre
+  setTimeout(() => process.exit(1), 10_000).unref();
+  stopPrint();
+  stopWebhooks();
+  for (const t of timers) clearTimeout(t);
+  try {
+    await app.close();
+    await db.close();
+    log.info("apagado completo");
+    process.exit(0);
+  } catch (e) {
+    log.error("el apagado falló", errorFields(e));
+    process.exit(1);
+  }
+}
+for (const signal of ["SIGINT", "SIGTERM"] as const)
+  process.on(signal, () => void shutdown(signal));

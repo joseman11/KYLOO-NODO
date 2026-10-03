@@ -1,24 +1,56 @@
 import { randomBytes } from "node:crypto";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { MIGRATIONS } from "./schema";
 import { SqliteDb } from "./store/sqlite";
 import type { Db } from "./store/types";
 
 export type { Db } from "./store/types";
 
+export interface OpenDbOptions {
+  /**
+   * Carpeta donde se copia la base antes de aplicar migraciones pendientes sobre una base que ya tenía datos
+   * (`pre-migracion-<desde>-a-<hasta>.sqlite`). Sin ella no se hace copia (pruebas y bases temporales).
+   */
+  backupDir?: string;
+  /** Lista de migraciones (por defecto, todas; se sustituye solo en pruebas). */
+  migrations?: typeof MIGRATIONS;
+  /** Aviso de que se hizo la copia previa a una migración. */
+  onPreMigrationBackup?: (file: string, pending: number[]) => void;
+}
+
 /** Abre (y migra) la base local de SQLite. */
-export async function openDb(file: string): Promise<Db> {
+export async function openDb(file: string, options: OpenDbOptions = {}): Promise<Db> {
   // Pruebas: con NODO_PG_URL, cada base «en memoria» es un esquema nuevo y desechable de PostgreSQL (misma suite, otro motor)
   if (file === ":memory:" && process.env.NODO_PG_URL) {
     const { openPgTemp } = await import("./store/pg-migrate");
     return openPgTemp(process.env.NODO_PG_URL);
   }
   const db = new SqliteDb(file);
-  await migrate(db);
+  await migrate(db, {
+    migrations: options.migrations,
+    beforePending: async (applied, pending) => {
+      if (!options.backupDir || file === ":memory:") return;
+      mkdirSync(options.backupDir, { recursive: true });
+      const copy = join(
+        options.backupDir,
+        `pre-migracion-${Math.max(...applied)}-a-${Math.max(...pending)}.sqlite`,
+      );
+      await db.backup(copy);
+      options.onPreMigrationBackup?.(copy, pending);
+    },
+  });
   await loadCache(db);
   return db;
 }
 
-export async function migrate(db: Db): Promise<void> {
+export interface MigrateOptions {
+  migrations?: typeof MIGRATIONS;
+  /** Se llama una vez, antes de aplicar nada, cuando hay migraciones pendientes sobre una base que ya tenía alguna aplicada. */
+  beforePending?: (applied: number[], pending: number[]) => Promise<void>;
+}
+
+export async function migrate(db: Db, options: MigrateOptions = {}): Promise<void> {
   await db.exec(
     "CREATE TABLE IF NOT EXISTS schema_migrations (id INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at INTEGER NOT NULL)",
   );
@@ -27,7 +59,10 @@ export async function migrate(db: Db): Promise<void> {
       (r) => (r as { id: number }).id,
     ),
   );
-  for (const m of MIGRATIONS) {
+  const all = options.migrations ?? MIGRATIONS;
+  const pending = all.filter((m) => !applied.has(m.id)).map((m) => m.id);
+  if (applied.size > 0 && pending.length > 0) await options.beforePending?.([...applied], pending);
+  for (const m of all) {
     if (applied.has(m.id)) continue;
     // Reconstruir tablas exige desactivar las claves foráneas fuera de la transacción (procedimiento oficial de SQLite)
     if (m.rebuild) await db.exec("PRAGMA foreign_keys = OFF");

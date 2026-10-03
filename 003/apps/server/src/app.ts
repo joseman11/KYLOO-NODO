@@ -36,6 +36,8 @@ import { cloudRoutes, type HttpLike } from "./routes/cloud";
 import { hqRoutes, type HqOptions } from "./routes/hq";
 import { connectWebhooks } from "./webhooks";
 import { FEATURE_ROUTES, getLicense, usage } from "./license";
+import { appVersion } from "./config";
+import { type LogLevel, fastifyLoggerOptions } from "./logging";
 
 export interface AuthUser {
   sub: string;
@@ -73,11 +75,22 @@ export interface AppOptions {
   hq?: HqOptions | false;
   /** Carpeta donde se guardan las fotos de los platillos. */
   photosDir?: string;
+  /** Registro de la aplicación (archivo con rotación). Sin él no se registra nada, como en las pruebas. */
+  logger?: { stream: { write(s: string): void }; level: LogLevel };
+  /** Versión que publica `/api/health` (por defecto, la del paquete). */
+  version?: string;
 }
 
 export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
   // Las fotos viajan en base64 (ya reducidas por el cliente): margen para ~800 KB de imagen
-  const app = Fastify({ logger: false, bodyLimit: 2 * 1024 * 1024 });
+  const app = Fastify({
+    logger: options.logger
+      ? fastifyLoggerOptions(options.logger.stream, options.logger.level)
+      : false,
+    // Una línea por petición llenaría el disco de un local; solo se registran los errores
+    disableRequestLogging: true,
+    bodyLimit: 2 * 1024 * 1024,
+  });
   // Un cuerpo JSON vacío (p. ej. DELETE desde un cliente que declara JSON) se acepta como «sin cuerpo»; el JSON mal formado sigue siendo 400
   app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
     const text = String(body).trim();
@@ -112,7 +125,7 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
     },
   );
 
-  app.setErrorHandler((err: Error & { statusCode?: number }, _req, reply) => {
+  app.setErrorHandler((err: Error & { statusCode?: number }, req, reply) => {
     if (err instanceof ZodError)
       return reply.code(400).send({ error: "validacion", issues: err.issues });
     if (err instanceof HttpError)
@@ -151,13 +164,22 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
       if (process.env.NODO_DEBUG) console.error("[409]", err.message);
       return reply.code(409).send({ error: "conflicto", message: friendly, detail: err.message });
     }
-    if (process.env.NODO_DEBUG) console.error("[500]", err.message);
+    // Los 5xx son lo único que se registra de una petición (Fastify, con disableRequestLogging, no lo hace solo)
+    if ((err.statusCode ?? 500) >= 500) req.log.error({ req, err }, err.message);
     return reply.code(err.statusCode ?? 500).send({ error: err.message });
   });
 
   // Dispositivos conectados por WebSocket (tablets, KDS, caja)
   let devices = 0;
-  app.get("/api/health", async () => ({ ok: true, devices }));
+  const version = options.version ?? appVersion();
+  const startedAt = Date.now();
+  app.get("/api/health", async () => ({
+    ok: true,
+    devices,
+    version,
+    engine: db.dialect,
+    uptimeSec: Math.round((Date.now() - startedAt) / 1000),
+  }));
 
   // Tiempo real: cada dispositivo abre /ws?token=JWT y recibe los eventos del hub
   app.register(async (scope) => {

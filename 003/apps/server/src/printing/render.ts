@@ -73,7 +73,7 @@ export function renderComanda(
     fmtTime(d.createdAt),
     rule(w, style.sep),
   ];
-  let course: string | null | undefined = undefined;
+  let course: string | null | undefined;
   for (const l of d.lines) {
     // Al cambiar de tiempo se imprime un separador con su nombre, para que la cocina sepa cuándo sacar cada parte
     if ((l.course ?? null) !== (course ?? null) && l.course)
