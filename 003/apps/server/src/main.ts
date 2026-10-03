@@ -4,6 +4,7 @@ import { buildApp } from "./app";
 import { startCloudBackupWorker, streamUpload } from "./cloud-backup";
 import { loadConfig } from "./config";
 import { noteClock } from "./license";
+import { startMdns } from "./mdns";
 import { defaultHqUrl, loadLicensing } from "./licensing";
 import { openDb } from "./db";
 import { Hub } from "./hub";
@@ -71,8 +72,14 @@ const http = (
   url: string,
   init?: { method?: string; headers?: Record<string, string>; body?: string },
 ) => fetch(url, init);
+// Anuncio en la red local (mDNS): `nodo.local`. Un local sí; el HQ de la nube no.
+const mdns =
+  isHq || process.env.NODO_MDNS === "0"
+    ? null
+    : startMdns(config.port, (e) => log.warn("mDNS no disponible", errorFields(e)));
 const app = buildApp(db, {
   hub,
+  mdnsHost: mdns?.host ?? null,
   backupDir: config.backupDir,
   webDir: config.webDir,
   photosDir: config.photosDir,
@@ -147,6 +154,7 @@ async function shutdown(signal: string) {
   setTimeout(() => process.exit(1), 10_000).unref();
   stopPrint();
   stopCloudBackup();
+  mdns?.stop();
   stopWebhooks();
   for (const t of timers) clearTimeout(t);
   try {

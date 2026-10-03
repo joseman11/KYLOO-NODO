@@ -4,6 +4,7 @@ import { PagedRows, SubTabs } from "../fit";
 import { Promotions, QrCodes } from "./ConfigExtra";
 import { Settings } from "./ConfigSettings";
 import { Cloud, Integrations } from "./ConfigCloud";
+import { Connect } from "./ConfigConnect";
 import { Areas, Categories, Products } from "./ConfigMenu";
 import { Tickets } from "./ConfigTickets";
 import { Salon } from "./Salon";
@@ -42,6 +43,7 @@ type Tab =
   | "qr"
   | "integraciones"
   | "nube"
+  | "conectar"
   | "ajustes"
   | "equipo";
 
@@ -78,6 +80,7 @@ export function Config() {
           { id: "qr", label: "Menú QR" },
           { id: "integraciones", label: "Integraciones" },
           { id: "equipo", label: "Equipo" },
+          { id: "conectar", label: "Conectar" },
           { id: "nube", label: "Nube" },
           { id: "ajustes", label: "Ajustes" },
         ]}
@@ -93,6 +96,7 @@ export function Config() {
       {finder && (
         <PrinterFinder onClose={() => setFinder(false)} onAdded={() => printers.reload()} />
       )}
+      {tab === "conectar" && <Connect />}
       {tab === "areas" && <Areas />}
 
       {tab === "impresoras" && (

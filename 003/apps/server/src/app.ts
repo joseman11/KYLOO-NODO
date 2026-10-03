@@ -75,6 +75,8 @@ declare module "fastify" {
     licensing: LicensingContext;
     /** Dirección del HQ de Nodo (para activar con un código), si se conoce. */
     hqUrl: string | null;
+    /** Nombre `.local` que anuncia el servidor por mDNS (`null` si no se anuncia). */
+    mdnsHost: string | null;
     /** preHandler: exige sesión válida y el permiso indicado (RN-015). Sin permiso, solo sesión. */
     authorize(permission?: Permission): (req: FastifyRequest, reply: FastifyReply) => Promise<void>;
   }
@@ -102,6 +104,8 @@ export interface AppOptions {
   licensing?: LicensingContext;
   /** Dirección del HQ de Nodo para activar la licencia con un código. */
   hqUrl?: string | null;
+  /** Nombre `.local` anunciado por mDNS (para mostrar cómo conectar una tablet). */
+  mdnsHost?: string | null;
   /** Versión que publica `/api/health` (por defecto, la del paquete). */
   version?: string;
 }
@@ -136,6 +140,7 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
   const licensing = options.licensing ?? OPEN_LICENSING;
   app.decorate("licensing", licensing);
   app.decorate("hqUrl", options.hqUrl ?? null);
+  app.decorate("mdnsHost", options.mdnsHost ?? null);
   app.register(fastifyJwt, { secret: jwtSecret(db), sign: { expiresIn: "12h" } });
   app.register(fastifyWebsocket);
 

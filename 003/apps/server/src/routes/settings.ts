@@ -86,6 +86,8 @@ export async function settingsRoutes(app: FastifyInstance) {
   // Direcciones del servidor en la red local (para armar los enlaces de los QR que abrirán tablets y teléfonos)
   app.get("/api/network", { preHandler: app.authorize() }, async (req) => ({
     port: req.socket.localPort,
+    // Nombre `.local` anunciado por mDNS (puede no resolverse en algunos sistemas: por eso siempre van también las IP)
+    mdns: app.mdnsHost,
     addresses: Object.values(networkInterfaces())
       .flat()
       .filter((i): i is NonNullable<typeof i> => !!i && i.family === "IPv4" && !i.internal)

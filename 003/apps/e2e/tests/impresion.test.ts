@@ -110,3 +110,22 @@ describe("impresoras", () => {
     }
   });
 });
+
+describe("conectar dispositivos", () => {
+  it("muestra la dirección del servidor y su código QR para escanearlo con una tablet", async () => {
+    await tap(admin.page, "Config", ".rail-btn");
+    await tap(admin.page, "Conectar", ".view > .row.wrap > .chip");
+    await waitText(admin.page, "Conectar tablets y teléfonos");
+    const net = (await admin.page.evaluate(async () => {
+      const t = JSON.parse(localStorage.getItem("003.session") ?? "{}").token;
+      return (await fetch("/api/network", { headers: { Authorization: `Bearer ${t}` } })).json();
+    })) as { addresses: string[] };
+    if (net.addresses.length === 0) {
+      expect(await hasText(admin.page, "no está conectado a ninguna red local")).toBe(true);
+      return;
+    }
+    await until(async () => (await admin.page.$("img[alt^='Código QR']")) || null, "código QR");
+    expect(await hasText(admin.page, `http://${net.addresses[0]}:`)).toBe(true);
+    expect(await hasText(admin.page, "IP fija")).toBe(true);
+  });
+});
