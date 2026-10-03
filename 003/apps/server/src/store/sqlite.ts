@@ -1,29 +1,41 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import Database from "better-sqlite3";
+import type { DatabaseSync, StatementSync } from "node:sqlite";
 import type { Db, RunResult, Stmt } from "./types";
+
+// ⚠️ Se carga como módulo incorporado y no con `import`: Vitest (Vite) reescribe `node:sqlite` a «sqlite» y falla.
+const sqlite = process.getBuiltinModule("node:sqlite");
+
+/** `node:sqlite` solo acepta null, números, texto y binarios: los booleanos y `undefined` se convierten como hacía better-sqlite3 con los primeros. */
+const bind = (params: unknown[]) =>
+  params.map((v) => (typeof v === "boolean" ? Number(v) : v === undefined ? null : v)) as (
+    | null
+    | number
+    | string
+    | Uint8Array
+  )[];
 
 interface TxCtx {
   depth: number;
 }
 
 /**
- * Motor SQLite (better-sqlite3 es síncrono): se envuelve en promesas y las transacciones se serializan.
+ * Motor SQLite (`node:sqlite` es síncrono): se envuelve en promesas y las transacciones se serializan.
  * Mientras una transacción está abierta, las consultas de otras solicitudes esperan su turno para no mezclarse con ella;
  * las que se hacen dentro de la transacción (mismo contexto asíncrono) pasan directo.
  */
 export class SqliteDb implements Db {
   readonly dialect = "sqlite" as const;
   readonly cache: Db["cache"] = {};
-  readonly raw: Database.Database;
+  readonly raw: DatabaseSync;
   private als = new AsyncLocalStorage<TxCtx>();
-  private statements = new Map<string, Database.Statement>();
+  private statements = new Map<string, StatementSync>();
   /** Se resuelve cuando la transacción abierta termina (null si no hay ninguna). */
   private open: Promise<void> | null = null;
 
   constructor(file: string) {
-    this.raw = new Database(file);
-    this.raw.pragma("journal_mode = WAL");
-    this.raw.pragma("foreign_keys = ON");
+    this.raw = new sqlite.DatabaseSync(file);
+    this.raw.exec("PRAGMA journal_mode = WAL");
+    this.raw.exec("PRAGMA foreign_keys = ON");
   }
 
   private async gate() {
@@ -44,16 +56,16 @@ export class SqliteDb implements Db {
     return {
       get: async (...p) => {
         await this.gate();
-        return this.stmt(sql).get(...p);
+        return this.stmt(sql).get(...bind(p));
       },
       all: async (...p) => {
         await this.gate();
-        return this.stmt(sql).all(...p);
+        return this.stmt(sql).all(...bind(p));
       },
       run: async (...p) => {
         await this.gate();
-        const r = this.stmt(sql).run(...p);
-        return { changes: r.changes } satisfies RunResult;
+        const r = this.stmt(sql).run(...bind(p));
+        return { changes: Number(r.changes) } satisfies RunResult;
       },
     };
   }
@@ -67,7 +79,7 @@ export class SqliteDb implements Db {
     return async (...args: A): Promise<R> => {
       const ctx = this.als.getStore();
       if (ctx) {
-        // Anidada: punto de guardado (igual que better-sqlite3)
+        // Anidada: punto de guardado
         const sp = `sp_${++ctx.depth}`;
         this.raw.exec(`SAVEPOINT ${sp}`);
         try {
@@ -90,7 +102,7 @@ export class SqliteDb implements Db {
           this.raw.exec("COMMIT");
           return r;
         } catch (e) {
-          if (this.raw.inTransaction) this.raw.exec("ROLLBACK");
+          if (this.raw.isTransaction) this.raw.exec("ROLLBACK");
           throw e;
         }
       } finally {
@@ -101,7 +113,7 @@ export class SqliteDb implements Db {
   }
 
   async backup(file: string) {
-    await this.raw.backup(file);
+    await sqlite.backup(this.raw, file);
   }
 
   async close() {
