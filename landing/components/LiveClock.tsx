@@ -14,10 +14,28 @@ export function LiveClock() {
 
   const tz = "America/Mexico_City";
   const time = now
-    ? new Intl.DateTimeFormat("es-MX", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: tz }).format(now).replace(/\s/g, " ").replace("a. m.", "a.m.").replace("p. m.", "p.m.")
+    ? new Intl.DateTimeFormat("es-MX", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: tz,
+      })
+        .format(now)
+        .replace(/\s/g, " ")
+        .replace("a. m.", "a.m.")
+        .replace("p. m.", "p.m.")
     : "--:--";
   const date = now
-    ? new Intl.DateTimeFormat("es-MX", { weekday: "short", day: "2-digit", month: "short", year: "2-digit", timeZone: tz }).format(now).replace(/\./g, "").replace(/,/g, "")
+    ? new Intl.DateTimeFormat("es-MX", {
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+        year: "2-digit",
+        timeZone: tz,
+      })
+        .format(now)
+        .replace(/\./g, "")
+        .replace(/,/g, "")
     : "";
 
   return (

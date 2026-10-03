@@ -16,9 +16,28 @@ let server: ChildProcess;
 let browser: Browser;
 
 beforeAll(async () => {
-  if (!existsSync(resolve(LANDING, ".next/BUILD_ID"))) throw new Error("Falta compilar la landing: cd landing && npm run build");
-  server = spawn(process.execPath, [resolve(LANDING, "node_modules/next/dist/bin/next"), "start", "-p", String(PORT), "-H", "127.0.0.1"], { cwd: LANDING, stdio: "ignore" });
-  await until(async () => (await fetch(URL_).then((r) => r.ok).catch(() => false)) || null, "servidor de la landing", 30_000);
+  if (!existsSync(resolve(LANDING, ".next/BUILD_ID")))
+    throw new Error("Falta compilar la landing: cd landing && npm run build");
+  server = spawn(
+    process.execPath,
+    [
+      resolve(LANDING, "node_modules/next/dist/bin/next"),
+      "start",
+      "-p",
+      String(PORT),
+      "-H",
+      "127.0.0.1",
+    ],
+    { cwd: LANDING, stdio: "ignore" },
+  );
+  await until(
+    async () =>
+      (await fetch(URL_)
+        .then((r) => r.ok)
+        .catch(() => false)) || null,
+    "servidor de la landing",
+    30_000,
+  );
   browser = await launch();
 }, 60_000);
 
@@ -33,8 +52,12 @@ async function open(size: { width: number; height: number }) {
   await page.setViewport({ ...size, deviceScaleFactor: 1 });
   const problems: string[] = [];
   page.on("pageerror", (e) => problems.push(`pageerror: ${(e as Error).message}`));
-  page.on("console", (m) => { if (m.type() === "error") problems.push(`console: ${m.text()}`); });
-  page.on("response", (r) => { if (r.status() >= 400) problems.push(`http ${r.status()}: ${r.url()}`); });
+  page.on("console", (m) => {
+    if (m.type() === "error") problems.push(`console: ${m.text()}`);
+  });
+  page.on("response", (r) => {
+    if (r.status() >= 400) problems.push(`http ${r.status()}: ${r.url()}`);
+  });
   // Los videos siguen descargando: no se espera a que la red quede en silencio
   await page.goto(URL_, { waitUntil: "load", timeout: 60_000 });
   await sleep(500);
@@ -60,10 +83,13 @@ describe("landing · contenido y metadatos", () => {
     const { page, ctx, problems } = await open({ width: 1440, height: 900 });
     const res = await page.evaluate(() => {
       const ids = new Set([...document.querySelectorAll("[id]")].map((e) => e.id));
-      const hrefs = [...document.querySelectorAll('a[href^="#"]')].map((a) => a.getAttribute("href")!.slice(1));
+      const hrefs = [...document.querySelectorAll('a[href^="#"]')].map((a) =>
+        a.getAttribute("href")!.slice(1),
+      );
       return { ids: [...ids], missing: hrefs.filter((h) => h && !ids.has(h)) };
     });
-    for (const id of ["inicio", "como", "carta", "planes", "preguntas", "contacto"]) expect(res.ids).toContain(id);
+    for (const id of ["inicio", "como", "carta", "planes", "preguntas", "contacto"])
+      expect(res.ids).toContain(id);
     expect(res.missing).toEqual([]);
     expect(problems).toEqual([]);
     await ctx.close();
@@ -79,8 +105,17 @@ describe("landing · contenido y metadatos", () => {
 
   it("todas las imágenes tienen texto alternativo y cargan", async () => {
     const { page, ctx } = await open({ width: 1440, height: 900 });
-    await page.evaluate(async () => { for (let y = 0; y < document.body.scrollHeight; y += 600) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 60)); } });
-    const bad = await page.$$eval("img", (imgs) => imgs.filter((i) => i.getAttribute("alt") === null || (i.complete && i.naturalWidth === 0)).map((i) => i.src));
+    await page.evaluate(async () => {
+      for (let y = 0; y < document.body.scrollHeight; y += 600) {
+        window.scrollTo(0, y);
+        await new Promise((r) => setTimeout(r, 60));
+      }
+    });
+    const bad = await page.$$eval("img", (imgs) =>
+      imgs
+        .filter((i) => i.getAttribute("alt") === null || (i.complete && i.naturalWidth === 0))
+        .map((i) => i.src),
+    );
     expect(bad).toEqual([]);
     await ctx.close();
   });
@@ -107,8 +142,13 @@ describe("landing · videos", () => {
       const out: Record<string, [number, number, number]> = {};
       for (const v of ["hero", "pedido", "cocina", "cobro"]) {
         const el = document.createElement("video");
-        el.muted = true; el.src = `/videos/${v}.mp4`; el.preload = "metadata";
-        await new Promise<void>((ok) => { el.onloadedmetadata = () => ok(); el.onerror = () => ok(); });
+        el.muted = true;
+        el.src = `/videos/${v}.mp4`;
+        el.preload = "metadata";
+        await new Promise<void>((ok) => {
+          el.onloadedmetadata = () => ok();
+          el.onerror = () => ok();
+        });
         out[v] = [el.videoWidth, el.videoHeight, Math.round(el.duration)];
       }
       return out;
@@ -123,10 +163,17 @@ describe("landing · videos", () => {
 
   it("el video del hero se reproduce solo (silenciado, en bucle)", async () => {
     const { page, ctx } = await open({ width: 1440, height: 900 });
-    const t = await until(async () => {
-      const x = await page.evaluate(() => { const v = document.querySelector("video") as HTMLVideoElement | null; return v ? { t: v.currentTime, muted: v.muted, loop: v.loop, paused: v.paused } : null; });
-      return x && x.t > 0.3 ? x : null;
-    }, "reproducción del hero", 15_000);
+    const t = await until(
+      async () => {
+        const x = await page.evaluate(() => {
+          const v = document.querySelector("video") as HTMLVideoElement | null;
+          return v ? { t: v.currentTime, muted: v.muted, loop: v.loop, paused: v.paused } : null;
+        });
+        return x && x.t > 0.3 ? x : null;
+      },
+      "reproducción del hero",
+      15_000,
+    );
     expect(t.muted).toBe(true);
     expect(t.loop).toBe(true);
     await ctx.close();
@@ -134,12 +181,27 @@ describe("landing · videos", () => {
 });
 
 describe("landing · diseño adaptable (sin desbordes)", () => {
-  const sizes: [string, number, number][] = [["móvil", 390, 844], ["móvil chico", 320, 640], ["tableta", 820, 1180], ["laptop", 1280, 720], ["escritorio", 1920, 1080]];
+  const sizes: [string, number, number][] = [
+    ["móvil", 390, 844],
+    ["móvil chico", 320, 640],
+    ["tableta", 820, 1180],
+    ["laptop", 1280, 720],
+    ["escritorio", 1920, 1080],
+  ];
   for (const [name, width, height] of sizes) {
     it(`${name} ${width}×${height}: no hay scroll horizontal`, async () => {
       const { page, ctx, problems } = await open({ width, height });
-      await page.evaluate(async () => { for (let y = 0; y < document.body.scrollHeight; y += 500) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 40)); } window.scrollTo(0, 0); });
-      const over = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
+      await page.evaluate(async () => {
+        for (let y = 0; y < document.body.scrollHeight; y += 500) {
+          window.scrollTo(0, y);
+          await new Promise((r) => setTimeout(r, 40));
+        }
+        window.scrollTo(0, 0);
+      });
+      const over = await page.evaluate(() => ({
+        sw: document.documentElement.scrollWidth,
+        cw: document.documentElement.clientWidth,
+      }));
       expect(over.sw).toBeLessThanOrEqual(over.cw + 1);
       expect(problems).toEqual([]);
       await ctx.close();
@@ -148,7 +210,21 @@ describe("landing · diseño adaptable (sin desbordes)", () => {
 
   it("el texto no se sale de su caja en móvil (ningún elemento supera el ancho de pantalla)", async () => {
     const { page, ctx } = await open({ width: 360, height: 740 });
-    const wide = await page.evaluate(() => [...document.querySelectorAll("body *")].filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.right > innerWidth + 2 && getComputedStyle(e).position !== "fixed" && !e.closest("[aria-hidden]") && !e.closest("canvas"); }).slice(0, 5).map((e) => `${e.tagName}.${(e as HTMLElement).className}`));
+    const wide = await page.evaluate(() =>
+      [...document.querySelectorAll("body *")]
+        .filter((e) => {
+          const r = e.getBoundingClientRect();
+          return (
+            r.width > 0 &&
+            r.right > innerWidth + 2 &&
+            getComputedStyle(e).position !== "fixed" &&
+            !e.closest("[aria-hidden]") &&
+            !e.closest("canvas")
+          );
+        })
+        .slice(0, 5)
+        .map((e) => `${e.tagName}.${(e as HTMLElement).className}`),
+    );
     expect(wide).toEqual([]);
     await ctx.close();
   });
@@ -158,7 +234,14 @@ describe("landing · interacción", () => {
   it("los enlaces del menú desplazan hasta su sección", async () => {
     const { page, ctx } = await open({ width: 1440, height: 900 });
     await page.evaluate(() => (document.querySelector('a[href="#planes"]') as HTMLElement).click());
-    await until(async () => (await page.evaluate(() => { const r = document.getElementById("planes")!.getBoundingClientRect(); return r.top < innerHeight * 0.6 && r.bottom > 0; })) || null, "llegar a Planes");
+    await until(
+      async () =>
+        (await page.evaluate(() => {
+          const r = document.getElementById("planes")!.getBoundingClientRect();
+          return r.top < innerHeight * 0.6 && r.bottom > 0;
+        })) || null,
+      "llegar a Planes",
+    );
     await ctx.close();
   });
 
@@ -166,12 +249,17 @@ describe("landing · interacción", () => {
     const { page, ctx } = await open({ width: 1440, height: 900 });
     await page.evaluate(() => document.getElementById("contacto")!.scrollIntoView());
     await page.click(".contact button");
-    await until(async () => (await page.$eval(".contact-note", (n) => n.textContent)) || null, "mensaje de validación");
+    await until(
+      async () => (await page.$eval(".contact-note", (n) => n.textContent)) || null,
+      "mensaje de validación",
+    );
     expect(await page.$eval(".contact-note", (n) => n.textContent)).toMatch(/nombre/i);
     await page.type('.contact input[name="nombre"]', "Prueba");
     await page.click(".contact button");
     await sleep(300);
-    expect(await page.$eval(".contact-note", (n) => n.textContent)).toMatch(/NEXT_PUBLIC_|Abriendo/);
+    expect(await page.$eval(".contact-note", (n) => n.textContent)).toMatch(
+      /NEXT_PUBLIC_|Abriendo/,
+    );
     await ctx.close();
   });
 
@@ -180,9 +268,20 @@ describe("landing · interacción", () => {
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await sleep(600);
     // El lienzo es WebGL (no se puede leer con drawImage): se compara una captura real de su zona
-    const box = await page.evaluate(() => { const c = document.querySelector("footer canvas"); if (!c) return null; const r = c.getBoundingClientRect(); return { x: Math.max(0, r.x), y: Math.max(0, r.y) + scrollY, width: Math.min(r.width, innerWidth), height: Math.min(r.height, innerHeight) }; });
+    const box = await page.evaluate(() => {
+      const c = document.querySelector("footer canvas");
+      if (!c) return null;
+      const r = c.getBoundingClientRect();
+      return {
+        x: Math.max(0, r.x),
+        y: Math.max(0, r.y) + scrollY,
+        width: Math.min(r.width, innerWidth),
+        height: Math.min(r.height, innerHeight),
+      };
+    });
     expect(box).toBeTruthy();
-    const snap = async () => Buffer.from(await page.screenshot({ clip: box!, encoding: "base64" }), "base64");
+    const snap = async () =>
+      Buffer.from(await page.screenshot({ clip: box!, encoding: "base64" }), "base64");
     const a = await snap();
     await sleep(900);
     const b = await snap();
@@ -207,7 +306,10 @@ describe("landing · rutas y cabeceras", () => {
     const ctx = await browser.createBrowserContext();
     const page = await ctx.newPage();
     const hosts = new Set<string>();
-    page.on("request", (r) => { if (!r.url().startsWith("data:") && !r.url().startsWith("blob:")) hosts.add(new URL(r.url()).host); });
+    page.on("request", (r) => {
+      if (!r.url().startsWith("data:") && !r.url().startsWith("blob:"))
+        hosts.add(new URL(r.url()).host);
+    });
     await page.goto(URL_, { waitUntil: "domcontentloaded" });
     await sleep(2500);
     expect([...hosts].filter((h) => !h.startsWith("127.0.0.1"))).toEqual([]);

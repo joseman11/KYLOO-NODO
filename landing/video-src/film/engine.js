@@ -4,7 +4,8 @@
  * el cursor, los toques, la cámara, los subtítulos y los tickets. Así el renderizado a .mp4 es exacto y repetible.
  */
 (() => {
-  const W = 1920, H = 1080;
+  const W = 1920,
+    H = 1080;
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
   const lerp = (a, b, t) => a + (b - a) * t;
   const E = {
@@ -12,10 +13,17 @@
     out: (t) => 1 - Math.pow(1 - t, 3),
     inout: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
     soft: (t) => t * t * (3 - 2 * t),
-    back: (t) => { const c = 1.7; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); },
+    back: (t) => {
+      const c = 1.7;
+      return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2);
+    },
   };
 
-  const $ = (h) => { const d = document.createElement("div"); d.innerHTML = h.trim(); return d.firstElementChild; };
+  const $ = (h) => {
+    const d = document.createElement("div");
+    d.innerHTML = h.trim();
+    return d.firstElementChild;
+  };
   const world = document.getElementById("world");
   const hud = document.getElementById("hud");
   const veil = document.getElementById("veil");
@@ -26,7 +34,8 @@
     radial-gradient(900px 600px at 5% 95%, rgba(20,17,15,.06), transparent 60%),
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .2  0 0 0 0 .15  0 0 0 0 .1  0 0 0 .07 0'/></filter><rect width='240' height='240' filter='url(%23n)'/></svg>");`;
 
-  const CURSOR = '<svg viewBox="0 0 24 24" width="38" height="38"><path d="M4 2.5v17l4.7-4.2 3 6.8 2.8-1.2-3-6.6H19L4 2.5z" fill="#fff" stroke="#14110f" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+  const CURSOR =
+    '<svg viewBox="0 0 24 24" width="38" height="38"><path d="M4 2.5v17l4.7-4.2 3 6.8 2.8-1.2-3-6.6H19L4 2.5z" fill="#fff" stroke="#14110f" stroke-width="1.5" stroke-linejoin="round"/></svg>';
 
   /** Interpola un valor a lo largo de claves [{t, v, e}] */
   function track(keys, t) {
@@ -34,7 +43,8 @@
     if (t <= keys[0].t) return keys[0].v;
     for (let i = 1; i < keys.length; i++) {
       if (t <= keys[i].t) {
-        const a = keys[i - 1], b = keys[i];
+        const a = keys[i - 1],
+          b = keys[i];
         const u = (E[b.e || "inout"] || E.inout)(clamp((t - a.t) / (b.t - a.t || 1)));
         return Array.isArray(a.v) ? a.v.map((x, k) => lerp(x, b.v[k], u)) : lerp(a.v, b.v, u);
       }
@@ -47,7 +57,8 @@
     const devs = {};
     // ───────── Dispositivos ─────────
     for (const [id, d] of Object.entries(S.devices)) {
-      const el = $(`<div class="dev" style="left:${d.x}px;top:${d.y}px;width:${1280 * d.scale}px;height:${800 * d.scale}px">
+      const el =
+        $(`<div class="dev" style="left:${d.x}px;top:${d.y}px;width:${1280 * d.scale}px;height:${800 * d.scale}px">
         <div class="bezel"></div>
         ${d.label ? `<div class="label">${d.label}</div>` : ""}
         <div class="scr" style="transform:scale(${d.scale})">
@@ -56,12 +67,25 @@
         </div>
       </div>`);
       world.appendChild(el);
-      devs[id] = { ...d, el, app: el.querySelector(".app"), focus: el.querySelector(".focus"), rip: el.querySelector(".rip"), cur: el.querySelector(".cur"), state: null, cursorKeys: [], taps: [], focuses: [] };
+      devs[id] = {
+        ...d,
+        el,
+        app: el.querySelector(".app"),
+        focus: el.querySelector(".focus"),
+        rip: el.querySelector(".rip"),
+        cur: el.querySelector(".cur"),
+        state: null,
+        cursorKeys: [],
+        taps: [],
+        focuses: [],
+      };
     }
 
     // ───────── Compilación de la línea de tiempo ─────────
     const CC = S.camCenter ?? [W / 2, H / 2];
-    if (S.clip) document.getElementById("vp").style.clipPath = `inset(${S.clip[1]}px ${W - S.clip[0] - S.clip[2]}px ${H - S.clip[1] - S.clip[3]}px ${S.clip[0]}px)`;
+    if (S.clip)
+      document.getElementById("vp").style.clipPath =
+        `inset(${S.clip[1]}px ${W - S.clip[0] - S.clip[2]}px ${H - S.clip[1] - S.clip[3]}px ${S.clip[0]}px)`;
     const marks = {};
     let clock = S.start ?? 0.4;
     const prevCursor = {};
@@ -82,7 +106,10 @@
         const leave = start + 0.1;
         const arrive = Math.min(leave + (st.travel ?? 0.85), tapAt - 0.18);
         const from = prevCursor[st.dev] ?? [center[0] + 260, center[1] + 200];
-        d.cursorKeys.push({ t: leave, v: from, e: "lin" }, { t: arrive, v: center, e: "inout", from, arc: true });
+        d.cursorKeys.push(
+          { t: leave, v: from, e: "lin" },
+          { t: arrive, v: center, e: "inout", from, arc: true },
+        );
         d.cursorKeys.push({ t: tapAt, v: center, e: "lin" });
         d.taps.push({ t: tapAt, x: center[0], y: center[1] });
         d.focuses.push({ a: leave + 0.1, b: tapAt + 0.12, rect: tgt });
@@ -93,17 +120,35 @@
       // cámara: acerca al objetivo
       const z = st.zoom ?? 1;
       let fx, fy;
-      if (z > 1 && center) { fx = d.x + center[0] * d.scale; fy = d.y + center[1] * d.scale; }
-      else if (st.focusDev || z === 1) { fx = d.x + 640 * d.scale; fy = d.y + 400 * d.scale; }
-      if (st.cam) { fx = st.cam[0]; fy = st.cam[1]; }
-      if (st.nocam) { clock = end; return; }
+      if (z > 1 && center) {
+        fx = d.x + center[0] * d.scale;
+        fy = d.y + center[1] * d.scale;
+      } else if (st.focusDev || z === 1) {
+        fx = d.x + 640 * d.scale;
+        fy = d.y + 400 * d.scale;
+      }
+      if (st.cam) {
+        fx = st.cam[0];
+        fy = st.cam[1];
+      }
+      if (st.nocam) {
+        clock = end;
+        return;
+      }
       const nv = [z, fx ?? CC[0], fy ?? CC[1]];
-      const prev = camKeys.length ? camKeys[camKeys.length - 1].v : (S.camStart ?? [1, CC[0], CC[1]]);
-      camKeys.push({ t: start + 0.05, v: prev, e: "lin" }, { t: start + 0.05 + (st.camTime ?? 0.95), v: nv, e: "inout" });
+      const prev = camKeys.length
+        ? camKeys[camKeys.length - 1].v
+        : (S.camStart ?? [1, CC[0], CC[1]]);
+      camKeys.push(
+        { t: start + 0.05, v: prev, e: "lin" },
+        { t: start + 0.05 + (st.camTime ?? 0.95), v: nv, e: "inout" },
+      );
       clock = end;
     });
     // cierra los subtítulos
-    caps.forEach((c, k) => { c.to = caps[k + 1] ? caps[k + 1].from : clock; });
+    caps.forEach((c, k) => {
+      c.to = caps[k + 1] ? caps[k + 1].from : clock;
+    });
     const total = S.duration ?? clock + 0.8;
     // la cámara base (zoom 1, centro del escenario) antes del primer paso
     camKeys.unshift({ t: 0, v: S.camStart ?? [1, CC[0], CC[1]], e: "inout" });
@@ -112,20 +157,27 @@
 
     // subtítulos en el HUD
     const capEls = caps.map((c) => {
-      const el = $(`<div class="cap" style="top:${S.capY ?? 250}px;left:${S.capX ?? 70}px;width:${S.capW ?? 440}px">
+      const el =
+        $(`<div class="cap" style="top:${S.capY ?? 250}px;left:${S.capX ?? 70}px;width:${S.capW ?? 440}px">
         <div class="n">${c.n}</div><div class="t">${c.t}</div>${c.s ? `<div class="s">${c.s}</div>` : ""}</div>`);
       hud.appendChild(el);
       return el;
     });
 
     // extras (tickets, rótulos…)
-    const extras = (S.extras || []).map((x) => x.create(x.layer === "world" ? world : hud, { $, E, clamp, lerp, track }, marks));
+    const extras = (S.extras || []).map((x) =>
+      x.create(x.layer === "world" ? world : hud, { $, E, clamp, lerp, track }, marks),
+    );
 
     const arc = (a, b, u, mag = 0.12) => {
-      const dx = b[0] - a[0], dy = b[1] - a[1];
+      const dx = b[0] - a[0],
+        dy = b[1] - a[1];
       const len = Math.hypot(dx, dy);
       const off = Math.sin(Math.PI * u) * len * mag;
-      return [lerp(a[0], b[0], u) - (dy / (len || 1)) * off, lerp(a[1], b[1], u) + (dx / (len || 1)) * off];
+      return [
+        lerp(a[0], b[0], u) - (dy / (len || 1)) * off,
+        lerp(a[1], b[1], u) + (dx / (len || 1)) * off,
+      ];
     };
 
     let lastHtml = {};
@@ -140,7 +192,9 @@
         if (name && lastHtml[id] !== name) {
           d.app.innerHTML = STATES[name].html.replace(/>-[0-9]+ min</g, ">0 min<");
           lastHtml[id] = name;
-          d.app.querySelectorAll("img").forEach((im) => { if (!im.complete) loading.push(im.decode().catch(() => {})); });
+          d.app.querySelectorAll("img").forEach((im) => {
+            if (!im.complete) loading.push(im.decode().catch(() => {}));
+          });
         }
         // 2) cursor, foco y toques
         const keys = d.cursorKeys;
@@ -148,15 +202,19 @@
           let pos = keys[0].v;
           for (let i = 1; i < keys.length; i++) {
             if (t <= keys[i].t) {
-              const a = keys[i - 1], b = keys[i];
+              const a = keys[i - 1],
+                b = keys[i];
               const u = (E[b.e] || E.inout)(clamp((t - a.t) / (b.t - a.t || 1)));
-              pos = b.arc ? arc(b.from, b.v, u) : [lerp(a.v[0], b.v[0], u), lerp(a.v[1], b.v[1], u)];
+              pos = b.arc
+                ? arc(b.from, b.v, u)
+                : [lerp(a.v[0], b.v[0], u), lerp(a.v[1], b.v[1], u)];
               break;
             }
             pos = keys[i].v;
           }
           const lastT = keys[keys.length - 1].t;
-          const vis = clamp((t - (keys[0].t - 0.05)) / 0.3) * (1 - clamp((t - (lastT + 0.7)) / 0.4));
+          const vis =
+            clamp((t - (keys[0].t - 0.05)) / 0.3) * (1 - clamp((t - (lastT + 0.7)) / 0.4));
           d.cur.style.left = pos[0] + "px";
           d.cur.style.top = pos[1] + "px";
           d.cur.style.opacity = vis;
@@ -184,7 +242,8 @@
       if (S.typing) S.typing(t, devs, marks);
       // 3) cámara
       const [z, fx, fy] = track(camKeys, t);
-      const tx = CC[0] - fx * z, ty = CC[1] - fy * z;
+      const tx = CC[0] - fx * z,
+        ty = CC[1] - fy * z;
       world.style.transform = `translate(${tx}px,${ty}px) scale(${z})`;
       // 4) subtítulos
       caps.forEach((c, k) => {

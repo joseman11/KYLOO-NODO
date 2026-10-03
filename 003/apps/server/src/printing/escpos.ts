@@ -12,8 +12,22 @@ export interface EscposOptions {
 
 /** Convierte a CP858 (soporta acentos del español) para las impresoras habituales. */
 const CP858: Record<string, number> = {
-  á: 0xa0, é: 0x82, í: 0xa1, ó: 0xa2, ú: 0xa3, ñ: 0xa4, Ñ: 0xa5, ü: 0x81, Á: 0xb5, É: 0x90, Í: 0xd6, Ó: 0xe0, Ú: 0xe9,
-  "¿": 0xa8, "¡": 0xad, "€": 0xd5,
+  á: 0xa0,
+  é: 0x82,
+  í: 0xa1,
+  ó: 0xa2,
+  ú: 0xa3,
+  ñ: 0xa4,
+  Ñ: 0xa5,
+  ü: 0x81,
+  Á: 0xb5,
+  É: 0x90,
+  Í: 0xd6,
+  Ó: 0xe0,
+  Ú: 0xe9,
+  "¿": 0xa8,
+  "¡": 0xad,
+  "€": 0xd5,
 };
 
 function encodeText(s: string): number[] {
@@ -31,9 +45,46 @@ function encodeText(s: string): number[] {
 export function toEscpos(lines: string[], opts: EscposOptions = {}): Buffer {
   const out: number[] = [ESC, 0x40, ESC, 0x74, 19]; // init + code page CP858
   for (const raw of lines) {
-    if (raw.startsWith(HUGE)) out.push(ESC, 0x61, 1, ESC, 0x45, 1, GS, 0x21, 0x33, ...encodeText(raw.slice(1)), GS, 0x21, 0x00, ESC, 0x45, 0, ESC, 0x61, 0);
-    else if (raw.startsWith(BIG)) out.push(ESC, 0x45, 1, GS, 0x21, 0x11, ...encodeText(raw.slice(1)), GS, 0x21, 0x00, ESC, 0x45, 0);
-    else if (raw.startsWith(BOLD)) out.push(ESC, 0x45, 1, ...encodeText(raw.slice(1)), ESC, 0x45, 0);
+    if (raw.startsWith(HUGE))
+      out.push(
+        ESC,
+        0x61,
+        1,
+        ESC,
+        0x45,
+        1,
+        GS,
+        0x21,
+        0x33,
+        ...encodeText(raw.slice(1)),
+        GS,
+        0x21,
+        0x00,
+        ESC,
+        0x45,
+        0,
+        ESC,
+        0x61,
+        0,
+      );
+    else if (raw.startsWith(BIG))
+      out.push(
+        ESC,
+        0x45,
+        1,
+        GS,
+        0x21,
+        0x11,
+        ...encodeText(raw.slice(1)),
+        GS,
+        0x21,
+        0x00,
+        ESC,
+        0x45,
+        0,
+      );
+    else if (raw.startsWith(BOLD))
+      out.push(ESC, 0x45, 1, ...encodeText(raw.slice(1)), ESC, 0x45, 0);
     else out.push(...encodeText(raw));
     out.push(0x0a);
   }

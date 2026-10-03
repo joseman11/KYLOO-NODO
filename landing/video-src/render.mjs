@@ -27,8 +27,12 @@ const page = await browser.newPage();
 await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
 page.on("requestfailed", (q) => console.error("falla:", q.url().slice(-80)));
 page.on("pageerror", (e) => console.error("pageerror:", e.message));
-page.on("console", (m) => { if (m.type() === "error") console.error("console:", m.text()); });
-await page.goto(`${pathToFileURL(join(HERE, "film/index.html")).href}?scene=${scene}`, { waitUntil: "networkidle0" });
+page.on("console", (m) => {
+  if (m.type() === "error") console.error("console:", m.text());
+});
+await page.goto(`${pathToFileURL(join(HERE, "film/index.html")).href}?scene=${scene}`, {
+  waitUntil: "networkidle0",
+});
 await page.evaluate(() => document.fonts.ready);
 const duration = await page.evaluate(() => window.FILM.duration);
 const frame = async (t) => {
@@ -39,7 +43,9 @@ const frame = async (t) => {
 if (prev > 0) {
   mkdirSync(join(HERE, "preview"), { recursive: true });
   for (const s of process.argv[prev + 1].split(",")) {
-    const buf = await page.evaluate((t) => window.FILM.render(t), Number(s)).then(() => page.screenshot({ type: "png" }));
+    const buf = await page
+      .evaluate((t) => window.FILM.render(t), Number(s))
+      .then(() => page.screenshot({ type: "png" }));
     writeFileSync(join(HERE, `preview/${scene}-${s}.png`), buf);
   }
   console.log("duración", duration);
@@ -49,7 +55,33 @@ if (prev > 0) {
 
 const total = Math.round(duration * FPS);
 const file = join(OUT, `${scene}.mp4`);
-const ff = spawn(ffmpegPath, ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(FPS), "-i", "-", "-c:v", "libx264", "-preset", "slow", "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", file], { stdio: ["pipe", "inherit", "inherit"] });
+const ff = spawn(
+  ffmpegPath,
+  [
+    "-y",
+    "-loglevel",
+    "error",
+    "-f",
+    "image2pipe",
+    "-framerate",
+    String(FPS),
+    "-i",
+    "-",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "slow",
+    "-crf",
+    "20",
+    "-pix_fmt",
+    "yuv420p",
+    "-movflags",
+    "+faststart",
+    "-an",
+    file,
+  ],
+  { stdio: ["pipe", "inherit", "inherit"] },
+);
 const done = new Promise((r) => ff.on("close", r));
 for (let i = 0; i < total; i++) {
   const buf = await frame(i / FPS);

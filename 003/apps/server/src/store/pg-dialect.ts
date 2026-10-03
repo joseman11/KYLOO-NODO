@@ -9,11 +9,16 @@ const cache = new Map<string, string>();
 function strftimeToPg(fmt: string, arg: string): string {
   const ts = `to_timestamp((${arg})::double precision)`;
   switch (fmt) {
-    case "%H": return `to_char(${ts}, 'HH24')`;
-    case "%w": return `CAST(EXTRACT(DOW FROM ${ts}) AS TEXT)`;
-    case "%Y-%m-%d": return `to_char(${ts}, 'YYYY-MM-DD')`;
-    case "%Y-%m": return `to_char(${ts}, 'YYYY-MM')`;
-    default: throw new Error(`strftime('${fmt}') no está soportado en PostgreSQL`);
+    case "%H":
+      return `to_char(${ts}, 'HH24')`;
+    case "%w":
+      return `CAST(EXTRACT(DOW FROM ${ts}) AS TEXT)`;
+    case "%Y-%m-%d":
+      return `to_char(${ts}, 'YYYY-MM-DD')`;
+    case "%Y-%m":
+      return `to_char(${ts}, 'YYYY-MM')`;
+    default:
+      throw new Error(`strftime('${fmt}') no está soportado en PostgreSQL`);
   }
 }
 
@@ -43,7 +48,10 @@ export function toPg(sql: string): string {
   if (hit) return hit;
   let s = sql;
   // strftime('%H', created_at/1000,'unixepoch','localtime')
-  s = s.replace(/strftime\(\s*'(%[A-Za-z](?:-%[A-Za-z])*)'\s*,\s*([^,]+?)\s*,\s*'unixepoch'\s*(?:,\s*'localtime'\s*)?\)/g, (_m, fmt, arg) => strftimeToPg(fmt, arg));
+  s = s.replace(
+    /strftime\(\s*'(%[A-Za-z](?:-%[A-Za-z])*)'\s*,\s*([^,]+?)\s*,\s*'unixepoch'\s*(?:,\s*'localtime'\s*)?\)/g,
+    (_m, fmt, arg) => strftimeToPg(fmt, arg),
+  );
   s = s.replace(/\bIS NOT \?/gi, "IS DISTINCT FROM ?");
   s = s.replace(/\? IS (NOT )?NULL/gi, "CAST(? AS TEXT) IS $1NULL").replace(/IS  NULL/g, "IS NULL");
   // LIKE de SQLite no distingue mayúsculas (ASCII); PostgreSQL sí
@@ -63,11 +71,23 @@ function splitTop(body: string): string[] {
   let quote: string | null = null;
   let cur = "";
   for (const c of body) {
-    if (quote) { cur += c; if (c === quote) quote = null; continue; }
-    if (c === "'") { quote = c; cur += c; continue; }
+    if (quote) {
+      cur += c;
+      if (c === quote) quote = null;
+      continue;
+    }
+    if (c === "'") {
+      quote = c;
+      cur += c;
+      continue;
+    }
     if (c === "(") depth++;
     if (c === ")") depth--;
-    if (c === "," && depth === 0) { parts.push(cur); cur = ""; continue; }
+    if (c === "," && depth === 0) {
+      parts.push(cur);
+      cur = "";
+      continue;
+    }
     cur += c;
   }
   if (cur.trim()) parts.push(cur);
@@ -77,14 +97,19 @@ function splitTop(body: string): string[] {
 /** DDL de SQLite (tal como lo guarda sqlite_master) → PostgreSQL. */
 export function ddlToPg(sql: string): string {
   let s = sql;
-  s = s.replace(/\bINTEGER PRIMARY KEY AUTOINCREMENT\b/g, "BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY");
+  s = s.replace(
+    /\bINTEGER PRIMARY KEY AUTOINCREMENT\b/g,
+    "BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY",
+  );
   s = s.replace(/\bINTEGER\b/g, "BIGINT").replace(/\bREAL\b/g, "DOUBLE PRECISION");
   const m = /^\s*CREATE TABLE\s+"?(\w+)"?\s*\(([\s\S]*)\)\s*;?\s*$/i.exec(s);
   if (m) {
     const [, name, body] = m as unknown as [string, string, string];
     if (!NO_ROWID.has(name)) {
       // orden de inserción estable (SQLite lo da con rowid; la aplicación ordena por él)
-      s = `CREATE TABLE ${name} (\n  rowid BIGINT GENERATED ALWAYS AS IDENTITY,\n${splitTop(body).map((p) => p.replace(/^\s*\n/, "")).join(",")}\n)`;
+      s = `CREATE TABLE ${name} (\n  rowid BIGINT GENERATED ALWAYS AS IDENTITY,\n${splitTop(body)
+        .map((p) => p.replace(/^\s*\n/, ""))
+        .join(",")}\n)`;
     }
   }
   return s;

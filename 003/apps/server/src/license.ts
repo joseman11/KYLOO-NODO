@@ -2,15 +2,32 @@ import { createPrivateKey, createPublicKey, generateKeyPairSync, sign, verify } 
 import type { Db } from "./db";
 
 /** Planes SaaS (Fase 3, sec. 64). `null` = sin límite. */
-export const FEATURES = ["inventario", "delivery", "qr", "analitica", "facturacion", "integraciones"] as const;
+export const FEATURES = [
+  "inventario",
+  "delivery",
+  "qr",
+  "analitica",
+  "facturacion",
+  "integraciones",
+] as const;
 export type Feature = (typeof FEATURES)[number];
 
-export interface PlanDef { branches: number | null; users: number | null; printers: number | null; features: readonly Feature[]; }
+export interface PlanDef {
+  branches: number | null;
+  users: number | null;
+  printers: number | null;
+  features: readonly Feature[];
+}
 
 export const PLANS: Record<string, PlanDef> = {
   gratis: { branches: 1, users: 3, printers: 1, features: [] },
   basico: { branches: 1, users: 10, printers: 3, features: ["inventario", "delivery"] },
-  profesional: { branches: 3, users: 30, printers: 10, features: ["inventario", "delivery", "qr", "analitica", "facturacion", "integraciones"] },
+  profesional: {
+    branches: 3,
+    users: 30,
+    printers: 10,
+    features: ["inventario", "delivery", "qr", "analitica", "facturacion", "integraciones"],
+  },
   empresarial: { branches: null, users: null, printers: null, features: FEATURES },
 };
 
@@ -31,7 +48,10 @@ const b64 = (b: Buffer) => b.toString("base64url");
 
 export function generateSigningKeys() {
   const { publicKey, privateKey } = generateKeyPairSync("ed25519");
-  return { publicKey: publicKey.export({ type: "spki", format: "pem" }).toString(), privateKey: privateKey.export({ type: "pkcs8", format: "pem" }).toString() };
+  return {
+    publicKey: publicKey.export({ type: "spki", format: "pem" }).toString(),
+    privateKey: privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+  };
 }
 
 export function signLicense(privatePem: string, payload: LicensePayload): string {
@@ -43,16 +63,24 @@ export function verifyLicense(publicPem: string, token: string): LicensePayload 
   try {
     const [body, sig] = token.split(".");
     if (!body || !sig) return null;
-    if (!verify(null, Buffer.from(body), createPublicKey(publicPem), Buffer.from(sig, "base64url"))) return null;
+    if (!verify(null, Buffer.from(body), createPublicKey(publicPem), Buffer.from(sig, "base64url")))
+      return null;
     return JSON.parse(Buffer.from(body, "base64url").toString()) as LicensePayload;
   } catch {
     return null;
   }
 }
 
-const setting = async (db: Db, key: string) => (await db.prepare("SELECT value FROM settings WHERE key=?").get(key) as { value: string } | undefined)?.value;
+const setting = async (db: Db, key: string) =>
+  (
+    (await db.prepare("SELECT value FROM settings WHERE key=?").get(key)) as
+      | { value: string }
+      | undefined
+  )?.value;
 
-export interface ActiveLicense extends LicensePayload { expired: boolean; }
+export interface ActiveLicense extends LicensePayload {
+  expired: boolean;
+}
 
 let cache: { token: string; pub: string; value: ActiveLicense | null; at: number } | null = null;
 
@@ -78,7 +106,16 @@ export async function getLicense(db: Db, now = Date.now()): Promise<ActiveLicens
 /** Licencia presente pero inválida o vencida: plan gratis (sigue pudiendo vender, sin funciones extra). */
 function fallbackFree(): ActiveLicense {
   const p = PLANS.gratis!;
-  return { org: "", branch: "", plan: "gratis", limits: { users: p.users, printers: p.printers }, features: p.features, iat: 0, exp: 0, expired: true };
+  return {
+    org: "",
+    branch: "",
+    plan: "gratis",
+    limits: { users: p.users, printers: p.printers },
+    features: p.features,
+    iat: 0,
+    exp: 0,
+    expired: true,
+  };
 }
 
 /** Rutas que requieren una función del plan (solo se aplican si hay licencia instalada). */
@@ -96,7 +133,11 @@ export const FEATURE_ROUTES: [RegExp, Feature][] = [
 /** Cuenta para aplicar límites del plan. */
 export async function usage(db: Db) {
   return {
-    users: (await db.prepare("SELECT COUNT(*) c FROM users WHERE active=1").get() as { c: number }).c,
-    printers: (await db.prepare("SELECT COUNT(*) c FROM printers WHERE active=1").get() as { c: number }).c,
+    users: (
+      (await db.prepare("SELECT COUNT(*) c FROM users WHERE active=1").get()) as { c: number }
+    ).c,
+    printers: (
+      (await db.prepare("SELECT COUNT(*) c FROM printers WHERE active=1").get()) as { c: number }
+    ).c,
   };
 }

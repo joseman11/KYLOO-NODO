@@ -3,7 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 
 /** Video mp4 que se reproduce solo cuando está a la vista (mudo, en bucle) y se puede pausar. */
-export function LoopVideo({ src, poster, label, className }: { src: string; poster: string; label: string; className?: string }) {
+export function LoopVideo({
+  src,
+  poster,
+  label,
+  className,
+}: {
+  src: string;
+  poster: string;
+  label: string;
+  className?: string;
+}) {
   const ref = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   const manual = useRef(false);
@@ -44,7 +54,13 @@ export function LoopVideo({ src, poster, label, className }: { src: string; post
         onClick={() => {
           const v = ref.current;
           if (!v) return;
-          if (v.paused) { manual.current = false; v.play().catch(() => {}); } else { manual.current = true; v.pause(); }
+          if (v.paused) {
+            manual.current = false;
+            v.play().catch(() => {});
+          } else {
+            manual.current = true;
+            v.pause();
+          }
         }}
         aria-label={playing ? "Pausar video" : "Reproducir video"}
       >

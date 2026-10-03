@@ -2,7 +2,11 @@
 const fs = require("fs");
 const path = require("path");
 const root = path.join(__dirname, "..");
-const k = fs.readFileSync(path.join(root, "public/brand/kyloo.svg"), "utf8").replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "").replace(/fill-rule=/g, "fillRule=");
+const k = fs
+  .readFileSync(path.join(root, "public/brand/kyloo.svg"), "utf8")
+  .replace(/^<svg[^>]*>/, "")
+  .replace(/<\/svg>$/, "")
+  .replace(/fill-rule=/g, "fillRule=");
 fs.writeFileSync(
   path.join(root, "components/Kyloo.tsx"),
   `export function Kyloo({ width = 76 }: { width?: number }) {

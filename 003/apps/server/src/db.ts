@@ -19,8 +19,14 @@ export async function openDb(file: string): Promise<Db> {
 }
 
 export async function migrate(db: Db): Promise<void> {
-  await db.exec("CREATE TABLE IF NOT EXISTS schema_migrations (id INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at INTEGER NOT NULL)");
-  const applied = new Set((await db.prepare("SELECT id FROM schema_migrations").all()).map((r) => (r as { id: number }).id));
+  await db.exec(
+    "CREATE TABLE IF NOT EXISTS schema_migrations (id INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at INTEGER NOT NULL)",
+  );
+  const applied = new Set(
+    (await db.prepare("SELECT id FROM schema_migrations").all()).map(
+      (r) => (r as { id: number }).id,
+    ),
+  );
   for (const m of MIGRATIONS) {
     if (applied.has(m.id)) continue;
     // Reconstruir tablas exige desactivar las claves foráneas fuera de la transacción (procedimiento oficial de SQLite)
@@ -32,7 +38,9 @@ export async function migrate(db: Db): Promise<void> {
           const bad = await db.prepare("PRAGMA foreign_key_check").all();
           if (bad.length) throw new Error(`Migración ${m.id}: claves foráneas rotas`);
         }
-        await db.prepare("INSERT INTO schema_migrations (id, name, applied_at) VALUES (?,?,?)").run(m.id, m.name, Date.now());
+        await db
+          .prepare("INSERT INTO schema_migrations (id, name, applied_at) VALUES (?,?,?)")
+          .run(m.id, m.name, Date.now());
       })();
     } finally {
       if (m.rebuild) await db.exec("PRAGMA foreign_keys = ON");
@@ -50,7 +58,9 @@ export function newId(): string {
 }
 
 async function ensureJwtSecret(db: Db): Promise<string> {
-  const row = (await db.prepare("SELECT value FROM settings WHERE key='jwt_secret'").get()) as { value: string } | undefined;
+  const row = (await db.prepare("SELECT value FROM settings WHERE key='jwt_secret'").get()) as
+    | { value: string }
+    | undefined;
   if (row) return row.value;
   const secret = randomBytes(32).toString("hex");
   await db.prepare("INSERT INTO settings (key, value) VALUES ('jwt_secret', ?)").run(secret);
@@ -71,12 +81,16 @@ export async function audit(
   entityId?: string,
   detail?: unknown,
 ): Promise<void> {
-  await db.prepare("INSERT INTO audit_log (ts, user_id, action, entity, entity_id, detail) VALUES (?,?,?,?,?,?)").run(
-    Date.now(),
-    userId,
-    action,
-    entity ?? null,
-    entityId ?? null,
-    detail === undefined ? null : JSON.stringify(detail),
-  );
+  await db
+    .prepare(
+      "INSERT INTO audit_log (ts, user_id, action, entity, entity_id, detail) VALUES (?,?,?,?,?,?)",
+    )
+    .run(
+      Date.now(),
+      userId,
+      action,
+      entity ?? null,
+      entityId ?? null,
+      detail === undefined ? null : JSON.stringify(detail),
+    );
 }

@@ -82,7 +82,13 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
   app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
     const text = String(body).trim();
     if (!text) return done(null, undefined);
-    try { done(null, JSON.parse(text)); } catch { const e = new Error("JSON inválido") as Error & { statusCode: number }; e.statusCode = 400; done(e, undefined); }
+    try {
+      done(null, JSON.parse(text));
+    } catch {
+      const e = new Error("JSON inválido") as Error & { statusCode: number };
+      e.statusCode = 400;
+      done(e, undefined);
+    }
   });
   const hub = options.hub ?? new Hub();
   const transport = options.transport ?? tcpTransport;
@@ -92,33 +98,56 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
   app.register(fastifyJwt, { secret: jwtSecret(db), sign: { expiresIn: "12h" } });
   app.register(fastifyWebsocket);
 
-  app.decorate("authorize", (permission?: Permission) => async (req: FastifyRequest, reply: FastifyReply) => {
-    try {
-      await req.jwtVerify();
-    } catch {
-      return reply.code(401).send({ error: "no_autenticado" });
-    }
-    if (permission && !can(req.user.permissions, permission)) {
-      return reply.code(403).send({ error: "sin_permiso", permission });
-    }
-  });
+  app.decorate(
+    "authorize",
+    (permission?: Permission) => async (req: FastifyRequest, reply: FastifyReply) => {
+      try {
+        await req.jwtVerify();
+      } catch {
+        return reply.code(401).send({ error: "no_autenticado" });
+      }
+      if (permission && !can(req.user.permissions, permission)) {
+        return reply.code(403).send({ error: "sin_permiso", permission });
+      }
+    },
+  );
 
   app.setErrorHandler((err: Error & { statusCode?: number }, _req, reply) => {
-    if (err instanceof ZodError) return reply.code(400).send({ error: "validacion", issues: err.issues });
-    if (err instanceof HttpError) return reply.code(err.statusCode).send({ error: err.code, message: err.message });
+    if (err instanceof ZodError)
+      return reply.code(400).send({ error: "validacion", issues: err.issues });
+    if (err instanceof HttpError)
+      return reply.code(err.statusCode).send({ error: err.code, message: err.message });
     const pgCode = (err as { code?: string }).code;
     const constraint = (err as { constraint?: string }).constraint ?? "";
     // Texto que PostgreSQL no admite (p. ej. el byte NUL): es una entrada inválida, no un fallo del servidor
-    if (pgCode === "22021" || pgCode === "22P05") return reply.code(400).send({ error: "validacion", message: "Texto con caracteres no válidos" });
-    if (/UNIQUE|FOREIGN KEY|CHECK|NOT NULL/.test(err.message) || (pgCode && pgCode.startsWith("23"))) {
+    if (pgCode === "22021" || pgCode === "22P05")
+      return reply
+        .code(400)
+        .send({ error: "validacion", message: "Texto con caracteres no válidos" });
+    if (
+      /UNIQUE|FOREIGN KEY|CHECK|NOT NULL/.test(err.message) ||
+      (pgCode && pgCode.startsWith("23"))
+    ) {
       // Mensajes comprensibles para los casos más comunes; el detalle técnico se conserva en `detail`
       const unique = /UNIQUE/.test(err.message) || pgCode === "23505";
-      const friendly = unique && (/UNIQUE constraint failed: tables_\.number/.test(err.message) || constraint.startsWith("tables__number")) ? "Ya existe una mesa con ese número"
-        : unique && (/UNIQUE constraint failed: zones/.test(err.message) || constraint.startsWith("zones_")) ? "Ya existe un área con ese nombre"
-        : unique && (/UNIQUE constraint failed: products\.sku/.test(err.message) || constraint.startsWith("products_sku")) ? "Ya existe un producto con ese SKU"
-        : unique ? "Ya existe un registro con ese valor"
-        : /FOREIGN KEY/.test(err.message) || pgCode === "23503" ? "No se puede completar: está relacionado con otros datos"
-        : err.message;
+      const friendly =
+        unique &&
+        (/UNIQUE constraint failed: tables_\.number/.test(err.message) ||
+          constraint.startsWith("tables__number"))
+          ? "Ya existe una mesa con ese número"
+          : unique &&
+              (/UNIQUE constraint failed: zones/.test(err.message) ||
+                constraint.startsWith("zones_"))
+            ? "Ya existe un área con ese nombre"
+            : unique &&
+                (/UNIQUE constraint failed: products\.sku/.test(err.message) ||
+                  constraint.startsWith("products_sku"))
+              ? "Ya existe un producto con ese SKU"
+              : unique
+                ? "Ya existe un registro con ese valor"
+                : /FOREIGN KEY/.test(err.message) || pgCode === "23503"
+                  ? "No se puede completar: está relacionado con otros datos"
+                  : err.message;
       if (process.env.NODO_DEBUG) console.error("[409]", err.message);
       return reply.code(409).send({ error: "conflicto", message: friendly, detail: err.message });
     }
@@ -189,22 +218,39 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
     const path = req.url.split("?")[0]!;
     for (const [re, feature] of FEATURE_ROUTES) {
       if (re.test(path) && !lic.features.includes(feature)) {
-        return reply.code(402).send({ error: "plan_no_incluye", feature, plan: lic.plan, message: `Tu plan ${lic.plan} no incluye ${feature}` });
+        return reply.code(402).send({
+          error: "plan_no_incluye",
+          feature,
+          plan: lic.plan,
+          message: `Tu plan ${lic.plan} no incluye ${feature}`,
+        });
       }
     }
     if (req.method === "POST") {
       const u = await usage(db);
-      const hit = path === "/api/users" ? (lic.limits.users !== null && u.users >= lic.limits.users ? "usuarios" : null)
-        : path === "/api/printers" ? (lic.limits.printers !== null && u.printers >= lic.limits.printers ? "impresoras" : null)
-        : null;
-      if (hit) return reply.code(402).send({ error: "limite_plan", message: `Tu plan ${lic.plan} llegó al límite de ${hit}` });
+      const hit =
+        path === "/api/users"
+          ? lic.limits.users !== null && u.users >= lic.limits.users
+            ? "usuarios"
+            : null
+          : path === "/api/printers"
+            ? lic.limits.printers !== null && u.printers >= lic.limits.printers
+              ? "impresoras"
+              : null
+            : null;
+      if (hit)
+        return reply
+          .code(402)
+          .send({ error: "limite_plan", message: `Tu plan ${lic.plan} llegó al límite de ${hit}` });
     }
   });
 
   if (options.webDir && existsSync(options.webDir)) {
     app.register(fastifyStatic, { root: options.webDir });
     app.setNotFoundHandler((req, reply) =>
-      req.url.startsWith("/api") ? reply.code(404).send({ error: "no_encontrado" }) : reply.sendFile("index.html"),
+      req.url.startsWith("/api")
+        ? reply.code(404).send({ error: "no_encontrado" })
+        : reply.sendFile("index.html"),
     );
   }
 

@@ -19,7 +19,10 @@ interface Transition {
 }
 
 const TRANSITIONS: Record<OrderStatus, Transition[]> = {
-  borrador: [{ to: "enviada", permission: "order.create" }, { to: "cancelada", permission: "order.cancel" }],
+  borrador: [
+    { to: "enviada", permission: "order.create" },
+    { to: "cancelada", permission: "order.cancel" },
+  ],
   enviada: [
     { to: "recibida", permission: "station.update" },
     { to: "rechazada", permission: "station.update" },
@@ -29,9 +32,18 @@ const TRANSITIONS: Record<OrderStatus, Transition[]> = {
     { to: "en_preparacion", permission: "station.update" },
     { to: "cancelada", permission: "order.cancel" },
   ],
-  en_preparacion: [{ to: "preparada", permission: "item.mark_ready" }, { to: "cancelada", permission: "order.cancel" }],
-  preparada: [{ to: "entregada", permission: "item.mark_delivered" }, { to: "devuelta", permission: "refund.authorize" }],
-  entregada: [{ to: "facturada", permission: "cash.open" }, { to: "devuelta", permission: "refund.authorize" }],
+  en_preparacion: [
+    { to: "preparada", permission: "item.mark_ready" },
+    { to: "cancelada", permission: "order.cancel" },
+  ],
+  preparada: [
+    { to: "entregada", permission: "item.mark_delivered" },
+    { to: "devuelta", permission: "refund.authorize" },
+  ],
+  entregada: [
+    { to: "facturada", permission: "cash.open" },
+    { to: "devuelta", permission: "refund.authorize" },
+  ],
   facturada: [],
   cancelada: [],
   rechazada: [],
@@ -42,7 +54,9 @@ export function allowedTransitions(from: OrderStatus): readonly Transition[] {
   return TRANSITIONS[from];
 }
 
-export type TransitionResult = { ok: true } | { ok: false; reason: "invalid_transition" | "forbidden" };
+export type TransitionResult =
+  | { ok: true }
+  | { ok: false; reason: "invalid_transition" | "forbidden" };
 
 /** Valida una transición contra la máquina de estados y los permisos del usuario (sec. 69, RN-015). */
 export function checkTransition(

@@ -43,7 +43,12 @@ export function HalftoneWaves({ className }: { className?: string }) {
     const canvas = ref.current;
     const gl = canvas?.getContext("webgl", { antialias: false, alpha: false });
     if (!canvas || !gl) return;
-    const sh = (type: number, src: string) => { const s = gl.createShader(type)!; gl.shaderSource(s, src); gl.compileShader(s); return s; };
+    const sh = (type: number, src: string) => {
+      const s = gl.createShader(type)!;
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      return s;
+    };
     const prog = gl.createProgram()!;
     gl.attachShader(prog, sh(gl.VERTEX_SHADER, VERT));
     gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FRAG));
@@ -73,16 +78,30 @@ export function HalftoneWaves({ className }: { className?: string }) {
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     };
     resize();
-    const ro = new ResizeObserver(() => { resize(); if (reduce) draw(0); });
+    const ro = new ResizeObserver(() => {
+      resize();
+      if (reduce) draw(0);
+    });
     ro.observe(canvas);
     let raf = 0;
-    const loop = (ms: number) => { draw(ms); raf = requestAnimationFrame(loop); };
+    const loop = (ms: number) => {
+      draw(ms);
+      raf = requestAnimationFrame(loop);
+    };
     const io = new IntersectionObserver(([e]) => {
       cancelAnimationFrame(raf);
-      if (e.isIntersecting) { if (reduce) draw(0); else raf = requestAnimationFrame(loop); }
+      if (e.isIntersecting) {
+        if (reduce) draw(0);
+        else raf = requestAnimationFrame(loop);
+      }
     });
     io.observe(canvas);
-    return () => { cancelAnimationFrame(raf); io.disconnect(); ro.disconnect(); gl.getExtension("WEBGL_lose_context")?.loseContext(); };
+    return () => {
+      cancelAnimationFrame(raf);
+      io.disconnect();
+      ro.disconnect();
+      gl.getExtension("WEBGL_lose_context")?.loseContext();
+    };
   }, []);
 
   return <canvas ref={ref} className={className} aria-hidden="true" />;

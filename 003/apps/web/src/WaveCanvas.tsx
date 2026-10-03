@@ -44,7 +44,12 @@ export function WaveCanvas() {
     const canvas = ref.current;
     const gl = canvas?.getContext("webgl", { antialias: false, alpha: false });
     if (!canvas || !gl) return; // sin WebGL queda el fondo oscuro de CSS
-    const compile = (type: number, src: string) => { const s = gl.createShader(type)!; gl.shaderSource(s, src); gl.compileShader(s); return s; };
+    const compile = (type: number, src: string) => {
+      const s = gl.createShader(type)!;
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      return s;
+    };
     const prog = gl.createProgram()!;
     gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
     gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
@@ -73,12 +78,23 @@ export function WaveCanvas() {
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     };
     resize();
-    const ro = new ResizeObserver(() => { resize(); if (reduce) draw(0); });
+    const ro = new ResizeObserver(() => {
+      resize();
+      if (reduce) draw(0);
+    });
     ro.observe(canvas);
     let raf = 0;
-    const loop = (ms: number) => { draw(ms); raf = requestAnimationFrame(loop); };
-    if (reduce) draw(0); else raf = requestAnimationFrame(loop);
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); gl.getExtension("WEBGL_lose_context")?.loseContext(); };
+    const loop = (ms: number) => {
+      draw(ms);
+      raf = requestAnimationFrame(loop);
+    };
+    if (reduce) draw(0);
+    else raf = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      gl.getExtension("WEBGL_lose_context")?.loseContext();
+    };
   }, []);
   return <canvas ref={ref} className="wave-canvas" />;
 }

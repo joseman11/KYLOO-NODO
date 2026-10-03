@@ -62,7 +62,8 @@ export class PgDb implements Db {
     return {
       get: async (...p) => this.clean((await this.query(q, p)).rows)[0],
       all: async (...p) => this.clean((await this.query(q, p)).rows),
-      run: async (...p) => ({ changes: (await this.query(q, p)).rowCount ?? 0 }) satisfies RunResult,
+      run: async (...p) =>
+        ({ changes: (await this.query(q, p)).rowCount ?? 0 }) satisfies RunResult,
     };
   }
 
@@ -106,7 +107,9 @@ export class PgDb implements Db {
   }
 
   async backup(): Promise<void> {
-    throw new Error("En la nube los respaldos los hace el proveedor de la base de datos (pg_dump del esquema).");
+    throw new Error(
+      "En la nube los respaldos los hace el proveedor de la base de datos (pg_dump del esquema).",
+    );
   }
 
   async close() {
@@ -117,7 +120,10 @@ export class PgDb implements Db {
 /** Crea el esquema del restaurante si no existe. */
 export async function ensureSchema(connectionString: string, schema: string, ssl = false) {
   if (!SCHEMA_RE.test(schema)) throw new Error(`Nombre de esquema inválido: ${schema}`);
-  const c = new pg.Client({ connectionString, ssl: ssl ? { rejectUnauthorized: false } : undefined });
+  const c = new pg.Client({
+    connectionString,
+    ssl: ssl ? { rejectUnauthorized: false } : undefined,
+  });
   await c.connect();
   try {
     await c.query(`CREATE SCHEMA IF NOT EXISTS ${schema}`);

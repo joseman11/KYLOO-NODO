@@ -5,7 +5,11 @@
 
 export type TipPolicy = "individual" | "pool";
 
-export interface TipStaff { id: string; role: string; /** Horas trabajadas en el periodo (del checador). */ hours: number; }
+export interface TipStaff {
+  id: string;
+  role: string /** Horas trabajadas en el periodo (del checador). */;
+  hours: number;
+}
 
 export interface TipInput {
   policy: TipPolicy;
@@ -18,10 +22,17 @@ export interface TipInput {
   staff: TipStaff[];
 }
 
-export interface TipResult { payouts: Record<string, number>; totalCents: number; unassignedCents: number; }
+export interface TipResult {
+  payouts: Record<string, number>;
+  totalCents: number;
+  unassignedCents: number;
+}
 
 /** Reparte `amount` centavos según pesos, sin perder ni inventar centavos (mayor residuo). */
-export function splitByWeight(amount: number, weights: Record<string, number>): Record<string, number> {
+export function splitByWeight(
+  amount: number,
+  weights: Record<string, number>,
+): Record<string, number> {
   const ids = Object.keys(weights).filter((k) => weights[k]! > 0);
   const sum = ids.reduce((s, k) => s + weights[k]!, 0);
   const out: Record<string, number> = {};
@@ -43,16 +54,31 @@ export function splitByWeight(amount: number, weights: Record<string, number>): 
 function splitInRole(amount: number, members: TipStaff[]): Record<string, number> {
   const byHours = Object.fromEntries(members.map((m) => [m.id, m.hours]));
   const hasHours = members.some((m) => m.hours > 0);
-  return splitByWeight(amount, hasHours ? byHours : Object.fromEntries(members.map((m) => [m.id, 1])));
+  return splitByWeight(
+    amount,
+    hasHours ? byHours : Object.fromEntries(members.map((m) => [m.id, 1])),
+  );
 }
 
 /** Reparte `pool` entre los roles que tienen personal elegible, según el peso de cada rol. */
-function splitPoolByRoles(pool: number, roles: Record<string, number>, staff: TipStaff[]): Record<string, number> {
-  const eligibleRoles = Object.keys(roles).filter((r) => roles[r]! > 0 && staff.some((s) => s.role === r));
+function splitPoolByRoles(
+  pool: number,
+  roles: Record<string, number>,
+  staff: TipStaff[],
+): Record<string, number> {
+  const eligibleRoles = Object.keys(roles).filter(
+    (r) => roles[r]! > 0 && staff.some((s) => s.role === r),
+  );
   const perRole = splitByWeight(pool, Object.fromEntries(eligibleRoles.map((r) => [r, roles[r]!])));
   const out: Record<string, number> = {};
   for (const r of eligibleRoles) {
-    for (const [id, v] of Object.entries(splitInRole(perRole[r] ?? 0, staff.filter((s) => s.role === r)))) out[id] = (out[id] ?? 0) + v;
+    for (const [id, v] of Object.entries(
+      splitInRole(
+        perRole[r] ?? 0,
+        staff.filter((s) => s.role === r),
+      ),
+    ))
+      out[id] = (out[id] ?? 0) + v;
   }
   return out;
 }
@@ -68,7 +94,8 @@ export function distributeTips(input: TipInput): TipResult {
   if (input.policy === "pool") {
     // Todo va al fondo común. Quien tuvo propinas cuenta como personal aunque no haya checado.
     const staff = [...input.staff];
-    for (const id of Object.keys(input.tipsByWaiter)) if (!staff.some((s) => s.id === id)) staff.push({ id, role: "mesero", hours: 0 });
+    for (const id of Object.keys(input.tipsByWaiter))
+      if (!staff.some((s) => s.id === id)) staff.push({ id, role: "mesero", hours: 0 });
     add(payouts, splitPoolByRoles(totalCents, input.roles, staff));
   } else {
     // Cada mesero conserva lo suyo, menos el porcentaje que aporta al personal de apoyo
@@ -79,8 +106,14 @@ export function distributeTips(input: TipInput): TipResult {
       support += give;
     }
     if (support > 0) {
-      const rolesWithoutWaiters = Object.fromEntries(Object.entries(input.roles).filter(([r]) => r !== "mesero"));
-      const given = splitPoolByRoles(support, rolesWithoutWaiters, input.staff.filter((s) => s.role !== "mesero"));
+      const rolesWithoutWaiters = Object.fromEntries(
+        Object.entries(input.roles).filter(([r]) => r !== "mesero"),
+      );
+      const given = splitPoolByRoles(
+        support,
+        rolesWithoutWaiters,
+        input.staff.filter((s) => s.role !== "mesero"),
+      );
       const placed = Object.values(given).reduce((s, v) => s + v, 0);
       add(payouts, given);
       // Si no hay personal de apoyo elegible, el aporte regresa a los meseros en proporción a lo que generaron

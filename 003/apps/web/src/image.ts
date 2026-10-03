@@ -2,7 +2,12 @@
  * Reduce una foto antes de subirla: lado mayor de 720 px y JPEG al 82 %. Una foto de celular de varios MB
  * queda en ~60–120 KB, así el menú carga rápido en la red local y el servidor no guarda archivos enormes.
  */
-export async function resizeImage(file: File, maxSide = 720, quality = 0.82, square = false): Promise<string> {
+export async function resizeImage(
+  file: File,
+  maxSide = 720,
+  quality = 0.82,
+  square = false,
+): Promise<string> {
   const bitmap = await createImageBitmap(file).catch(() => null);
   if (!bitmap) throw new Error("No se pudo leer la imagen");
   // Retrato: recorte cuadrado centrado

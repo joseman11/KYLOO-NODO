@@ -45,7 +45,10 @@ export interface ProductionTicket {
 }
 
 export class MissingRouteError extends Error {
-  constructor(public readonly itemId: string, public readonly productName: string) {
+  constructor(
+    public readonly itemId: string,
+    public readonly productName: string,
+  ) {
     super(`El producto "${productName}" no tiene ruta de producción (RN-003)`);
   }
 }

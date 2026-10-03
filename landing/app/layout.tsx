@@ -2,8 +2,18 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 
-const display = localFont({ src: "./fonts/bricolage.woff2", variable: "--font-display", weight: "200 800", display: "swap" });
-const text = localFont({ src: "./fonts/inter.woff2", variable: "--font-text", weight: "100 900", display: "swap" });
+const display = localFont({
+  src: "./fonts/bricolage.woff2",
+  variable: "--font-display",
+  weight: "200 800",
+  display: "swap",
+});
+const text = localFont({
+  src: "./fonts/inter.woff2",
+  variable: "--font-text",
+  weight: "100 900",
+  display: "swap",
+});
 const mono = localFont({
   src: [
     { path: "./fonts/plex-mono-400.woff2", weight: "400" },
@@ -24,7 +34,8 @@ export const metadata: Metadata = {
   icons: { icon: "/brand/icon.svg" },
   openGraph: {
     title: "Nodo · Comandero para restaurantes",
-    description: "Meseros, cocina, barra y caja conectados por tu propia red. Sigue funcionando sin internet.",
+    description:
+      "Meseros, cocina, barra y caja conectados por tu propia red. Sigue funcionando sin internet.",
     images: ["/videos/hero.jpg"],
     locale: "es_MX",
     type: "website",

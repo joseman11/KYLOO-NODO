@@ -3,15 +3,18 @@ import { toEscpos } from "../src/printing/escpos";
 import { renderComanda, type ComandaData } from "../src/printing/render";
 import { HUGE, stripMarkup } from "../src/printing/markup";
 
-const data = (table: string, kind: ComandaData["kind"] = "comanda"): ComandaData => ({
-  kind,
-  stationLabel: "Cocina / Parrilla",
-  tableNumber: table,
-  waiter: "Juan",
-  folio: 794,
-  createdAt: Date.UTC(2026, 9, 1, 15, 12),
-  lines: [{ quantity: 2, name: "Camarones al mojo de ajo", modifiers: ["Arroz"], note: "sin ajo" }],
-} as ComandaData);
+const data = (table: string, kind: ComandaData["kind"] = "comanda"): ComandaData =>
+  ({
+    kind,
+    stationLabel: "Cocina / Parrilla",
+    tableNumber: table,
+    waiter: "Juan",
+    folio: 794,
+    createdAt: Date.UTC(2026, 9, 1, 15, 12),
+    lines: [
+      { quantity: 2, name: "Camarones al mojo de ajo", modifiers: ["Arroz"], note: "sin ajo" },
+    ],
+  }) as ComandaData;
 
 describe("comanda impresa para cocina", () => {
   it("el número de mesa va solo, en su propia línea, con la marca de tamaño máximo", () => {
@@ -26,7 +29,15 @@ describe("comanda impresa para cocina", () => {
     const buf = toEscpos(renderComanda(data("S10")));
     const hex = buf.toString("hex");
     // ESC a 1 (centrar) · GS ! 0x33 (4×4) · "S10" · GS ! 0x00 · ESC a 0
-    expect(hex).toContain("1b6101" + "1b4501" + "1d2133" + Buffer.from("S10").toString("hex") + "1d2100" + "1b4500" + "1b6100");
+    expect(hex).toContain(
+      "1b6101" +
+        "1b4501" +
+        "1d2133" +
+        Buffer.from("S10").toString("hex") +
+        "1d2100" +
+        "1b4500" +
+        "1b6100",
+    );
   });
 
   it("también se agranda en las adiciones y funciona con números largos y con nombre de zona", () => {

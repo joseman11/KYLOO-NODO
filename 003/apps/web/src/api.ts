@@ -34,7 +34,11 @@ export function setSession(t: string | null, u: SessionUser | null) {
 }
 
 export class ApiError extends Error {
-  constructor(public status: number, public code: string, message?: string) {
+  constructor(
+    public status: number,
+    public code: string,
+    message?: string,
+  ) {
     super(message ?? code);
   }
 }
@@ -42,13 +46,19 @@ export class ApiError extends Error {
 /** Error de red (servidor inalcanzable): distinto de un rechazo del servidor. */
 export class NetworkError extends Error {}
 
-export async function api<T = any>(path: string, opts: { method?: string; body?: unknown } = {}): Promise<T> {
+export async function api<T = any>(
+  path: string,
+  opts: { method?: string; body?: unknown } = {},
+): Promise<T> {
   let res: Response;
   try {
     res = await fetch(path, {
       method: opts.method ?? (opts.body ? "POST" : "GET"),
       // Sin cuerpo no se declara JSON: el servidor rechaza un DELETE con content-type JSON y cuerpo vacío
-      headers: { ...(opts.body ? { "content-type": "application/json" } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      headers: {
+        ...(opts.body ? { "content-type": "application/json" } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: opts.body ? JSON.stringify(opts.body) : undefined,
     });
   } catch {
@@ -120,7 +130,12 @@ export function useOnline(): boolean {
 }
 
 /** Ejecuta `load` al montar y cada vez que llega un evento de los tipos indicados. */
-export function useLive<T>(load: () => Promise<T>, types: string[], deps: unknown[] = [], cacheKey?: string) {
+export function useLive<T>(
+  load: () => Promise<T>,
+  types: string[],
+  deps: unknown[] = [],
+  cacheKey?: string,
+) {
   // Con cacheKey, la última respuesta se guarda en el dispositivo: sin red se sigue viendo lo último conocido
   const [data, setDataRaw] = useState<T | null>(() => {
     if (!cacheKey) return null;
@@ -152,7 +167,8 @@ export function useLive<T>(load: () => Promise<T>, types: string[], deps: unknow
         (e) => alive && setError(e instanceof Error ? e.message : String(e)),
       );
     run();
-    const fn: Listener = (e) => (types.includes(e.type) || e.type === "connection.restored") && run();
+    const fn: Listener = (e) =>
+      (types.includes(e.type) || e.type === "connection.restored") && run();
     listeners.add(fn);
     return () => {
       alive = false;
@@ -208,22 +224,33 @@ async function run(op: PendingOp, online: () => Promise<unknown>): Promise<{ que
 
 export function sendOrder(accountId: string, items: unknown[]) {
   const id = crypto.randomUUID();
-  return run({ id, type: "order", accountId, items }, () => api(`/api/accounts/${accountId}/orders`, { body: { clientId: id, items } }));
+  return run({ id, type: "order", accountId, items }, () =>
+    api(`/api/accounts/${accountId}/orders`, { body: { clientId: id, items } }),
+  );
 }
 
 export function requestBillOffline(accountId: string) {
   const id = crypto.randomUUID();
-  return run({ id, type: "request_bill", accountId }, () => api(`/api/accounts/${accountId}/request-bill`, { method: "POST", body: {} }));
+  return run({ id, type: "request_bill", accountId }, () =>
+    api(`/api/accounts/${accountId}/request-bill`, { method: "POST", body: {} }),
+  );
 }
 
-export interface SyncConflict { type: string; code?: string; message?: string; status: string; }
+export interface SyncConflict {
+  type: string;
+  code?: string;
+  message?: string;
+  status: string;
+}
 
 /** Envía el lote pendiente. Devuelve cuántas se aplicaron y las que hubo que rechazar (p. ej. producto agotado). */
 export async function flushPending(): Promise<{ sent: number; conflicts: SyncConflict[] }> {
   const ops = readQueue();
   if (ops.length === 0) return { sent: 0, conflicts: [] };
   try {
-    const { results } = await api<{ results: { id: string; status: string; code?: string; message?: string }[] }>("/api/sync", { body: { ops } });
+    const { results } = await api<{
+      results: { id: string; status: string; code?: string; message?: string }[];
+    }>("/api/sync", { body: { ops } });
     const conflicts: SyncConflict[] = [];
     let sent = 0;
     for (const r of results) {
@@ -238,7 +265,8 @@ export async function flushPending(): Promise<{ sent: number; conflicts: SyncCon
   }
 }
 
-export const money = (cents: number) => (cents / 100).toLocaleString("es-MX", { style: "currency", currency: "MXN" });
+export const money = (cents: number) =>
+  (cents / 100).toLocaleString("es-MX", { style: "currency", currency: "MXN" });
 
 /** Dirección de la foto de un platillo (o null si no tiene). */
 export const photoSrc = (file?: string | null) => (file ? `/api/photos/${file}` : null);

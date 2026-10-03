@@ -23,8 +23,21 @@ export async function authRoutes(app: FastifyInstance) {
   const { db } = app;
 
   function issue(user: UserRow) {
-    const token = app.jwt.sign({ sub: user.id, role: user.role, permissions: permissionsFor(user.role) });
-    return { token, user: { id: user.id, name: user.name, role: user.role, photo: (user as { photo?: string | null }).photo ?? null, permissions: permissionsFor(user.role) } };
+    const token = app.jwt.sign({
+      sub: user.id,
+      role: user.role,
+      permissions: permissionsFor(user.role),
+    });
+    return {
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        photo: (user as { photo?: string | null }).photo ?? null,
+        permissions: permissionsFor(user.role),
+      },
+    };
   }
 
   /** Cuenta intentos fallidos y bloquea temporalmente (protección contra fuerza bruta de PIN). */
@@ -32,16 +45,16 @@ export async function authRoutes(app: FastifyInstance) {
     if (!user || !user.active) return { status: 401 as const };
     if (user.locked_until > Date.now()) return { status: 429 as const };
     if (ok(user)) {
-      await db.prepare("UPDATE users SET failed_attempts=0, locked_until=0 WHERE id=?").run(user.id);
+      await db
+        .prepare("UPDATE users SET failed_attempts=0, locked_until=0 WHERE id=?")
+        .run(user.id);
       return { status: 200 as const, user };
     }
     const failed = user.failed_attempts + 1;
     const lockedUntil = failed >= MAX_ATTEMPTS ? Date.now() + LOCK_MS : 0;
-    await db.prepare("UPDATE users SET failed_attempts=?, locked_until=? WHERE id=?").run(
-            lockedUntil ? 0 : failed,
-            lockedUntil,
-            user.id,
-          );
+    await db
+      .prepare("UPDATE users SET failed_attempts=?, locked_until=? WHERE id=?")
+      .run(lockedUntil ? 0 : failed, lockedUntil, user.id);
     return { status: 401 as const };
   }
 
@@ -52,17 +65,25 @@ export async function authRoutes(app: FastifyInstance) {
 
   // Datos públicos para la pantalla de acceso
   app.get("/api/auth/info", async () => {
-    const r = await db.prepare("SELECT value FROM settings WHERE key='establishment_name'").get() as { value: string } | undefined;
+    const r = (await db
+      .prepare("SELECT value FROM settings WHERE key='establishment_name'")
+      .get()) as { value: string } | undefined;
     return { name: r?.value ?? null };
   });
 
   app.post("/api/auth/pin", async (req, reply) => {
-    const body = z.object({ userId: z.string(), pin: z.string().regex(/^\d{4,8}$/) }).parse(req.body);
-    const user = await db.prepare("SELECT * FROM users WHERE id=?").get(body.userId) as UserRow | undefined;
+    const body = z
+      .object({ userId: z.string(), pin: z.string().regex(/^\d{4,8}$/) })
+      .parse(req.body);
+    const user = (await db.prepare("SELECT * FROM users WHERE id=?").get(body.userId)) as
+      | UserRow
+      | undefined;
     const r = await attempt(user, (u) => verifySecret(body.pin, u.pin_hash));
     if (r.status !== 200) {
       await audit(db, user?.id ?? null, "login.fallido", "user", body.userId);
-      return reply.code(r.status).send({ error: r.status === 429 ? "bloqueado_temporalmente" : "credenciales_invalidas" });
+      return reply
+        .code(r.status)
+        .send({ error: r.status === 429 ? "bloqueado_temporalmente" : "credenciales_invalidas" });
     }
     await audit(db, r.user.id, "login", "user", r.user.id, { metodo: "pin" });
     return issue(r.user);
@@ -70,11 +91,15 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.post("/api/auth/login", async (req, reply) => {
     const body = z.object({ username: z.string(), password: z.string() }).parse(req.body);
-    const user = await db.prepare("SELECT * FROM users WHERE username=?").get(body.username) as UserRow | undefined;
+    const user = (await db.prepare("SELECT * FROM users WHERE username=?").get(body.username)) as
+      | UserRow
+      | undefined;
     const r = await attempt(user, (u) => verifySecret(body.password, u.password_hash));
     if (r.status !== 200) {
       await audit(db, user?.id ?? null, "login.fallido", "user", user?.id);
-      return reply.code(r.status).send({ error: r.status === 429 ? "bloqueado_temporalmente" : "credenciales_invalidas" });
+      return reply
+        .code(r.status)
+        .send({ error: r.status === 429 ? "bloqueado_temporalmente" : "credenciales_invalidas" });
     }
     await audit(db, r.user.id, "login", "user", r.user.id, { metodo: "password" });
     return issue(r.user);
@@ -93,22 +118,41 @@ export async function authRoutes(app: FastifyInstance) {
     role: z.enum(ROLES),
     username: z.string().min(3).optional(),
     password: z.string().min(8).optional(),
-    pin: z.string().regex(/^\d{4,8}$/).optional(),
+    pin: z
+      .string()
+      .regex(/^\d{4,8}$/)
+      .optional(),
   });
 
   app.get("/api/users", { preHandler: app.authorize("user.manage") }, async () =>
-    db.prepare("SELECT id, name, username, role, active, photo, (pin_hash IS NOT NULL) AS has_pin FROM users ORDER BY name").all(),
+    db
+      .prepare(
+        "SELECT id, name, username, role, active, photo, (pin_hash IS NOT NULL) AS has_pin FROM users ORDER BY name",
+      )
+      .all(),
   );
 
   app.post("/api/users", { preHandler: app.authorize("user.manage") }, async (req, reply) => {
     const b = userBody.parse(req.body);
     if (!b.pin && !(b.username && b.password)) {
-      return reply.code(400).send({ error: "validacion", message: "Requiere PIN o usuario+contraseña" });
+      return reply
+        .code(400)
+        .send({ error: "validacion", message: "Requiere PIN o usuario+contraseña" });
     }
     const id = newId();
-    await db.prepare(
-            "INSERT INTO users (id,name,username,role,pin_hash,password_hash,created_at) VALUES (?,?,?,?,?,?,?)",
-          ).run(id, b.name, b.username ?? null, b.role, b.pin ? hashSecret(b.pin) : null, b.password ? hashSecret(b.password) : null, Date.now());
+    await db
+      .prepare(
+        "INSERT INTO users (id,name,username,role,pin_hash,password_hash,created_at) VALUES (?,?,?,?,?,?,?)",
+      )
+      .run(
+        id,
+        b.name,
+        b.username ?? null,
+        b.role,
+        b.pin ? hashSecret(b.pin) : null,
+        b.password ? hashSecret(b.password) : null,
+        Date.now(),
+      );
     await audit(db, req.user.sub, "crear", "user", id, { name: b.name, role: b.role });
     return reply.code(201).send({ id });
   });
@@ -116,12 +160,21 @@ export async function authRoutes(app: FastifyInstance) {
   app.patch("/api/users/:id", { preHandler: app.authorize("user.manage") }, async (req) => {
     const { id } = z.object({ id: z.string() }).parse(req.params);
     const b = userBody.partial().extend({ active: z.boolean().optional() }).parse(req.body);
-    if (b.name !== undefined) await db.prepare("UPDATE users SET name=? WHERE id=?").run(b.name, id);
-    if (b.role !== undefined) await db.prepare("UPDATE users SET role=? WHERE id=?").run(b.role, id);
-    if (b.pin) await db.prepare("UPDATE users SET pin_hash=? WHERE id=?").run(hashSecret(b.pin), id);
-    if (b.password) await db.prepare("UPDATE users SET password_hash=? WHERE id=?").run(hashSecret(b.password), id);
-    if (b.active !== undefined) await db.prepare("UPDATE users SET active=? WHERE id=?").run(b.active ? 1 : 0, id);
-    await audit(db, req.user.sub, "editar", "user", id, { campos: Object.keys(b).filter((k) => k !== "pin" && k !== "password") });
+    if (b.name !== undefined)
+      await db.prepare("UPDATE users SET name=? WHERE id=?").run(b.name, id);
+    if (b.role !== undefined)
+      await db.prepare("UPDATE users SET role=? WHERE id=?").run(b.role, id);
+    if (b.pin)
+      await db.prepare("UPDATE users SET pin_hash=? WHERE id=?").run(hashSecret(b.pin), id);
+    if (b.password)
+      await db
+        .prepare("UPDATE users SET password_hash=? WHERE id=?")
+        .run(hashSecret(b.password), id);
+    if (b.active !== undefined)
+      await db.prepare("UPDATE users SET active=? WHERE id=?").run(b.active ? 1 : 0, id);
+    await audit(db, req.user.sub, "editar", "user", id, {
+      campos: Object.keys(b).filter((k) => k !== "pin" && k !== "password"),
+    });
     return { ok: true };
   });
 }

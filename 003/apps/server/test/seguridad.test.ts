@@ -8,11 +8,35 @@ import { seed } from "../src/seed";
 let app: FastifyInstance;
 let db: Db;
 const H = (t: string) => ({ Authorization: `Bearer ${t}` });
-const call = async (token: string | null, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", url: string, payload?: unknown) => {
-  const r = await app.inject({ method, url, headers: token ? H(token) : undefined, payload: payload as object });
-  return { status: r.statusCode, body: r.body ? (r.headers["content-type"]?.toString().includes("json") ? r.json() : r.body) : null };
+const call = async (
+  token: string | null,
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+  url: string,
+  payload?: unknown,
+) => {
+  const r = await app.inject({
+    method,
+    url,
+    headers: token ? H(token) : undefined,
+    payload: payload as object,
+  });
+  return {
+    status: r.statusCode,
+    body: r.body
+      ? r.headers["content-type"]?.toString().includes("json")
+        ? r.json()
+        : r.body
+      : null,
+  };
 };
-const adminToken = async () => (await app.inject({ method: "POST", url: "/api/auth/login", payload: { username: "admin", password: "admin1234" } })).json().token as string;
+const adminToken = async () =>
+  (
+    await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: { username: "admin", password: "admin1234" },
+    })
+  ).json().token as string;
 async function pinLogin(userId: string, pin: string) {
   return app.inject({ method: "POST", url: "/api/auth/pin", payload: { userId, pin } });
 }
@@ -36,7 +60,12 @@ beforeAll(async () => {
 });
 
 /** Cada endpoint exige un permiso: se prueba con TODOS los roles que el permiso se respeta en ambos sentidos. */
-const PROTEGIDOS: { perm: Permission; method: "GET" | "POST" | "PUT" | "PATCH"; url: string; body?: unknown }[] = [
+const PROTEGIDOS: {
+  perm: Permission;
+  method: "GET" | "POST" | "PUT" | "PATCH";
+  url: string;
+  body?: unknown;
+}[] = [
   { perm: "user.manage", method: "GET", url: "/api/users" },
   { perm: "user.manage", method: "POST", url: "/api/users", body: {} },
   { perm: "product.create", method: "POST", url: "/api/products", body: {} },
@@ -78,13 +107,30 @@ describe("autenticación", () => {
     const good = roleUser.mesero!.token;
     const [h, p, s] = good.split(".");
     const flipped = `${h}.${p}.${s!.slice(0, -2)}${s!.endsWith("A") ? "B" : "A"}x`;
-    const forgedPayload = Buffer.from(JSON.stringify({ sub: roleUser.mesero!.id, role: "admin", permissions: ["user.manage"] })).toString("base64url");
-    for (const bad of [flipped, `${h}.${forgedPayload}.${s}`, "no-es-un-token", `${h}.${p}`, "", "Bearer"]) {
-      const r = await app.inject({ method: "GET", url: "/api/me", headers: { Authorization: `Bearer ${bad}` } });
+    const forgedPayload = Buffer.from(
+      JSON.stringify({ sub: roleUser.mesero!.id, role: "admin", permissions: ["user.manage"] }),
+    ).toString("base64url");
+    for (const bad of [
+      flipped,
+      `${h}.${forgedPayload}.${s}`,
+      "no-es-un-token",
+      `${h}.${p}`,
+      "",
+      "Bearer",
+    ]) {
+      const r = await app.inject({
+        method: "GET",
+        url: "/api/me",
+        headers: { Authorization: `Bearer ${bad}` },
+      });
       expect(r.statusCode, bad.slice(0, 20)).toBe(401);
     }
     // un mesero no puede escalar a administrador falsificando el payload
-    const forged = await app.inject({ method: "GET", url: "/api/users", headers: { Authorization: `Bearer ${h}.${forgedPayload}.${s}` } });
+    const forged = await app.inject({
+      method: "GET",
+      url: "/api/users",
+      headers: { Authorization: `Bearer ${h}.${forgedPayload}.${s}` },
+    });
     expect(forged.statusCode).toBe(401);
   });
 
@@ -103,20 +149,46 @@ describe("autenticación", () => {
     for (const pin of ["12", "abcd", "1234567890", " 1234", "12 34"]) {
       expect([400, 401], pin).toContain((await pinLogin(u.id, pin)).statusCode);
     }
-    expect((await app.inject({ method: "POST", url: "/api/auth/login", payload: { username: "admin" } })).statusCode).toBe(400);
-    expect((await app.inject({ method: "POST", url: "/api/auth/login", payload: { username: "admin", password: "mal-mal-mal" } })).statusCode).toBe(401);
-    expect((await app.inject({ method: "POST", url: "/api/auth/login", payload: "no json", headers: { "content-type": "application/json" } })).statusCode).toBe(400);
+    expect(
+      (await app.inject({ method: "POST", url: "/api/auth/login", payload: { username: "admin" } }))
+        .statusCode,
+    ).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/api/auth/login",
+          payload: { username: "admin", password: "mal-mal-mal" },
+        })
+      ).statusCode,
+    ).toBe(401);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/api/auth/login",
+          payload: "no json",
+          headers: { "content-type": "application/json" },
+        })
+      ).statusCode,
+    ).toBe(400);
   });
 
   it("un usuario dado de baja ya no puede entrar ni usar su token", async () => {
-    const created = await call(admin, "POST", "/api/users", { name: "Temporal", role: "mesero", pin: "8123" });
+    const created = await call(admin, "POST", "/api/users", {
+      name: "Temporal",
+      role: "mesero",
+      pin: "8123",
+    });
     const login = await pinLogin(created.body.id, "8123");
     expect(login.statusCode).toBe(200);
     const token = login.json().token as string;
     expect((await call(token, "GET", "/api/me")).status).toBe(200);
     await call(admin, "PATCH", `/api/users/${created.body.id}`, { active: false });
     expect((await pinLogin(created.body.id, "8123")).statusCode).toBe(401);
-    const users = (await app.inject({ method: "GET", url: "/api/auth/users" })).json() as { id: string }[];
+    const users = (await app.inject({ method: "GET", url: "/api/auth/users" })).json() as {
+      id: string;
+    }[];
     expect(users.find((x) => x.id === created.body.id)).toBeUndefined();
   });
 
@@ -124,11 +196,17 @@ describe("autenticación", () => {
     const r = await app.inject({ method: "GET", url: "/api/auth/users" });
     const text = r.body;
     expect(text).not.toMatch(/pin_hash|password|scrypt|permissions|username/i);
-    for (const u of r.json() as Record<string, unknown>[]) expect(Object.keys(u).sort()).toEqual(["id", "name", "photo", "role"]);
+    for (const u of r.json() as Record<string, unknown>[])
+      expect(Object.keys(u).sort()).toEqual(["id", "name", "photo", "role"]);
   });
 
   it("el administrador no aparece con PIN y su contraseña exige al menos 8 caracteres", async () => {
-    const r = await call(admin, "POST", "/api/users", { name: "Corto", role: "gerente", username: "corto", password: "1234" });
+    const r = await call(admin, "POST", "/api/users", {
+      name: "Corto",
+      role: "gerente",
+      username: "corto",
+      password: "1234",
+    });
     expect(r.status).toBe(400);
   });
 });
@@ -137,15 +215,30 @@ describe("robustez ante entradas hostiles", () => {
   it("las inyecciones SQL y el HTML en nombres se guardan como texto, sin dañar nada", async () => {
     const nasty = "Robert'); DROP TABLE users;-- <img src=x onerror=alert(1)>";
     const st = (await call(admin, "GET", "/api/stations")).body as { id: string }[];
-    const p = await call(admin, "POST", "/api/products", { name: nasty, price_cents: 1000, station_ids: [st[0]!.id] });
+    const p = await call(admin, "POST", "/api/products", {
+      name: nasty,
+      price_cents: 1000,
+      station_ids: [st[0]!.id],
+    });
     expect([200, 201]).toContain(p.status);
     const list = (await call(admin, "GET", "/api/products")).body as { name: string }[];
     expect(list.some((x) => x.name === nasty)).toBe(true);
-    expect((await db.prepare("SELECT COUNT(*) c FROM users").get() as { c: number }).c).toBeGreaterThan(5);
+    expect(
+      ((await db.prepare("SELECT COUNT(*) c FROM users").get()) as { c: number }).c,
+    ).toBeGreaterThan(5);
   });
 
   it("los errores de validación son 400 con mensaje, nunca 500", async () => {
-    const bodies: unknown[] = [{}, { name: 5 }, { name: "" }, { name: "x", price_cents: -5 }, { name: "x", price_cents: "mil" }, { name: "x".repeat(5000), price_cents: 1 }, null, []];
+    const bodies: unknown[] = [
+      {},
+      { name: 5 },
+      { name: "" },
+      { name: "x", price_cents: -5 },
+      { name: "x", price_cents: "mil" },
+      { name: "x".repeat(5000), price_cents: 1 },
+      null,
+      [],
+    ];
     for (const b of bodies) {
       const r = await call(admin, "POST", "/api/products", b);
       expect(r.status, JSON.stringify(b)?.slice(0, 40)).toBeLessThan(500);
@@ -153,13 +246,25 @@ describe("robustez ante entradas hostiles", () => {
   });
 
   it("rechaza cuerpos enormes (límite 2 MB) sin caerse", async () => {
-    const r = await app.inject({ method: "POST", url: "/api/products", headers: { ...H(admin), "content-type": "application/json" }, payload: JSON.stringify({ name: "x".repeat(3_000_000), price_cents: 1 }) });
+    const r = await app.inject({
+      method: "POST",
+      url: "/api/products",
+      headers: { ...H(admin), "content-type": "application/json" },
+      payload: JSON.stringify({ name: "x".repeat(3_000_000), price_cents: 1 }),
+    });
     expect(r.statusCode).toBe(413);
     expect((await call(admin, "GET", "/api/me")).status).toBe(200);
   });
 
   it("no sirve archivos fuera de la carpeta de fotos (path traversal)", async () => {
-    for (const f of ["..%2F..%2F003.sqlite", "%2e%2e%2fpackage.json", "....//....//etc/passwd", "a.jpg%00.png", "x.svg", "x.html"]) {
+    for (const f of [
+      "..%2F..%2F003.sqlite",
+      "%2e%2e%2fpackage.json",
+      "....//....//etc/passwd",
+      "a.jpg%00.png",
+      "x.svg",
+      "x.html",
+    ]) {
       const r = await app.inject({ method: "GET", url: `/api/photos/${f}` });
       expect([400, 404], f).toContain(r.statusCode);
     }
@@ -167,10 +272,23 @@ describe("robustez ante entradas hostiles", () => {
 
   it("las fotos solo aceptan imágenes reales (no un ejecutable con extensión .jpg)", async () => {
     const id = (await call(admin, "GET", "/api/products")).body[0].id as string;
-    const fakeJpg = "data:image/jpeg;base64," + Buffer.from("MZ\x90\x00este-no-es-un-jpeg".repeat(20)).toString("base64");
-    expect((await call(admin, "POST", `/api/products/${id}/photo`, { data: fakeJpg })).status).toBe(400);
-    expect((await call(admin, "POST", `/api/products/${id}/photo`, { data: "data:text/html;base64,PGgxPmhvbGE8L2gxPg==" + "A".repeat(100) })).status).toBe(400);
-    expect((await call(admin, "POST", `/api/users/${roleUser.mesero!.id}/photo`, { data: fakeJpg })).status).toBe(400);
+    const fakeJpg =
+      "data:image/jpeg;base64," +
+      Buffer.from("MZ\x90\x00este-no-es-un-jpeg".repeat(20)).toString("base64");
+    expect((await call(admin, "POST", `/api/products/${id}/photo`, { data: fakeJpg })).status).toBe(
+      400,
+    );
+    expect(
+      (
+        await call(admin, "POST", `/api/products/${id}/photo`, {
+          data: "data:text/html;base64,PGgxPmhvbGE8L2gxPg==" + "A".repeat(100),
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (await call(admin, "POST", `/api/users/${roleUser.mesero!.id}/photo`, { data: fakeJpg }))
+        .status,
+    ).toBe(400);
   });
 
   it("rutas inexistentes responden 404 en JSON y los métodos no permitidos no explotan", async () => {
@@ -189,7 +307,9 @@ describe("sesión", () => {
   it("/api/me devuelve el usuario con sus permisos y su foto (null si no tiene)", async () => {
     const r = await call(roleUser.mesero!.token, "GET", "/api/me");
     expect(r.body.role).toBe("mesero");
-    expect(r.body.permissions).toEqual(expect.arrayContaining([...DEFAULT_ROLE_PERMISSIONS.mesero]));
+    expect(r.body.permissions).toEqual(
+      expect.arrayContaining([...DEFAULT_ROLE_PERMISSIONS.mesero]),
+    );
     const login = await pinLogin(roleUser.mesero!.id, "7002");
     expect(login.json().user).toMatchObject({ role: "mesero", photo: null });
   });
@@ -205,14 +325,27 @@ describe("sesión", () => {
 describe("cuerpos JSON", () => {
   it("un DELETE con content-type JSON y cuerpo vacío se acepta (clientes que siempre declaran JSON)", async () => {
     const st = (await call(admin, "GET", "/api/stations")).body as { id: string }[];
-    const p = await call(admin, "POST", "/api/products", { name: "Para borrar", price_cents: 100, station_ids: [st[0]!.id] });
-    const r = await app.inject({ method: "DELETE", url: `/api/products/${p.body.id}`, headers: { ...H(admin), "content-type": "application/json" } });
+    const p = await call(admin, "POST", "/api/products", {
+      name: "Para borrar",
+      price_cents: 100,
+      station_ids: [st[0]!.id],
+    });
+    const r = await app.inject({
+      method: "DELETE",
+      url: `/api/products/${p.body.id}`,
+      headers: { ...H(admin), "content-type": "application/json" },
+    });
     expect(r.statusCode).toBeLessThan(400);
   });
 
   it("el JSON mal formado sigue siendo 400, no 500", async () => {
-    for (const bad of ["{", "{\"a\":", "[1,2", "undefined", "{'a':1}"]) {
-      const r = await app.inject({ method: "POST", url: "/api/products", headers: { ...H(admin), "content-type": "application/json" }, payload: bad });
+    for (const bad of ["{", '{"a":', "[1,2", "undefined", "{'a':1}"]) {
+      const r = await app.inject({
+        method: "POST",
+        url: "/api/products",
+        headers: { ...H(admin), "content-type": "application/json" },
+        payload: bad,
+      });
       expect(r.statusCode, bad).toBe(400);
     }
   });

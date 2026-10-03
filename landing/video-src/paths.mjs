@@ -21,6 +21,8 @@ export function chromePath() {
 }
 
 /** Compilación de la app (`pnpm --filter @003/web build`); `NODO_APP_DIST` para otra ubicación. */
-export const APP_DIST = process.env.NODO_APP_DIST ?? resolve(ROOT, "../../003/apps/web/dist/assets");
+export const APP_DIST =
+  process.env.NODO_APP_DIST ?? resolve(ROOT, "../../003/apps/web/dist/assets");
 /** Fotos de platillos de la demo; `NODO_LANDING_PHOTOS` para otra ubicación. */
-export const PHOTOS = process.env.NODO_LANDING_PHOTOS ?? resolve(ROOT, "../../003/apps/server/data/landing-photos");
+export const PHOTOS =
+  process.env.NODO_LANDING_PHOTOS ?? resolve(ROOT, "../../003/apps/server/data/landing-photos");

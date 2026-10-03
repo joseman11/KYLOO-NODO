@@ -29,7 +29,8 @@ export function titled(label: string, w: number, ch = "-"): string {
   return ch.repeat(left) + text + ch.repeat(w - text.length - left);
 }
 
-const fmtTime = (ts: number) => new Date(ts).toLocaleString("es-MX", { hour12: false, dateStyle: "short", timeStyle: "short" });
+const fmtTime = (ts: number) =>
+  new Date(ts).toLocaleString("es-MX", { hour12: false, dateStyle: "short", timeStyle: "short" });
 export const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
 export interface TicketLineData {
@@ -56,7 +57,11 @@ export interface ComandaData {
   lines: TicketLineData[];
 }
 
-export function renderComanda(d: ComandaData, paper = 80, style: TicketStyle = DEFAULT_STYLE): string[] {
+export function renderComanda(
+  d: ComandaData,
+  paper = 80,
+  style: TicketStyle = DEFAULT_STYLE,
+): string[] {
   const w = widthFor(paper);
   const out = [
     `${BIG}${d.headline ?? (d.kind === "adicion" ? "ADICION" : "COMANDA")}`,
@@ -71,9 +76,12 @@ export function renderComanda(d: ComandaData, paper = 80, style: TicketStyle = D
   let course: string | null | undefined = undefined;
   for (const l of d.lines) {
     // Al cambiar de tiempo se imprime un separador con su nombre, para que la cocina sepa cuándo sacar cada parte
-    if ((l.course ?? null) !== (course ?? null) && l.course) out.push(`${BOLD}${titled(l.course, w, style.sep)}`);
+    if ((l.course ?? null) !== (course ?? null) && l.course)
+      out.push(`${BOLD}${titled(l.course, w, style.sep)}`);
     course = l.course;
-    out.push(`${BOLD}${d.kind === "adicion" ? "+ " : ""}${l.quantity} x ${l.name}${l.seat ? ` (A${l.seat})` : ""}`);
+    out.push(
+      `${BOLD}${d.kind === "adicion" ? "+ " : ""}${l.quantity} x ${l.name}${l.seat ? ` (A${l.seat})` : ""}`,
+    );
     for (const m of l.modifiers) out.push(`   - ${m}`);
     if (l.note) out.push(`   >> ${l.note}`);
   }
@@ -101,12 +109,18 @@ export interface BillData {
 
 export function renderBill(d: BillData, paper = 80, style: TicketStyle = DEFAULT_STYLE): string[] {
   const w = widthFor(paper);
-  const out = [`${BIG}${d.establishment}`, `Mesa ${d.tableNumber} - ${d.waiter}`, fmtTime(d.createdAt), rule(w, style.sep)];
+  const out = [
+    `${BIG}${d.establishment}`,
+    `Mesa ${d.tableNumber} - ${d.waiter}`,
+    fmtTime(d.createdAt),
+    rule(w, style.sep),
+  ];
 
   if (style.groupCategories) {
     // Un encabezado por categoría, en el orden en que se pidió
     const groups = new Map<string, BillData["lines"]>();
-    for (const l of d.lines) groups.set(l.category ?? "Otros", [...(groups.get(l.category ?? "Otros") ?? []), l]);
+    for (const l of d.lines)
+      groups.set(l.category ?? "Otros", [...(groups.get(l.category ?? "Otros") ?? []), l]);
     for (const [cat, lines] of groups) {
       out.push(`${BOLD}${titled(cat, w, style.sep)}`);
       for (const l of lines) out.push(two(`${l.quantity} ${l.name}`, money(l.totalCents), w));
@@ -117,19 +131,37 @@ export function renderBill(d: BillData, paper = 80, style: TicketStyle = DEFAULT
 
   out.push(rule(w, style.sep));
   if (d.discountCents) out.push(two("Descuento", `-${money(d.discountCents)}`, w));
-  if (d.serviceChargeCents) out.push(two(d.serviceChargeLabel ?? "Servicio", money(d.serviceChargeCents), w));
+  if (d.serviceChargeCents)
+    out.push(two(d.serviceChargeLabel ?? "Servicio", money(d.serviceChargeCents), w));
   if (d.deliveryFeeCents) out.push(two("Envio", money(d.deliveryFeeCents), w));
   out.push(`${BOLD}${two("TOTAL", money(d.totalCents), w)}`);
   if (d.tipCents) out.push(two("Propina", money(d.tipCents), w));
   for (const p of d.payments ?? []) out.push(two(p.method, money(p.amountCents), w));
   if (d.changeCents) out.push(two("Cambio", money(d.changeCents), w));
-  if (d.partial) out.push(rule(w, style.sep), two("Pago parcial", money(d.partial.coveredCents), w), two("Saldo pendiente", money(d.partial.balanceCents), w));
+  if (d.partial)
+    out.push(
+      rule(w, style.sep),
+      two("Pago parcial", money(d.partial.coveredCents), w),
+      two("Saldo pendiente", money(d.partial.balanceCents), w),
+    );
   out.push("", "Gracias por su visita");
-  if (style.footer.trim()) out.push(rule(w, style.sep), ...style.footer.split("\n").map((s) => s.trimEnd()));
+  if (style.footer.trim())
+    out.push(rule(w, style.sep), ...style.footer.split("\n").map((s) => s.trimEnd()));
   return out.flatMap((s) => s.split("\n"));
 }
 
-export function renderTest(printerName: string, paper = 80, style: TicketStyle = DEFAULT_STYLE): string[] {
+export function renderTest(
+  printerName: string,
+  paper = 80,
+  style: TicketStyle = DEFAULT_STYLE,
+): string[] {
   const w = widthFor(paper);
-  return [`${BIG}PRUEBA`, printerName, fmtTime(Date.now()), rule(w, style.sep), "Impresion correcta: áéíóúñ ¿¡", rule(w, style.sep)];
+  return [
+    `${BIG}PRUEBA`,
+    printerName,
+    fmtTime(Date.now()),
+    rule(w, style.sep),
+    "Impresion correcta: áéíóúñ ¿¡",
+    rule(w, style.sep),
+  ];
 }
