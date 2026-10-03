@@ -36,9 +36,9 @@ async function pin(name: string, p: string) {
   return (await app.inject({ method: "POST", url: "/api/auth/pin", payload: { userId: u.id, pin: p } })).json().token as string;
 }
 
-beforeEach(() => {
-  db = openDb(":memory:");
-  seed(db, "admin1234");
+beforeEach(async () => {
+  db = await openDb(":memory:");
+  await seed(db, "admin1234");
   transport = new FakeTransport();
   hub = new Hub();
   app = buildApp(db, { transport, hub });
@@ -52,8 +52,8 @@ describe("áreas y destino de productos", () => {
     expect(st.status).toBe(201);
     expect((await call(t, "POST", `/api/areas/${bar2}/stations`, { name: "coctelería terraza" })).status).toBe(409); // repetida
 
-    const cocinaSt = (db.prepare("SELECT id FROM stations WHERE name='Plancha'").get() as { id: string }).id;
-    const barSt = (db.prepare("SELECT id FROM stations WHERE name='Barra'").get() as { id: string }).id;
+    const cocinaSt = (await db.prepare("SELECT id FROM stations WHERE name='Plancha'").get() as { id: string }).id;
+    const barSt = (await db.prepare("SELECT id FROM stations WHERE name='Barra'").get() as { id: string }).id;
     const mk = async (name: string, stations: string[]) => (await call(t, "POST", "/api/products", { name, price_cents: 5000, station_ids: stations })).body.id as string;
     const coca = await mk("Coca", [barSt]);
     const taco = await mk("Taco", [cocinaSt]);
@@ -63,17 +63,17 @@ describe("áreas y destino de productos", () => {
     const tbl = ((await call(t, "GET", "/api/tables")).body as { id: string }[])[0]!.id;
     const acc = (await call(juan, "POST", `/api/tables/${tbl}/open`, {})).body.id as string;
     await call(juan, "POST", `/api/accounts/${acc}/orders`, { items: [{ productId: coca }, { productId: taco }, { productId: mojito }] });
-    const tickets = db.prepare("SELECT s.name station FROM production_tickets pt JOIN stations s ON s.id=pt.station_id ORDER BY s.name").all();
+    const tickets = await db.prepare("SELECT s.name station FROM production_tickets pt JOIN stations s ON s.id=pt.station_id ORDER BY s.name").all();
     expect(tickets).toEqual([{ station: "Barra" }, { station: "Coctelería terraza" }, { station: "Plancha" }]);
   });
 
   it("no deja borrar un área con estaciones ni una estación con productos", async () => {
     const t = await admin();
-    const cocina = (db.prepare("SELECT id FROM areas WHERE name='Cocina'").get() as { id: string }).id;
+    const cocina = (await db.prepare("SELECT id FROM areas WHERE name='Cocina'").get() as { id: string }).id;
     const r = await call(t, "DELETE", `/api/areas/${cocina}`);
     expect(r.status).toBe(409);
     expect(r.body.message).toContain("estación");
-    const plancha = (db.prepare("SELECT id FROM stations WHERE name='Plancha'").get() as { id: string }).id;
+    const plancha = (await db.prepare("SELECT id FROM stations WHERE name='Plancha'").get() as { id: string }).id;
     expect((await call(t, "DELETE", `/api/stations/${plancha}`)).body.message).toContain("producto");
 
     const vacia = (await call(t, "POST", "/api/areas", { name: "Vacía", kind: "produccion" })).body.id as string;
@@ -84,8 +84,8 @@ describe("áreas y destino de productos", () => {
 describe("categorías propias", () => {
   it("crea categorías y subcategorías, y el producto nuevo hereda el destino de su categoría", async () => {
     const t = await admin();
-    const cocina = (db.prepare("SELECT id FROM stations WHERE name='Plancha'").get() as { id: string }).id;
-    const barra = (db.prepare("SELECT id FROM stations WHERE name='Barra'").get() as { id: string }).id;
+    const cocina = (await db.prepare("SELECT id FROM stations WHERE name='Plancha'").get() as { id: string }).id;
+    const barra = (await db.prepare("SELECT id FROM stations WHERE name='Barra'").get() as { id: string }).id;
     const tacos = (await call(t, "POST", "/api/categories", { name: "Tacos" })).body.id as string;
     const calamar = (await call(t, "POST", "/api/categories", { name: "Tacos de calamar", parent_id: tacos })).body.id as string;
     const refrescos = (await call(t, "POST", "/api/categories", { name: "Refrescos" })).body.id as string;
@@ -105,8 +105,8 @@ describe("categorías propias", () => {
 
   it("reasignar el destino de una categoría actualiza sus productos y subcategorías", async () => {
     const t = await admin();
-    const cocina = (db.prepare("SELECT id FROM stations WHERE name='Plancha'").get() as { id: string }).id;
-    const barra = (db.prepare("SELECT id FROM stations WHERE name='Barra'").get() as { id: string }).id;
+    const cocina = (await db.prepare("SELECT id FROM stations WHERE name='Plancha'").get() as { id: string }).id;
+    const barra = (await db.prepare("SELECT id FROM stations WHERE name='Barra'").get() as { id: string }).id;
     const padre = (await call(t, "POST", "/api/categories", { name: "Antojitos" })).body.id as string;
     const hija = (await call(t, "POST", "/api/categories", { name: "Garnachas", parent_id: padre })).body.id as string;
     const p1 = (await call(t, "POST", "/api/products", { name: "Sope", price_cents: 4000, category_id: hija, station_ids: [cocina] })).body.id as string;
@@ -124,7 +124,7 @@ describe("categorías propias", () => {
     expect((await call(t, "PATCH", `/api/categories/${a}`, { parent_id: c })).status).toBe(400); // ciclo
     expect((await call(t, "DELETE", `/api/categories/${a}`)).body.message).toContain("subcategoría");
 
-    const barra = (db.prepare("SELECT id FROM stations WHERE name='Barra'").get() as { id: string }).id;
+    const barra = (await db.prepare("SELECT id FROM stations WHERE name='Barra'").get() as { id: string }).id;
     await call(t, "POST", "/api/products", { name: "Algo", price_cents: 1, category_id: c, station_ids: [barra] });
     expect((await call(t, "DELETE", `/api/categories/${c}`)).body.message).toContain("producto");
   });
@@ -201,7 +201,7 @@ describe("separadores en tickets", () => {
     expect(cocina.text).toContain("PLATO FUERTE");
     expect(cocina.text).not.toContain("PARA EMPEZAR"); // ese tiempo es de barra, no de cocina
 
-    const plancha = (db.prepare("SELECT id FROM stations WHERE name='Plancha'").get() as { id: string }).id;
+    const plancha = (await db.prepare("SELECT id FROM stations WHERE name='Plancha'").get() as { id: string }).id;
     const q = (await call(t, "GET", `/api/stations/${plancha}/queue`)).body as { lines: { course: string | null }[] }[];
     expect(q[0]!.lines[0]!.course).toBe("Plato fuerte");
 
@@ -209,11 +209,11 @@ describe("separadores en tickets", () => {
     const acc2 = (await call(juan, "POST", `/api/tables/${((await call(t, "GET", "/api/tables")).body as { id: string }[])[1]!.id}/open`, {})).body.id as string;
     const ens = products.find((p) => p.name === "Ensalada")!.id;
     await call(juan, "POST", `/api/accounts/${acc2}/orders`, { items: [{ productId: ens }, { productId: burger, course: "Plato fuerte" }, { productId: ens, course: "Postre" }] });
-    const fr = (db.prepare("SELECT id FROM stations WHERE name='Fríos'").get() as { id: string }).id;
+    const fr = (await db.prepare("SELECT id FROM stations WHERE name='Fríos'").get() as { id: string }).id;
     const q2 = (await call(t, "GET", `/api/stations/${fr}/queue`)).body as { lines: { name: string; course: string | null }[] }[];
     expect(q2[0]!.lines.map((l) => l.course)).toEqual([null, "Postre"]);
     // el curso se guarda en la cuenta
-    const item = db.prepare("SELECT course FROM order_items WHERE name='Margarita'").get() as { course: string };
+    const item = await db.prepare("SELECT course FROM order_items WHERE name='Margarita'").get() as { course: string };
     expect(item.course).toBe("Para empezar");
   });
 

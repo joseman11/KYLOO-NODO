@@ -50,7 +50,7 @@ export function verifyLicense(publicPem: string, token: string): LicensePayload 
   }
 }
 
-const setting = (db: Db, key: string) => (db.prepare("SELECT value FROM settings WHERE key=?").get(key) as { value: string } | undefined)?.value;
+const setting = async (db: Db, key: string) => (await db.prepare("SELECT value FROM settings WHERE key=?").get(key) as { value: string } | undefined)?.value;
 
 export interface ActiveLicense extends LicensePayload { expired: boolean; }
 
@@ -60,9 +60,9 @@ let cache: { token: string; pub: string; value: ActiveLicense | null; at: number
  * Licencia vigente de esta sucursal. Sin licencia instalada devuelve null: instalación propia, sin límites.
  * Con licencia vencida más allá de la gracia se aplican los límites del plan gratis.
  */
-export function getLicense(db: Db, now = Date.now()): ActiveLicense | null {
-  const token = setting(db, "license");
-  const pub = setting(db, "hq_public_key");
+export async function getLicense(db: Db, now = Date.now()): Promise<ActiveLicense | null> {
+  const token = await setting(db, "license");
+  const pub = await setting(db, "hq_public_key");
   if (!token || !pub) return null;
   if (!cache || cache.token !== token || cache.pub !== pub) {
     const payload = verifyLicense(pub, token);
@@ -94,9 +94,9 @@ export const FEATURE_ROUTES: [RegExp, Feature][] = [
 ];
 
 /** Cuenta para aplicar límites del plan. */
-export function usage(db: Db) {
+export async function usage(db: Db) {
   return {
-    users: (db.prepare("SELECT COUNT(*) c FROM users WHERE active=1").get() as { c: number }).c,
-    printers: (db.prepare("SELECT COUNT(*) c FROM printers WHERE active=1").get() as { c: number }).c,
+    users: (await db.prepare("SELECT COUNT(*) c FROM users WHERE active=1").get() as { c: number }).c,
+    printers: (await db.prepare("SELECT COUNT(*) c FROM printers WHERE active=1").get() as { c: number }).c,
   };
 }

@@ -24,44 +24,44 @@ export async function analyticsRoutes(app: FastifyInstance) {
 
   app.get("/api/analytics/overview", guard, async (req) => {
     const { from, to, prevFrom, prevTo } = resolve(range.parse(req.query));
-    const sales = (a: number, b: number) =>
-      db
-        .prepare("SELECT COUNT(DISTINCT account_id) tickets, COALESCE(SUM(total_cents),0) sales_cents, COALESCE(SUM(tip_cents),0) tips_cents FROM payments WHERE created_at>=? AND created_at<?")
-        .get(a, b) as { tickets: number; sales_cents: number; tips_cents: number };
-    const cur = sales(from, to);
-    const prev = sales(prevFrom, prevTo);
+    const sales = async (a: number, b: number) =>
+      await db
+                .prepare("SELECT COUNT(DISTINCT account_id) tickets, COALESCE(SUM(total_cents),0) sales_cents, COALESCE(SUM(tip_cents),0) tips_cents FROM payments WHERE created_at>=? AND created_at<?")
+                .get(a, b) as { tickets: number; sales_cents: number; tips_cents: number };
+    const cur = await sales(from, to);
+    const prev = await sales(prevFrom, prevTo);
 
-    const orders = db
-      .prepare(
-        `SELECT COUNT(DISTINCT o.id) orders, COALESCE(SUM(i.quantity),0) units FROM orders o JOIN order_items i ON i.order_id=o.id
+    const orders = await db
+          .prepare(
+            `SELECT COUNT(DISTINCT o.id) orders, COALESCE(SUM(i.quantity),0) units FROM orders o JOIN order_items i ON i.order_id=o.id
          WHERE o.created_at>=? AND o.created_at<? AND i.status='activo'`,
-      )
-      .get(from, to) as { orders: number; units: number };
+          )
+          .get(from, to) as { orders: number; units: number };
 
-    const served = db
-      .prepare(
-        `SELECT COUNT(DISTINCT p.account_id) n, AVG((p.created_at - a.opened_at)/60000.0) minutes FROM payments p JOIN accounts a ON a.id=p.account_id
+    const served = await db
+          .prepare(
+            `SELECT COUNT(DISTINCT p.account_id) n, AVG((p.created_at - a.opened_at)/60000.0) minutes FROM payments p JOIN accounts a ON a.id=p.account_id
          WHERE p.created_at>=? AND p.created_at<? AND a.kind='mesa'`,
-      )
-      .get(from, to) as { n: number; minutes: number | null };
-    const tables = (db.prepare("SELECT COUNT(*) c FROM tables_").get() as { c: number }).c || 1;
+          )
+          .get(from, to) as { n: number; minutes: number | null };
+    const tables = (await db.prepare("SELECT COUNT(*) c FROM tables_").get() as { c: number }).c || 1;
     const days = Math.max(1, Math.round((to - from) / DAY));
 
-    const discounts = (db.prepare("SELECT COALESCE(SUM(amount_cents),0) t FROM account_discounts WHERE created_at>=? AND created_at<?").get(from, to) as { t: number }).t;
-    const cancelled = db
-      .prepare(
-        `SELECT COUNT(*) items, COALESCE(SUM(i.quantity*i.unit_price_cents),0) total_cents,
+    const discounts = (await db.prepare("SELECT COALESCE(SUM(amount_cents),0) t FROM account_discounts WHERE created_at>=? AND created_at<?").get(from, to) as { t: number }).t;
+    const cancelled = await db
+          .prepare(
+            `SELECT COUNT(*) items, COALESCE(SUM(i.quantity*i.unit_price_cents),0) total_cents,
                 COALESCE(SUM(i.cancelled_after_production),0) after_production
          FROM order_items i JOIN orders o ON o.id=i.order_id WHERE i.status='cancelado' AND o.created_at>=? AND o.created_at<?`,
-      )
-      .get(from, to) as { items: number; total_cents: number; after_production: number };
+          )
+          .get(from, to) as { items: number; total_cents: number; after_production: number };
     const waste = (
-      db
-        .prepare(
-          `SELECT COALESCE(SUM(-m.quantity * COALESCE(i.unit_cost_cents,0)),0) cost FROM inventory_movements m JOIN inventory_items i ON i.id=m.item_id
+      await db
+                .prepare(
+                  `SELECT COALESCE(SUM(-m.quantity * COALESCE(i.unit_cost_cents,0)),0) cost FROM inventory_movements m JOIN inventory_items i ON i.id=m.item_id
            WHERE m.kind='merma' AND m.created_at>=? AND m.created_at<?`,
-        )
-        .get(from, to) as { cost: number }
+                )
+                .get(from, to) as { cost: number }
     ).cost;
 
     return {
@@ -80,18 +80,18 @@ export async function analyticsRoutes(app: FastifyInstance) {
       previous: { sales_cents: prev.sales_cents, tickets: prev.tickets },
       change_sales_pct: pct(cur.sales_cents, prev.sales_cents),
       change_tickets_pct: pct(cur.tickets, prev.tickets),
-      by_hour: db
-        .prepare(
-          `SELECT CAST(strftime('%H', created_at/1000,'unixepoch','localtime') AS INTEGER) hour, COUNT(DISTINCT account_id) tickets, SUM(total_cents) sales_cents
+      by_hour: await db
+              .prepare(
+                `SELECT CAST(strftime('%H', created_at/1000,'unixepoch','localtime') AS INTEGER) AS hour, COUNT(DISTINCT account_id) tickets, SUM(total_cents) sales_cents
            FROM payments WHERE created_at>=? AND created_at<? GROUP BY hour ORDER BY hour`,
-        )
-        .all(from, to),
-      by_weekday: db
-        .prepare(
-          `SELECT CAST(strftime('%w', created_at/1000,'unixepoch','localtime') AS INTEGER) weekday, COUNT(DISTINCT account_id) tickets, SUM(total_cents) sales_cents
+              )
+              .all(from, to),
+      by_weekday: await db
+              .prepare(
+                `SELECT CAST(strftime('%w', created_at/1000,'unixepoch','localtime') AS INTEGER) weekday, COUNT(DISTINCT account_id) tickets, SUM(total_cents) sales_cents
            FROM payments WHERE created_at>=? AND created_at<? GROUP BY weekday ORDER BY weekday`,
-        )
-        .all(from, to),
+              )
+              .all(from, to),
     };
   });
 
@@ -113,14 +113,14 @@ export async function analyticsRoutes(app: FastifyInstance) {
   // Análisis ABC: A = primeros productos que suman 80 % de la venta, B hasta 95 %, C el resto
   app.get("/api/analytics/abc", guard, async (req) => {
     const { from, to } = resolve(range.parse(req.query));
-    const rows = db
-      .prepare(
-        `SELECT i.name product, SUM(i.quantity) units, SUM(i.quantity*i.unit_price_cents) sales_cents
+    const rows = await db
+          .prepare(
+            `SELECT i.name product, SUM(i.quantity) units, SUM(i.quantity*i.unit_price_cents) sales_cents
          FROM order_items i JOIN orders o ON o.id=i.order_id
          WHERE i.status='activo' AND o.created_at>=? AND o.created_at<? AND i.account_id IN (SELECT account_id FROM payments)
-         GROUP BY i.product_id ORDER BY sales_cents DESC`,
-      )
-      .all(from, to) as { product: string; units: number; sales_cents: number }[];
+         GROUP BY i.product_id, i.name ORDER BY sales_cents DESC`,
+          )
+          .all(from, to) as { product: string; units: number; sales_cents: number }[];
     const total = rows.reduce((s, r) => s + r.sales_cents, 0);
     let acc = 0;
     return rows.map((r) => {
@@ -134,20 +134,20 @@ export async function analyticsRoutes(app: FastifyInstance) {
   app.get("/api/analytics/forecast", guard, async (req) => {
     const { weeks } = z.object({ weeks: z.coerce.number().int().min(1).max(26).default(8) }).parse(req.query);
     const since = startOfToday() - weeks * 7 * DAY;
-    const perDay = db
-      .prepare(
-        `SELECT CAST(strftime('%w', created_at/1000,'unixepoch','localtime') AS INTEGER) weekday,
-                strftime('%Y-%m-%d', created_at/1000,'unixepoch','localtime') day, COUNT(DISTINCT account_id) tickets, SUM(total_cents) sales_cents
-         FROM payments WHERE created_at>=? GROUP BY day`,
-      )
-      .all(since) as { weekday: number; day: string; tickets: number; sales_cents: number }[];
-    const peak = db
-      .prepare(
-        `SELECT CAST(strftime('%w', created_at/1000,'unixepoch','localtime') AS INTEGER) weekday,
-                CAST(strftime('%H', created_at/1000,'unixepoch','localtime') AS INTEGER) hour, SUM(total_cents) sales_cents
+    const perDay = await db
+          .prepare(
+            `SELECT CAST(strftime('%w', created_at/1000,'unixepoch','localtime') AS INTEGER) weekday,
+                strftime('%Y-%m-%d', created_at/1000,'unixepoch','localtime') AS day, COUNT(DISTINCT account_id) tickets, SUM(total_cents) sales_cents
+         FROM payments WHERE created_at>=? GROUP BY weekday, day`,
+          )
+          .all(since) as { weekday: number; day: string; tickets: number; sales_cents: number }[];
+    const peak = await db
+          .prepare(
+            `SELECT CAST(strftime('%w', created_at/1000,'unixepoch','localtime') AS INTEGER) weekday,
+                CAST(strftime('%H', created_at/1000,'unixepoch','localtime') AS INTEGER) AS hour, SUM(total_cents) sales_cents
          FROM payments WHERE created_at>=? GROUP BY weekday, hour`,
-      )
-      .all(since) as { weekday: number; hour: number; sales_cents: number }[];
+          )
+          .all(since) as { weekday: number; hour: number; sales_cents: number }[];
 
     const out = [];
     for (let i = 0; i < 7; i++) {

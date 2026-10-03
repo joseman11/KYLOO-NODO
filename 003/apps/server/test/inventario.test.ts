@@ -19,8 +19,8 @@ async function pin(name: string, p: string) {
 }
 let adm = "";
 beforeEach(async () => {
-  db = openDb(":memory:");
-  seed(db, "admin1234");
+  db = await openDb(":memory:");
+  await seed(db, "admin1234");
   app = buildApp(db);
   adm = (await app.inject({ method: "POST", url: "/api/auth/login", payload: { username: "admin", password: "admin1234" } })).json().token as string;
 });
@@ -33,7 +33,7 @@ const item = async (o: Record<string, unknown>) => {
   return r.body.id as string;
 };
 const stock = (itemId: string, qty: number) => c(adm, "POST", "/api/inventory/movements", { itemId, kind: "entrada", quantity: qty });
-const stockOf = (itemId: string) => (db.prepare("SELECT stock FROM inventory_items WHERE id=?").get(itemId) as { stock: number }).stock;
+const stockOf = async (itemId: string) => (await db.prepare("SELECT stock FROM inventory_items WHERE id=?").get(itemId) as { stock: number }).stock;
 
 describe("áreas y categorías de inventario", () => {
   it("la migración deja áreas de partida editables (Cocina, Barra, Limpieza y desechables)", async () => {
@@ -53,7 +53,7 @@ describe("áreas y categorías de inventario", () => {
     expect(rows.find((r) => r.name === "Camarón")).toMatchObject({ area_id: cocina, category_id: mariscos });
     // se puede mover a otra categoría de la misma área
     expect((await c(adm, "PATCH", `/api/inventory/items/${camaron}`, { category_id: perecederos })).status).toBe(200);
-    expect((db.prepare("SELECT category_id FROM inventory_items WHERE id=?").get(camaron) as { category_id: string }).category_id).toBe(perecederos);
+    expect((await db.prepare("SELECT category_id FROM inventory_items WHERE id=?").get(camaron) as { category_id: string }).category_id).toBe(perecederos);
   });
 
   it("no permite nombres repetidos de área ni de categoría dentro de la misma área (sin importar mayúsculas)", async () => {
@@ -73,7 +73,7 @@ describe("áreas y categorías de inventario", () => {
     expect((await c(adm, "POST", "/api/inventory/items", { name: "Y", unit: "kg", category_id: "no-existe", area_id: a1 })).status).toBe(400);
     const it = await item({ name: "Z", area_id: a1, category_id: c1 });
     expect((await c(adm, "PATCH", `/api/inventory/items/${it}`, { area_id: a2 })).status).toBe(200);
-    expect((db.prepare("SELECT area_id, category_id FROM inventory_items WHERE id=?").get(it) as { area_id: string; category_id: string | null })).toEqual({ area_id: a2, category_id: null });
+    expect((await db.prepare("SELECT area_id, category_id FROM inventory_items WHERE id=?").get(it) as { area_id: string; category_id: string | null })).toEqual({ area_id: a2, category_id: null });
   });
 
   it("no se borra un área ni una categoría con insumos; vacías sí", async () => {
@@ -247,7 +247,7 @@ describe("listas de compras", () => {
     expect(share.text).toContain("Tortilla");
     // el mismo enlace se reutiliza
     expect((await c(adm, "POST", `/api/shopping-lists/${id}/share`, {})).body.token).toBe(share.token);
-    expect((db.prepare("SELECT status FROM shopping_lists WHERE id=?").get(id) as { status: string }).status).toBe("compartida");
+    expect((await db.prepare("SELECT status FROM shopping_lists WHERE id=?").get(id) as { status: string }).status).toBe("compartida");
 
     const pub = await c(null, "GET", `/api/shared/shopping/${share.token}`);
     expect(pub.status).toBe(200);
@@ -256,7 +256,7 @@ describe("listas de compras", () => {
     expect(JSON.stringify(pub.body)).not.toMatch(/stock|unit_cost|created_by/); // no se filtra información interna
     const lid = pub.body.lines[0].id as string;
     expect((await c(null, "PATCH", `/api/shared/shopping/${share.token}/items/${lid}`, { checked: true })).status).toBe(200);
-    expect((db.prepare("SELECT checked FROM shopping_list_items WHERE id=?").get(lid) as { checked: number }).checked).toBe(1);
+    expect((await db.prepare("SELECT checked FROM shopping_list_items WHERE id=?").get(lid) as { checked: number }).checked).toBe(1);
     // un enlace inventado o mal formado no revela nada
     expect((await c(null, "GET", "/api/shared/shopping/000000000000000000000000")).status).toBe(404);
     expect((await c(null, "GET", "/api/shared/shopping/xyz")).status).toBeGreaterThanOrEqual(400);
@@ -288,13 +288,13 @@ describe("listas de compras", () => {
     await c(adm, "PATCH", `/api/shopping-lists/${id}/items/${cam.id}`, { checked: true, quantity: 18 });
     const r = await c(adm, "POST", `/api/shopping-lists/${id}/receive`, {});
     expect(r.body).toEqual({ received: 1, skipped: 0 });
-    expect(stockOf(a)).toBe(18);
-    expect(stockOf(b)).toBe(0);
-    expect((db.prepare("SELECT status FROM shopping_lists WHERE id=?").get(id) as { status: string }).status).toBe("comprada");
+    expect(await stockOf(a)).toBe(18);
+    expect(await stockOf(b)).toBe(0);
+    expect((await db.prepare("SELECT status FROM shopping_lists WHERE id=?").get(id) as { status: string }).status).toBe("comprada");
     // la lista cerrada ya no se edita y no se recibe dos veces
     expect((await c(adm, "POST", `/api/shopping-lists/${id}/receive`, {})).status).toBe(409);
     expect((await c(adm, "POST", `/api/shopping-lists/${id}/items`, { name: "Tarde", quantity: 1 })).status).toBe(409);
-    const mov = db.prepare("SELECT kind, quantity FROM inventory_movements WHERE item_id=? ORDER BY rowid DESC LIMIT 1").get(a) as { kind: string; quantity: number };
+    const mov = await db.prepare("SELECT kind, quantity FROM inventory_movements WHERE item_id=? ORDER BY rowid DESC LIMIT 1").get(a) as { kind: string; quantity: number };
     expect(mov).toEqual({ kind: "compra", quantity: 18 });
   });
 
@@ -310,7 +310,7 @@ describe("listas de compras", () => {
     expect(r.status).toBe(201);
     expect(r.body.orders).toHaveLength(2);
     expect(r.body.unassigned).toEqual(["Sin proveedor"]);
-    const pos = db.prepare("SELECT supplier_id, status FROM purchase_orders").all() as { supplier_id: string; status: string }[];
+    const pos = await db.prepare("SELECT supplier_id, status FROM purchase_orders").all() as { supplier_id: string; status: string }[];
     expect(pos.map((p) => p.supplier_id).sort()).toEqual([s1, s2].sort());
     expect(pos.every((p) => p.status === "borrador")).toBe(true);
   });
@@ -329,8 +329,8 @@ describe("listas de compras", () => {
     const id = (await c(adm, "POST", "/api/shopping-lists", { name: "'; DROP TABLE users; --" })).body.id as string;
     await c(adm, "POST", `/api/shopping-lists/${id}/items`, { name: "<script>alert(1)</script>", quantity: 2 });
     expect((await c(adm, "DELETE", `/api/shopping-lists/${id}`)).status).toBe(200);
-    expect((db.prepare("SELECT COUNT(*) c FROM shopping_list_items").get() as { c: number }).c).toBe(0);
-    expect((db.prepare("SELECT COUNT(*) c FROM users").get() as { c: number }).c).toBeGreaterThan(3);
+    expect((await db.prepare("SELECT COUNT(*) c FROM shopping_list_items").get() as { c: number }).c).toBe(0);
+    expect((await db.prepare("SELECT COUNT(*) c FROM users").get() as { c: number }).c).toBeGreaterThan(3);
     expect((await c(adm, "GET", "/api/shopping-lists/no-existe")).status).toBe(404);
   });
 });

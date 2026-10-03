@@ -54,9 +54,9 @@ async function sale(items: { name: string; quantity?: number }[], table = "1", m
   return { acc, total, adm, juan, caja };
 }
 
-beforeEach(() => {
-  db = openDb(":memory:");
-  seed(db, "admin1234");
+beforeEach(async () => {
+  db = await openDb(":memory:");
+  await seed(db, "admin1234");
   hub = new Hub();
   app = buildApp(db, { transport: okTransport, hub });
 });
@@ -82,8 +82,8 @@ describe("analítica", () => {
     const juan = await pin("Juan", "1111");
     const acc = (await c(juan.token, "POST", `/api/tables/${await tableId(adm, "1")}/open`, {})).body.id as string;
     await c(juan.token, "POST", `/api/accounts/${acc}/orders`, { items: [{ productId: await prod(adm, "Hamburguesa clásica") }] });
-    const t = db.prepare("SELECT id FROM production_tickets").get() as { id: string };
-    db.prepare("UPDATE production_tickets SET created_at=? WHERE id=?").run(Date.now() - 20 * 60_000, t.id); // llegó hace 20 min
+    const t = await db.prepare("SELECT id FROM production_tickets").get() as { id: string };
+    await db.prepare("UPDATE production_tickets SET created_at=? WHERE id=?").run(Date.now() - 20 * 60_000, t.id); // llegó hace 20 min
     await c(adm, "POST", `/api/tickets/${t.id}/status`, { status: "preparando" });
     await c(adm, "POST", `/api/tickets/${t.id}/status`, { status: "listo" });
     const rows = (await c(adm, "GET", "/api/analytics/prep-times")).body as { station: string; avg_minutes: number; late: number }[];
@@ -122,7 +122,7 @@ describe("analítica", () => {
 describe("integraciones", () => {
   async function setup() {
     const adm = await admin();
-    const station = (db.prepare("SELECT id FROM stations WHERE name='Plancha'").get() as { id: string }).id;
+    const station = (await db.prepare("SELECT id FROM stations WHERE name='Plancha'").get() as { id: string }).id;
     await c(adm, "POST", "/api/products", { name: "Pizza", sku: "PZ-1", price_cents: 12000, station_ids: [station] });
     const integ = (await c(adm, "POST", "/api/integrations", { name: "Rappi", kind: "delivery_app" })).body as { id: string; api_key: string };
     return { adm, k: { "x-api-key": integ.api_key }, integ };
@@ -134,15 +134,15 @@ describe("integraciones", () => {
     const r = await call(app, k, "POST", "/api/integrations/orders", orderBody("R-1"));
     expect(r.status).toBe(201);
     expect(r.body.label).toBe("D1");
-    expect(db.prepare("SELECT COUNT(*) c FROM production_tickets").get()).toEqual({ c: 1 });
+    expect(await db.prepare("SELECT COUNT(*) c FROM production_tickets").get()).toEqual({ c: 1 });
     const acct = (await c(adm, "GET", `/api/accounts/${r.body.id}`)).body;
     expect(acct.total_cents).toBe(24000 + 2500);
-    expect(db.prepare("SELECT source FROM orders").get()).toEqual({ source: "api:Rappi" });
+    expect(await db.prepare("SELECT source FROM orders").get()).toEqual({ source: "api:Rappi" });
 
     const dup = await call(app, k, "POST", "/api/integrations/orders", orderBody("R-1"));
     expect(dup.status).toBe(200);
     expect(dup.body).toMatchObject({ id: r.body.id, duplicate: true });
-    expect(db.prepare("SELECT COUNT(*) c FROM accounts WHERE integration_id IS NOT NULL").get()).toEqual({ c: 1 });
+    expect(await db.prepare("SELECT COUNT(*) c FROM accounts WHERE integration_id IS NOT NULL").get()).toEqual({ c: 1 });
 
     const st = await call(app, k, "GET", "/api/integrations/orders/R-1");
     expect(st.body).toMatchObject({ status: "recibido", label: "D1" });
@@ -158,7 +158,7 @@ describe("integraciones", () => {
     const pizza = await prod(adm, "Pizza");
     await c(adm, "POST", `/api/products/${pizza}/availability`, { availability: "agotado" });
     expect((await call(app, k, "POST", "/api/integrations/orders", orderBody("R-3"))).status).toBe(409);
-    expect(db.prepare("SELECT COUNT(*) c FROM accounts").get()).toEqual({ c: 0 }); // no queda una cuenta huérfana
+    expect(await db.prepare("SELECT COUNT(*) c FROM accounts").get()).toEqual({ c: 0 }); // no queda una cuenta huérfana
     await c(adm, "POST", `/api/products/${pizza}/availability`, { availability: "disponible" });
     expect((await call(app, k, "POST", "/api/integrations/orders", orderBody("R-3"))).status).toBe(201);
 
@@ -180,7 +180,7 @@ describe("webhooks", () => {
     const acc = (await c(juan.token, "POST", `/api/tables/${await tableId(adm, "1")}/open`, {})).body.id as string;
     await c(juan.token, "POST", `/api/accounts/${acc}/orders`, { items: [{ productId: await prod(adm, "Ensalada") }] });
     // table.updated no está suscrito; solo order.created
-    expect(db.prepare("SELECT COUNT(*) c FROM webhook_deliveries").get()).toEqual({ c: 1 });
+    expect(await db.prepare("SELECT COUNT(*) c FROM webhook_deliveries").get()).toEqual({ c: 1 });
 
     const calls: { url: string; headers: Record<string, string>; body: string }[] = [];
     const good: FetchLike = async (url, init) => { calls.push({ url, headers: init.headers, body: init.body }); return { ok: true, status: 200 }; };
@@ -190,11 +190,11 @@ describe("webhooks", () => {
     expect(JSON.parse(calls[0]!.body)).toMatchObject({ event: "order.created", data: { accountId: acc } });
 
     // Un endpoint caído: reintentos y, tras 6 intentos, error visible y reintentable
-    db.prepare("INSERT INTO webhook_deliveries (id,endpoint_id,event,payload,next_attempt_at,created_at) VALUES ('d2',?,?,?,?,?)").run(wh.id, "order.created", "{}", 0, 0);
+    await db.prepare("INSERT INTO webhook_deliveries (id,endpoint_id,event,payload,next_attempt_at,created_at) VALUES ('d2',?,?,?,?,?)").run(wh.id, "order.created", "{}", 0, 0);
     const bad: FetchLike = async () => ({ ok: false, status: 503 });
     let now = Date.now();
     for (let i = 0; i < 6; i++) { await processWebhooks(db, bad, now); now += 10 * 60_000; }
-    expect(db.prepare("SELECT status, attempts, last_error FROM webhook_deliveries WHERE id='d2'").get()).toEqual({ status: "error", attempts: 6, last_error: "HTTP 503" });
+    expect(await db.prepare("SELECT status, attempts, last_error FROM webhook_deliveries WHERE id='d2'").get()).toEqual({ status: "error", attempts: 6, last_error: "HTTP 503" });
     const failed = (await c(adm, "GET", "/api/webhooks")).body as { failed: number }[];
     expect(failed[0]!.failed).toBe(1);
     expect((await c(adm, "POST", "/api/webhooks/deliveries/d2/retry")).status).toBe(200);
@@ -226,13 +226,13 @@ describe("sincronización por lotes", () => {
     };
     const r1 = await c(juan.token, "POST", "/api/sync", batch);
     expect(r1.body.results.map((r: { status: string }) => r.status)).toEqual(["ok", "ok", "ok"]);
-    const acc = db.prepare("SELECT id, status, guests FROM accounts").get() as { id: string; status: string; guests: number };
+    const acc = await db.prepare("SELECT id, status, guests FROM accounts").get() as { id: string; status: string; guests: number };
     expect(acc).toMatchObject({ status: "pago_solicitado", guests: 3 });
 
     const r2 = await c(juan.token, "POST", "/api/sync", batch);
     expect(r2.body.results.map((r: { status: string }) => r.status)).toEqual(["duplicate", "duplicate", "duplicate"]);
-    expect(db.prepare("SELECT COUNT(*) c FROM accounts").get()).toEqual({ c: 1 });
-    expect(db.prepare("SELECT COUNT(*) c FROM orders").get()).toEqual({ c: 1 });
+    expect(await db.prepare("SELECT COUNT(*) c FROM accounts").get()).toEqual({ c: 1 });
+    expect(await db.prepare("SELECT COUNT(*) c FROM orders").get()).toEqual({ c: 1 });
     expect((await c(adm, "GET", `/api/accounts/${acc.id}`)).body.total_cents).toBe(29800);
   });
 
@@ -251,7 +251,7 @@ describe("sincronización por lotes", () => {
     });
     expect(r.body.results[0]).toMatchObject({ status: "conflict", code: "mesa_ocupada" });
     expect(r.body.results[1]).toMatchObject({ status: "conflict", code: "cuenta_no_abierta" });
-    expect(db.prepare("SELECT COUNT(*) c FROM orders").get()).toEqual({ c: 0 });
+    expect(await db.prepare("SELECT COUNT(*) c FROM orders").get()).toEqual({ c: 0 });
   });
 
   it("marca como conflicto un producto que se agotó y valida el formato de las operaciones", async () => {
@@ -364,8 +364,8 @@ describe("HQ, multi-tenant y licencias", () => {
     return r;
   }
 
-  beforeEach(() => {
-    hqApp = buildApp(openDb(":memory:"), { hq: { adminToken: "secreto-plataforma" } });
+  beforeEach(async () => {
+    hqApp = buildApp(await openDb(":memory:"), { hq: { adminToken: "secreto-plataforma" } });
     // La sucursal (este servidor) habla con el HQ en memoria, sin red
     app = buildApp(db, { transport: okTransport, hub, http: http(hqApp) });
   });
@@ -459,8 +459,8 @@ describe("HQ, multi-tenant y licencias", () => {
     await call(hqApp, H(org.token), "PUT", "/api/hq/catalog", { products: [{ sku: "NEW-1", name: "Tacos al pastor", price_cents: 9000, category: "Antojitos", station_names: ["Plancha"] }] });
     const second = await syncWithHq(db, http(hqApp));
     expect(second.catalog).toMatchObject({ created: 0, updated: 2 }); // el catálogo maestro completo se reaplica; el producto sin estación sigue omitido
-    expect(db.prepare("SELECT COUNT(*) c FROM products WHERE sku='NEW-1'").get()).toEqual({ c: 1 });
-    expect(db.prepare("SELECT price_cents FROM products WHERE sku='NEW-1'").get()).toEqual({ price_cents: 9000 });
+    expect(await db.prepare("SELECT COUNT(*) c FROM products WHERE sku='NEW-1'").get()).toEqual({ c: 1 });
+    expect(await db.prepare("SELECT price_cents FROM products WHERE sku='NEW-1'").get()).toEqual({ price_cents: 9000 });
   });
 
   it("la licencia del plan limita funciones y usuarios, y mejorar el plan los libera tras sincronizar", async () => {
@@ -496,7 +496,7 @@ describe("HQ, multi-tenant y licencias", () => {
 
     // Desvincular quita la licencia y los límites
     await c(adm, "POST", "/api/cloud/unlink");
-    expect(getLicense(db)).toBeNull();
+    expect(await getLicense(db)).toBeNull();
   });
 
   it("una licencia manipulada o firmada por otro HQ se rechaza; vencida pierde funciones tras la gracia", async () => {
@@ -513,13 +513,13 @@ describe("HQ, multi-tenant y licencias", () => {
     expect(body).toBeTruthy();
 
     const put = (k: string, v: string) => db.prepare("INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(k, v);
-    put("hq_public_key", keys.publicKey);
-    put("license", token);
-    expect(getLicense(db, now)).toMatchObject({ plan: "empresarial", expired: false });
-    expect(getLicense(db, now + 2000)).toMatchObject({ plan: "empresarial", expired: true }); // dentro de la gracia sigue operando
-    expect(getLicense(db, now + 1000 + (GRACE_DAYS + 1) * 86_400_000)).toMatchObject({ plan: "gratis" });
-    put("license", "basura.basura");
-    expect(getLicense(db)).toMatchObject({ plan: "gratis" });
+    await put("hq_public_key", keys.publicKey);
+    await put("license", token);
+    expect(await getLicense(db, now)).toMatchObject({ plan: "empresarial", expired: false });
+    expect(await getLicense(db, now + 2000)).toMatchObject({ plan: "empresarial", expired: true }); // dentro de la gracia sigue operando
+    expect(await getLicense(db, now + 1000 + (GRACE_DAYS + 1) * 86_400_000)).toMatchObject({ plan: "gratis" });
+    await put("license", "basura.basura");
+    expect(await getLicense(db)).toMatchObject({ plan: "gratis" });
   });
 
   it("sin conexión a la nube los pasos fallan por separado y la sucursal sigue operando", async () => {
@@ -533,7 +533,7 @@ describe("HQ, multi-tenant y licencias", () => {
     expect(rep.catalog.ok).toBe(false);
     const juan = await pin("Juan", "1111");
     expect((await c(juan.token, "POST", `/api/tables/${await tableId(adm, "7")}/open`, {})).status).toBe(201);
-    expect(buildSalesDays(db)).toEqual([]);
+    expect(await buildSalesDays(db)).toEqual([]);
   });
 
   it("no permite sincronizar una sucursal sin vincular", async () => {

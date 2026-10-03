@@ -11,8 +11,8 @@ let browser: Browser;
 beforeAll(async () => { nodo = await startNodo(); browser = await launch(); });
 afterAll(async () => { await browser?.close(); await nodo?.close(); });
 
-const one = <T>(sql: string, ...a: unknown[]) => nodo.db.prepare(sql).get(...a) as T;
-const all = <T>(sql: string, ...a: unknown[]) => nodo.db.prepare(sql).all(...a) as T[];
+const one = async <T>(sql: string, ...a: unknown[]) => await nodo.db.prepare(sql).get(...a) as T;
+const all = async <T>(sql: string, ...a: unknown[]) => await nodo.db.prepare(sql).all(...a) as T[];
 
 /** Toca un elemento que puede estar en otra página del paginador: avanza hasta encontrarlo. */
 async function tapPaged(page: Page, text: string, sel?: string) {
@@ -42,11 +42,11 @@ describe("1 · el mesero toma el pedido", () => {
     await tap(waiter.page, "4", ".numpad button, button");
     await tap(waiter.page, "Abrir mesa", "button");
     await waitText(waiter.page, "Mesa T3");
-    const acc = one<{ id: string; guests: number; waiter: string }>("SELECT a.id, a.guests, u.name waiter FROM accounts a JOIN users u ON u.id=a.waiter_id JOIN tables_ t ON t.id=a.table_id WHERE t.number='T3' AND a.status!='cerrada'");
+    const acc = await one<{ id: string; guests: number; waiter: string }>("SELECT a.id, a.guests, u.name waiter FROM accounts a JOIN users u ON u.id=a.waiter_id JOIN tables_ t ON t.id=a.table_id WHERE t.number='T3' AND a.status!='cerrada'");
     expect(acc.waiter).toBe("Juan");
     expect(acc.guests).toBeGreaterThanOrEqual(1);
     accountId = acc.id;
-    expect(one<{ status: string }>("SELECT status FROM tables_ WHERE number='T3'").status).toBe("ocupada");
+    expect((await one<{ status: string }>("SELECT status FROM tables_ WHERE number='T3'")).status).toBe("ocupada");
   });
 
   it("agrega un platillo con extras desde la ventana de personalización", async () => {
@@ -89,12 +89,12 @@ describe("1 · el mesero toma el pedido", () => {
     expect(await p.$eval(".btn.primary", (b) => (b as HTMLButtonElement).disabled)).toBe(false);
     await tap(p, "Enviar comanda", "button");
     await waitText(p, "Comanda enviada");
-    const items = all<{ name: string; modifiers: string; status: string }>("SELECT name, modifiers, status FROM order_items WHERE account_id=? ORDER BY rowid", accountId);
+    const items = await all<{ name: string; modifiers: string; status: string }>("SELECT name, modifiers, status FROM order_items WHERE account_id=? ORDER BY rowid", accountId);
     expect(items.map((i) => i.name)).toEqual(["Ceviche mixto", "Aguachile verde", "Michelada"]);
     expect(JSON.parse(items[0]!.modifiers)).toEqual(expect.arrayContaining(["Aguacate", "Poco picante"]));
-    const tickets = all<{ station: string }>("SELECT s.name station FROM production_tickets t JOIN stations s ON s.id=t.station_id JOIN orders o ON o.id=t.order_id WHERE o.account_id=?", accountId);
+    const tickets = await all<{ station: string }>("SELECT s.name station FROM production_tickets t JOIN stations s ON s.id=t.station_id JOIN orders o ON o.id=t.order_id WHERE o.account_id=?", accountId);
     expect(tickets.map((t) => t.station).sort()).toEqual(["Barra", "Cevichería"]);
-    expect(one<{ c: number }>("SELECT COUNT(*) c FROM print_jobs WHERE ticket_id IN (SELECT t.id FROM production_tickets t JOIN orders o ON o.id=t.order_id WHERE o.account_id=?)", accountId).c).toBeGreaterThanOrEqual(2);
+    expect((await one<{ c: number }>("SELECT COUNT(*) c FROM print_jobs WHERE ticket_id IN (SELECT t.id FROM production_tickets t JOIN orders o ON o.id=t.order_id WHERE o.account_id=?)", accountId)).c).toBeGreaterThanOrEqual(2);
     // lo enviado ya no se puede mandar otra vez desde la pantalla
     expect(await p.$eval(".btn.primary", (b) => (b as HTMLButtonElement).disabled)).toBe(true);
   });
@@ -112,9 +112,9 @@ describe("2 · la cocina lo recibe y lo marca", () => {
     expect(await hasText(chef.page, "Michelada")).toBe(false); // la bebida es de la barra
     await tap(chef.page, "Preparar", ".ticket button");
     await waitText(chef.page, "Listo");
-    expect(one<{ status: string }>("SELECT t.status FROM production_tickets t JOIN stations s ON s.id=t.station_id JOIN orders o ON o.id=t.order_id WHERE o.account_id=? AND s.name='Cevichería'", accountId).status).toBe("preparando");
+    expect((await one<{ status: string }>("SELECT t.status FROM production_tickets t JOIN stations s ON s.id=t.station_id JOIN orders o ON o.id=t.order_id WHERE o.account_id=? AND s.name='Cevichería'", accountId)).status).toBe("preparando");
     await tap(chef.page, "Listo", ".ticket button");
-    await until(() => one<{ status: string }>("SELECT t.status FROM production_tickets t JOIN stations s ON s.id=t.station_id JOIN orders o ON o.id=t.order_id WHERE o.account_id=? AND s.name='Cevichería'", accountId).status === "listo" || null, "ticket listo");
+    await until(async () => (await one<{ status: string }>("SELECT t.status FROM production_tickets t JOIN stations s ON s.id=t.station_id JOIN orders o ON o.id=t.order_id WHERE o.account_id=? AND s.name='Cevichería'", accountId)).status === "listo" || null, "ticket listo");
     expect(chef.problems, chef.problems.join(" | ")).toEqual([]);
     await chef.ctx.close();
   });
@@ -134,7 +134,7 @@ describe("2 · la cocina lo recibe y lo marca", () => {
       return r;
     }, "fila de T3 con Entregar");
     await p.mouse.click(clicked.x, clicked.y);
-    await until(() => one<{ status: string }>("SELECT t.status FROM production_tickets t JOIN stations s ON s.id=t.station_id JOIN orders o ON o.id=t.order_id WHERE o.account_id=? AND s.name='Cevichería'", accountId).status === "entregado" || null, "entregado");
+    await until(async () => (await one<{ status: string }>("SELECT t.status FROM production_tickets t JOIN stations s ON s.id=t.station_id JOIN orders o ON o.id=t.order_id WHERE o.account_id=? AND s.name='Cevichería'", accountId)).status === "entregado" || null, "entregado");
   });
 });
 
@@ -147,7 +147,7 @@ describe("3 · juntar mesas", () => {
     await until(async () => (await p.$(".sheet")) || null, "selector de mesas");
     await tapPaged(p, "Mesa T7", ".sheet .opt");
     await until(async () => !(await p.$(".sheet")) || null, "cierre del selector");
-    expect(one<{ c: number }>("SELECT COUNT(*) c FROM table_links WHERE account_id=?", accountId).c).toBe(1);
+    expect((await one<{ c: number }>("SELECT COUNT(*) c FROM table_links WHERE account_id=?", accountId)).c).toBe(1);
     await tap(p, "← Mesas", "button");
     await until(async () => (await rectOf(p, "T7", ".table-card")) || (await rectOf(p, "›", ".pager button")) || null, "mapa de mesas");
     await tapPaged(p, "T7", ".table-card"); // la mesa unida muestra su panel
@@ -157,8 +157,8 @@ describe("3 · juntar mesas", () => {
   it("separar la mesa la deja libre otra vez", async () => {
     const p = waiter.page;
     await tap(p, "Separar", "button");
-    await until(() => one<{ c: number }>("SELECT COUNT(*) c FROM table_links").c === 0 || null, "enlace eliminado");
-    expect(one<{ status: string }>("SELECT status FROM tables_ WHERE number='T7'").status).toBe("disponible");
+    await until(async () => (await one<{ c: number }>("SELECT COUNT(*) c FROM table_links")).c === 0 || null, "enlace eliminado");
+    expect((await one<{ status: string }>("SELECT status FROM tables_ WHERE number='T7'")).status).toBe("disponible");
   });
 });
 
@@ -167,7 +167,7 @@ describe("4 · la caja cobra", () => {
     const caja = await newPage(browser, nodo.url);
     await sessionFor(caja.page, nodo.url, "Caja", "3333");
     const p = caja.page;
-    const before = one<{ c: number }>("SELECT COUNT(*) c FROM payments").c;
+    const before = (await one<{ c: number }>("SELECT COUNT(*) c FROM payments")).c;
     await tapPaged(p, "T4", ".table-card");
     await tap(p, "Cobrar", "button");
     await until(async () => (await p.$(".sheet")) || null, "ventana de cobro");
@@ -180,12 +180,12 @@ describe("4 · la caja cobra", () => {
     await tap(p, "Cobrar $", ".sheet button");
     await waitText(p, "Cobrado");
     await waitText(p, "Cambio");
-    const pay = one<{ total_cents: number; change_cents: number }>("SELECT p.total_cents, p.change_cents FROM payments p JOIN accounts a ON a.id=p.account_id JOIN tables_ t ON t.id=a.table_id WHERE t.number='T4' ORDER BY p.created_at DESC LIMIT 1");
+    const pay = await one<{ total_cents: number; change_cents: number }>("SELECT p.total_cents, p.change_cents FROM payments p JOIN accounts a ON a.id=p.account_id JOIN tables_ t ON t.id=a.table_id WHERE t.number='T4' ORDER BY p.created_at DESC LIMIT 1");
     expect(pay.total_cents).toBe(103500);
     expect(pay.change_cents).toBe(96500);
-    expect(one<{ c: number }>("SELECT COUNT(*) c FROM payments").c).toBe(before + 1);
-    expect(one<{ status: string }>("SELECT a.status FROM accounts a JOIN tables_ t ON t.id=a.table_id WHERE t.number='T4' ORDER BY a.opened_at DESC LIMIT 1").status).toBe("cerrada");
-    expect(one<{ status: string }>("SELECT status FROM tables_ WHERE number='T4'").status).toBe("disponible");
+    expect((await one<{ c: number }>("SELECT COUNT(*) c FROM payments")).c).toBe(before + 1);
+    expect((await one<{ status: string }>("SELECT a.status FROM accounts a JOIN tables_ t ON t.id=a.table_id WHERE t.number='T4' ORDER BY a.opened_at DESC LIMIT 1")).status).toBe("cerrada");
+    expect((await one<{ status: string }>("SELECT status FROM tables_ WHERE number='T4'")).status).toBe("disponible");
     expect(caja.problems, caja.problems.join(" | ")).toEqual([]);
     await caja.ctx.close();
   });
@@ -207,7 +207,7 @@ describe("4 · la caja cobra", () => {
     await sleep(200);
     await tap(p, "Cobrar $", ".sheet button");
     await waitText(p, "Pago registrado");
-    const acc = one<{ status: string }>("SELECT a.status FROM accounts a JOIN tables_ t ON t.id=a.table_id WHERE t.number='S8' ORDER BY a.opened_at DESC LIMIT 1");
+    const acc = await one<{ status: string }>("SELECT a.status FROM accounts a JOIN tables_ t ON t.id=a.table_id WHERE t.number='S8' ORDER BY a.opened_at DESC LIMIT 1");
     expect(acc.status).not.toBe("cerrada"); // quedó una parte pendiente
     await caja.ctx.close();
   });

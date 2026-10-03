@@ -17,9 +17,9 @@ async function pin(name: string, p: string) {
   return (await app.inject({ method: "POST", url: "/api/auth/pin", payload: { userId: users.find((x) => x.name === name)!.id, pin: p } })).json().token as string;
 }
 
-beforeEach(() => {
-  db = openDb(":memory:");
-  seed(db, "admin1234");
+beforeEach(async () => {
+  db = await openDb(":memory:");
+  await seed(db, "admin1234");
   app = buildApp(db);
 });
 

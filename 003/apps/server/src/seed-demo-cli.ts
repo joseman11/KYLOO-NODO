@@ -12,9 +12,9 @@ if (process.argv.includes("--reset")) {
   rmSync(photosDir, { recursive: true, force: true });
 }
 
-const db = openDb(file);
+const db = await openDb(file);
 try {
-  const s = seedDemo(db, { photosDir });
+  const s = await seedDemo(db, { photosDir });
   console.log(`\n${s.establishment}: datos de demostración cargados en ${file}\n`);
   console.table(s.counts);
   console.log(`Ventas de los últimos 14 días: ${s.salesLast14Days.accounts} cuentas · $${(s.salesLast14Days.salesCents / 100).toLocaleString("es-MX")}`);

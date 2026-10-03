@@ -12,16 +12,16 @@ export type FetchLike = (url: string, init: { method: string; headers: Record<st
 export const sign = (secret: string, body: string) => `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
 
 /** Encola una entrega por cada endpoint suscrito al evento. No hace nada si no hay endpoints. */
-export function queueWebhooks(db: Db, e: HubEvent): void {
+export async function queueWebhooks(db: Db, e: HubEvent): Promise<void> {
   if (!(WEBHOOK_EVENTS as readonly string[]).includes(e.type)) return;
-  const endpoints = db.prepare("SELECT id, events FROM webhook_endpoints WHERE active=1").all() as { id: string; events: string }[];
+  const endpoints = await db.prepare("SELECT id, events FROM webhook_endpoints WHERE active=1").all() as { id: string; events: string }[];
   if (endpoints.length === 0) return;
   const { type, ...data } = e;
   const body = JSON.stringify({ event: type, data, ts: Date.now() });
   const now = Date.now();
   for (const ep of endpoints) {
     if (ep.events !== "*" && !ep.events.split(",").includes(type)) continue;
-    db.prepare("INSERT INTO webhook_deliveries (id,endpoint_id,event,payload,next_attempt_at,created_at) VALUES (?,?,?,?,?,?)").run(newId(), ep.id, type, body, now, now);
+    await db.prepare("INSERT INTO webhook_deliveries (id,endpoint_id,event,payload,next_attempt_at,created_at) VALUES (?,?,?,?,?,?)").run(newId(), ep.id, type, body, now, now);
   }
 }
 
@@ -31,12 +31,12 @@ export function connectWebhooks(db: Db, hub: Hub): () => void {
 
 /** Entrega pendientes con reintentos exponenciales; tras 6 intentos queda en error (consultable y reintentable). */
 export async function processWebhooks(db: Db, fetchFn: FetchLike, now = Date.now()): Promise<number> {
-  const due = db
-    .prepare(
-      `SELECT d.*, e.url, e.secret FROM webhook_deliveries d JOIN webhook_endpoints e ON e.id=d.endpoint_id
+  const due = await db
+      .prepare(
+        `SELECT d.*, e.url, e.secret FROM webhook_deliveries d JOIN webhook_endpoints e ON e.id=d.endpoint_id
        WHERE d.status='pendiente' AND d.next_attempt_at<=? AND e.active=1 ORDER BY d.created_at LIMIT 20`,
-    )
-    .all(now) as { id: string; event: string; payload: string; attempts: number; url: string; secret: string }[];
+      )
+      .all(now) as { id: string; event: string; payload: string; attempts: number; url: string; secret: string }[];
   let sent = 0;
   for (const d of due) {
     try {
@@ -49,13 +49,13 @@ export async function processWebhooks(db: Db, fetchFn: FetchLike, now = Date.now
         signal: ctl.signal,
       }).finally(() => clearTimeout(timer));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      db.prepare("UPDATE webhook_deliveries SET status='enviado', attempts=attempts+1, last_error=NULL WHERE id=?").run(d.id);
+      await db.prepare("UPDATE webhook_deliveries SET status='enviado', attempts=attempts+1, last_error=NULL WHERE id=?").run(d.id);
       sent++;
     } catch (err) {
       const attempts = d.attempts + 1;
       const message = err instanceof Error ? err.message : String(err);
-      if (attempts >= MAX_ATTEMPTS) db.prepare("UPDATE webhook_deliveries SET status='error', attempts=?, last_error=? WHERE id=?").run(attempts, message, d.id);
-      else db.prepare("UPDATE webhook_deliveries SET attempts=?, last_error=?, next_attempt_at=? WHERE id=?").run(attempts, message, now + Math.min(300_000, 2000 * 2 ** attempts), d.id);
+      if (attempts >= MAX_ATTEMPTS) await db.prepare("UPDATE webhook_deliveries SET status='error', attempts=?, last_error=? WHERE id=?").run(attempts, message, d.id);
+      else await db.prepare("UPDATE webhook_deliveries SET attempts=?, last_error=?, next_attempt_at=? WHERE id=?").run(attempts, message, now + Math.min(300_000, 2000 * 2 ** attempts), d.id);
     }
   }
   return sent;

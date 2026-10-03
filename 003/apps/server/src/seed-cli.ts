@@ -5,5 +5,5 @@ import { seed } from "./seed";
 
 const file = process.env.DB_FILE ?? "data/003.sqlite";
 mkdirSync(dirname(file), { recursive: true });
-seed(openDb(file), process.env.ADMIN_PASSWORD);
+await seed(await openDb(file), process.env.ADMIN_PASSWORD);
 console.log("Seed aplicado en", file);
