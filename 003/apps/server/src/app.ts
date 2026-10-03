@@ -10,6 +10,7 @@ import { HttpError } from "./domain";
 import { Hub } from "./hub";
 import { tcpTransport, type PrinterTransport } from "./printing/transport";
 import { authRoutes } from "./routes/auth";
+import { setupRoutes } from "./routes/setup";
 import { venueRoutes } from "./routes/venue";
 import { catalogRoutes } from "./routes/catalog";
 import { operationsRoutes } from "./routes/operations";
@@ -204,6 +205,7 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
     });
   });
 
+  app.register(setupRoutes);
   app.register(authRoutes);
   app.register(venueRoutes);
   app.register(catalogRoutes);

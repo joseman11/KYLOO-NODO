@@ -46,12 +46,13 @@ export interface Nodo {
   close: () => Promise<void>;
 }
 
-export async function startNodo(): Promise<Nodo> {
+/** `demo: false` arranca una instalación nueva, sin usuarios ni datos (primer arranque). */
+export async function startNodo(options: { demo?: boolean } = {}): Promise<Nodo> {
   if (!existsSync(join(WEB_DIST, "index.html")))
     throw new Error("Falta compilar la app: pnpm --filter @003/web build");
   const db = await openDb(":memory:");
   const photosDir = mkdtempSync(join(tmpdir(), "nodo-e2e-"));
-  await seedDemo(db, { photosDir });
+  if (options.demo !== false) await seedDemo(db, { photosDir });
   const hub = new Hub();
   const transport = new FakeTransport();
   const app = buildApp(db, { webDir: WEB_DIST, photosDir, hub, transport });
