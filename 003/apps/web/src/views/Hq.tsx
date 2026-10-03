@@ -37,6 +37,16 @@ interface Branch {
   name: string;
   last_seen: number | null;
   active: number;
+  /** El equipo ya canjeó su código de activación. */
+  activated: boolean;
+  fingerprint_short: string | null;
+  backups: number;
+  last_backup: number | null;
+}
+interface ActivationCode {
+  code: string;
+  expires_at: number;
+  branch: string;
 }
 interface Summary {
   branches: {
@@ -249,7 +259,7 @@ function HqSummary() {
 function HqBranches({ owner }: { owner: boolean }) {
   const [list, setList] = useState<Branch[]>([]);
   const [name, setName] = useState("");
-  const [key, setKey] = useState<string | null>(null);
+  const [code, setCode] = useState<ActivationCode | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const load = () => hq<Branch[]>("/api/hq/branches").then(setList, () => undefined);
   useEffect(() => {
@@ -265,6 +275,8 @@ function HqBranches({ owner }: { owner: boolean }) {
           head={
             <tr>
               <th>Sucursal</th>
+              <th>Equipo</th>
+              <th>Respaldos</th>
               <th>Última conexión</th>
               <th />
             </tr>
@@ -273,11 +285,36 @@ function HqBranches({ owner }: { owner: boolean }) {
             <>
               <td>{b.name}</td>
               <td className="small">
+                {b.activated ? <span className="num">{b.fingerprint_short}</span> : "sin activar"}
+              </td>
+              <td className="small">
+                {b.backups
+                  ? `${b.backups} · ${new Date(b.last_backup ?? 0).toLocaleDateString("es-MX")}`
+                  : "ninguno"}
+              </td>
+              <td className="small">
                 {b.last_seen
                   ? new Date(b.last_seen).toLocaleString("es-MX", { hour12: false })
                   : "nunca"}
               </td>
               <td className="r">
+                {owner && (
+                  <button
+                    className="btn ghost sm"
+                    title="Emite un código de activación nuevo (equipo nuevo o código perdido)"
+                    onClick={() =>
+                      hq<{ code: string; expires_at: number }>(
+                        `/api/hq/branches/${b.id}/activation-code`,
+                        { method: "POST", body: {} },
+                      ).then(
+                        (r) => setCode({ ...r, branch: b.name }),
+                        (e) => setErr((e as Error).message),
+                      )
+                    }
+                  >
+                    Código nuevo
+                  </button>
+                )}
                 {owner && (
                   <button
                     className="btn ghost sm"
@@ -304,9 +341,15 @@ function HqBranches({ owner }: { owner: boolean }) {
             className="btn primary"
             disabled={!name}
             onClick={() =>
-              hq<{ api_key: string }>("/api/hq/branches", { body: { name } }).then(
+              hq<{ activation_code: string; activation_expires_at: number }>("/api/hq/branches", {
+                body: { name },
+              }).then(
                 (r) => {
-                  setKey(r.api_key);
+                  setCode({
+                    code: r.activation_code,
+                    expires_at: r.activation_expires_at,
+                    branch: name,
+                  });
                   setName("");
                   setErr(null);
                   void load();
@@ -318,23 +361,28 @@ function HqBranches({ owner }: { owner: boolean }) {
             Crear sucursal
           </button>
           <p className="small">
-            Cada sucursal usa su propia llave para vincularse desde Configuración → Nube y plan.
+            Cada sucursal se activa con un código de un solo uso en Configuración → Nube y plan.
           </p>
         </section>
       )}
-      {key && (
-        <div className="sheet-bg" onClick={() => setKey(null)}>
+      {code && (
+        <div className="sheet-bg" onClick={() => setCode(null)}>
           <div className="sheet center" onClick={(e) => e.stopPropagation()}>
-            <h3>Llave de la sucursal</h3>
-            <p className="small">Cópiala ahora: no se volverá a mostrar.</p>
+            <h3>Código de activación de {code.branch}</h3>
+            <p className="small">
+              Se escribe una sola vez en Configuración → Nube y plan del equipo del local (con
+              Internet). Vale hasta el{" "}
+              {new Date(code.expires_at).toLocaleDateString("es-MX", { dateStyle: "long" })}. Al
+              canjearlo, el equipo anterior de esta sucursal deja de poder usar su licencia.
+            </p>
             <input
               readOnly
-              value={key}
+              value={code.code}
               onFocus={(e) => e.currentTarget.select()}
-              style={{ fontFamily: "ui-monospace, monospace", fontSize: 13 }}
+              style={{ fontFamily: "ui-monospace, monospace", fontSize: 20, letterSpacing: 1 }}
             />
-            <button className="btn primary" onClick={() => setKey(null)}>
-              Ya la guardé
+            <button className="btn primary" onClick={() => setCode(null)}>
+              Listo
             </button>
           </div>
         </div>

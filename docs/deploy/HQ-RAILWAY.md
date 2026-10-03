@@ -30,7 +30,7 @@ El mismo programa que corre en un local, con `ROLE=hq`: organizaciones y sucursa
 
 ## Operación
 
-- **Alta de un cliente:** `POST /api/hq/orgs` con la cabecera `x-hq-admin: <HQ_ADMIN_TOKEN>` → entra el propietario (`/api/hq/login`) → `POST /api/hq/branches` devuelve el **código de activación** de la sucursal. Ver [`LICENCIAS.md`](LICENCIAS.md).
+- **Alta de un cliente:** `POST /api/hq/orgs` con la cabecera `x-hq-admin: <HQ_ADMIN_TOKEN>` → el propietario entra a `/hq` → *Sucursales → Crear sucursal* muestra el **código de activación** (o `POST /api/hq/branches`). Ver [`LICENCIAS.md`](LICENCIAS.md).
 - **Salud:** `GET /api/health` (versión, motor `pg`, tiempo en marcha). Los registros salen por la consola de Railway.
 - **Copias del propio HQ:** la base la respalda Railway (activa los respaldos del plugin de PostgreSQL); el **volumen** con los respaldos de los clientes no tiene copia automática: es el eslabón que falta (ver pendiente).
 - **Límites:** por archivo 512 MB y por sucursal 5 GB (`backupMaxBytes`, `branchQuotaBytes`); retención de 14 respaldos recientes más el último de cada uno de los 6 meses anteriores.
@@ -50,5 +50,5 @@ curl localhost:3050/api/health        # {"ok":true,…,"engine":"pg"}
 
 - 🔴 Primera instalación real en Railway y comprobar el recorrido completo contra esa URL.
 - 🟠 Copia de seguridad del volumen de respaldos (réplica a otro almacenamiento) y plan de recuperación si se pierde el volumen.
-- 🟡 Consola web del HQ (`/hq`) para ver las sucursales, sus respaldos y emitir códigos sin usar la API a mano.
+- 🟡 La consola web del HQ (`/hq`, *Sucursales*) ya crea sucursales, emite códigos de activación (la llave de sucursal ya no se muestra) y muestra el equipo activado y el último respaldo de cada una; faltan la descarga/borrado de respaldos y el panel de uso de espacio.
 - 🟡 Probar el cifrado de extremo a extremo con un respaldo de varios cientos de MB (las pruebas cubren bloques, bordes y manipulación, no volúmenes grandes).

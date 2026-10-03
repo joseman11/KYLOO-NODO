@@ -303,7 +303,10 @@ export async function hqRoutes(app: FastifyInstance, opts: HqOptions) {
     const s = orgSession(req);
     const rows = (await db
       .prepare(
-        "SELECT id, name, last_seen, active, created_at, activated_at, fingerprint FROM hq_branches WHERE org_id=? ORDER BY name",
+        `SELECT b.id, b.name, b.last_seen, b.active, b.created_at, b.activated_at, b.fingerprint,
+                (SELECT COUNT(*) FROM hq_backups k WHERE k.branch_id=b.id) AS backups,
+                (SELECT MAX(k.created_at) FROM hq_backups k WHERE k.branch_id=b.id) AS last_backup
+         FROM hq_branches b WHERE b.org_id=? ORDER BY b.name`,
       )
       .all(s.org)) as { fingerprint: string | null }[];
     // La huella completa no sale del HQ; se muestra una forma corta para atender un cambio de equipo

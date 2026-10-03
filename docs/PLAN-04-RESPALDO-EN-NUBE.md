@@ -87,4 +87,4 @@ Plan 04 cerrado. Quedan por planear: resiliencia offline del cliente y red local
 ### Pendiente
 - 🔴 Primera instalación real en Railway y recorrido completo contra esa URL.
 - 🟠 Copia del volumen de respaldos del HQ.
-- 🟡 Consola del HQ; incrementales para bases grandes.
+- 🟡 Consola del HQ: la básica ya existe (códigos y estado, ver `HQ-RAILWAY.md`); faltan descargar y borrar respaldos. Incrementales para bases grandes.
