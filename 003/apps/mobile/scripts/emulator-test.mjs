@@ -41,7 +41,7 @@ const clickText = (sel, t) =>
   page.evaluate(
     (sel, t) => {
       const el = [...document.querySelectorAll(sel)].find((e) =>
-        (e.innerText || e.placeholder || "").trim().startsWith(t),
+        (e.innerText || e.placeholder || "").trim().includes(t),
       );
       if (!el) return false;
       el.click();

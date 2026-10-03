@@ -35,6 +35,10 @@ NODO_SERVER=10.0.2.2:3005 node scripts/emulator-test.mjs      # 10.0.2.2 = la PC
 
 La prueba maneja el WebView de la app: primera conexión, acceso por PIN, mapa de mesas, **recarga sin red** (abre con lo último conocido y el aviso) y reconexión. Resultado del 2026-10-03 en *Pixel Tablet* (2560×1600, Android 17): **todo en verde**.
 
+## Rendimiento medido (2026-10-03)
+
+En el emulador **«7in WSVGA (Tablet)»** (1024×600, 2 núcleos y 2 GB de RAM; GPU del anfitrión, así que lo gráfico es optimista) con la demo de la marisquería: **61 cuadros por segundo** en reposo y tras recorrer las secciones, **7 MB de memoria de JavaScript**, 1 902 nodos de página y **254 ms** hasta cargar la interfaz. La prueba de punta a punta (conexión, PIN, mapa, recarga sin red, reconexión) pasa en el Pixel Tablet de 10 pulgadas y en esta económica. **Falta medirlo en una tableta física** (su GPU y su WiFi pueden ser peores).
+
 ## Cómo está hecho
 
 - **Capacitor** (Android). La interfaz se empaqueta (`apps/web/dist`) y se sirve desde `http://localhost` dentro de la app (un origen «seguro», sin avisos de contenido mixto). La API se llama a `http://<servidor>:3003` (tráfico en claro permitido en la app: solo habla con el servidor elegido).
