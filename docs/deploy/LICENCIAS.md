@@ -9,7 +9,9 @@
 3. La licencia va **atada al equipo** (huella del identificador de la máquina) y vence.
 4. Sin licencia válida el local pasa al plan gratuito: **nunca se detiene la venta**.
 
-## Una sola vez: crear las claves
+**Estado (2026-10-03):** el par de producción **ya existe**. La privada está en `~/.nodo-keys/license-private.pem` (Mac del dueño, permisos 600) y como `HQ_SIGNING_KEY` en el HQ; la pública está en el repo: [`003/licensing/license-public.pem`](../../003/licensing/license-public.pem). Un paquete de producción se construye con `--license-public-key 003/licensing/license-public.pem --hq-url https://nodo-hq-production.up.railway.app`.
+
+## Una sola vez: crear las claves (ya hecho)
 
 ```bash
 cd 003

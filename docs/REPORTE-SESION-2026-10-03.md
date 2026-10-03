@@ -43,7 +43,7 @@ Resultado final de la sesión: **typecheck limpio; 476 pruebas de servidor en SQ
 
 ## Lo que necesito de ti (no lo podía decidir ni hacer sola)
 
-- 🔴 **Generar la clave de licencias de producción** (`keygen`) y ponerla como `HQ_SIGNING_KEY` en Railway. **No generé ninguna.**
+- ✅ ~~Generar la clave de licencias de producción~~ (hecho el 2026-10-03) (`keygen`) y ponerla como `HQ_SIGNING_KEY` en Railway. **No generé ninguna.**
 - 🔴 **Probar con equipo real:** una impresora térmica de red, un cajón y una tablet barata; y el **instalador en una PC con Windows** (hoy solo probé el paquete de macOS y la sintaxis de los scripts de Windows).
 - 🔴 **Desplegar el HQ en Railway** (guía en `deploy/HQ-RAILWAY.md`) y probar el recorrido contra esa URL.
 - 🟠 **D11:** HTTPS local o app envoltorio para que una tablet pueda *recargar* sin red (hoy solo funciona con la página ya abierta).
@@ -70,3 +70,6 @@ Resultado final de la sesión: **typecheck limpio; 476 pruebas de servidor en SQ
 
 ## Actualización posterior (mismo día): modelo comercial
 El dueño definió **suscripción anual**. Se ajustó la licencia: vence en `paid_until` (la fecha pagada), gracia de **15 días** (antes 7), y revocación explícita si Nodo desactiva la organización. Detalle en `docs/deploy/LICENCIAS.md`.
+
+## Actualización posterior: HQ desplegado
+Con autorización del dueño se generó la **clave de producción** de licencias y se **desplegó el HQ en Railway** (`https://nodo-hq-production.up.railway.app`). Detalles, IDs y cómo actualizarlo en `docs/deploy/HQ-RAILWAY.md`. Pendiente del dueño: **copia fuera de línea** de `~/.nodo-keys/` y revocar el acceso de la CLI de Railway si no se va a usar (Railway → Settings → Tokens).

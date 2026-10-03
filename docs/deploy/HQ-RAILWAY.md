@@ -1,12 +1,16 @@
 # El servidor de Nodo (HQ) en Railway
 
-> Vigente al 2026-10-03 (plan 04). **Nada de esto se ha desplegado**: se dejó listo y se probó en local con Docker (imagen construida, ejecutada contra PostgreSQL 16, con un local empaquetado que activa, respalda y se restaura en otra carpeta). Falta la primera instalación real en Railway.
+> Vigente al 2026-10-03. **Desplegado** el mismo día en el workspace *Ander's Projects* de Railway, proyecto **`nodo-hq`** (ID `99f14134-a782-46d2-b08a-41793f658708`), servicio `nodo-hq` + PostgreSQL + volumen `/data`, en **https://nodo-hq-production.up.railway.app** (`/api/health` → `engine: pg`). Probado contra ese servidor real con un paquete de producción firmado con la clave de producción: activar con código, plan hasta `paid_until`, respaldar y restaurar.
+>
+> **Cómo se desplegó:** con la CLI de Railway subiendo el código local (`railway up --service nodo-hq` desde `003/`), sin publicar nada en GitHub. Para actualizar: lo mismo desde `003/`. Los secretos están en las variables del servicio; los originales, en `~/.nodo-keys/` del Mac del dueño (`license-private.pem`, `hq-admin-token`, permisos 600): **hacer copia fuera de línea**.
+>
+> ⚠️ Railway marca `railway.json` como «Config as Code» obsoleto (sigue funcionando hasta **2026-12-01**): migrar con `railway config migrate`.
 
 ## Qué es
 
 El mismo programa que corre en un local, con `ROLE=hq`: organizaciones y sucursales, **licencias firmadas**, ventas consolidadas, catálogo maestro y **respaldos cifrados**. Usa PostgreSQL (esquema `hq`) y un volumen para los respaldos. Nunca recibe datos legibles de un local: los respaldos llegan cifrados con una clave que solo tiene el cliente.
 
-## Una sola vez: crear el servicio
+## Una sola vez: crear el servicio (ya hecho; queda como referencia)
 
 1. **Claves de licencias** (si aún no existen): `npx -y pnpm@11.21.0 --filter @003/server keygen -- --out ~/.nodo-keys`. La pública se usa al empaquetar los locales; la **privada** va solo a Railway y a una copia de seguridad. Ver [`LICENCIAS.md`](LICENCIAS.md).
 2. En Railway: **New Project → Deploy from GitHub repo → `KYLOO-NODO`**. Este servicio es distinto del de la landing (que ya usa `Root Directory = /landing`).
