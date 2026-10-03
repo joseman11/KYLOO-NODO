@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, can, useLive } from "../api";
+import { api, can, serverBase, useLive } from "../api";
 import { PagedRows } from "../fit";
 import { fmt, toNum, UNITS, type Item } from "./InventoryAreas";
 
@@ -480,7 +480,7 @@ function ShareSheet({
   onUnshare: () => void;
 }) {
   const [note, setNote] = useState<string | null>(null);
-  const url = `${location.origin}${data.path}`;
+  const url = `${serverBase() || location.origin}${data.path}`;
   const copy = async (text: string, what: string) => {
     try {
       await navigator.clipboard.writeText(text);

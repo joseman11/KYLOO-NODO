@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { api, money, useLive } from "../api";
+import { api, money, serverBase, useLive } from "../api";
 import { PagedGrid, PagedRows } from "../fit";
 
 interface Promo {
@@ -211,8 +211,8 @@ export function QrCodes() {
   const open = async (t: { id: string; number: string }) => {
     const { path } = await api<{ path: string }>(`/api/tables/${t.id}/qr`);
     // En el equipo del servidor la página se abre como "localhost", pero la tablet necesita la IP de la red local
-    let origin = location.origin;
-    if (["localhost", "127.0.0.1", "[::1]"].includes(location.hostname)) {
+    let origin = serverBase() || location.origin;
+    if (["localhost", "127.0.0.1", "[::1]"].includes(new URL(origin).hostname)) {
       const net = await api<{ port: number; addresses: string[] }>("/api/network").catch(
         () => null,
       );

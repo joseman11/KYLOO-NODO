@@ -9,6 +9,35 @@ export interface SessionUser {
 }
 
 const KEY = "003.session";
+const SERVER_KEY = "003.server";
+
+/**
+ * Servidor al que habla la interfaz. Vacío = el mismo origen que la sirve (la web normal). En la app envoltorio de las
+ * tablets la interfaz va dentro de la app y el servidor del local se elige en la pantalla de conexión.
+ */
+export function serverBase(): string {
+  try {
+    return localStorage.getItem(SERVER_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+export function setServerBase(url: string | null) {
+  try {
+    if (url) localStorage.setItem(SERVER_KEY, url);
+    else localStorage.removeItem(SERVER_KEY);
+  } catch {
+    /* sin almacenamiento disponible */
+  }
+}
+/** ¿Corre dentro de la app envoltorio (Capacitor)? */
+export const isNativeApp = () =>
+  typeof window !== "undefined" &&
+  !!(
+    window as { Capacitor?: { isNativePlatform?: () => boolean } }
+  ).Capacitor?.isNativePlatform?.();
+/** URL absoluta de una ruta de la API (o la ruta tal cual si la interfaz y el servidor son el mismo origen). */
+export const serverUrl = (path: string) => `${serverBase()}${path}`;
 let token: string | null = null;
 let user: SessionUser | null = null;
 
@@ -59,7 +88,7 @@ export async function api<T = any>(
     );
   let res: Response;
   try {
-    res = await fetch(path, {
+    res = await fetch(serverUrl(path), {
       method: opts.method ?? (opts.body ? "POST" : "GET"),
       // Sin cuerpo no se declara JSON: el servidor rechaza un DELETE con content-type JSON y cuerpo vacío
       headers: {
@@ -97,8 +126,9 @@ function setOnline(v: boolean) {
 
 function open() {
   if (!wanted || !token) return;
-  const proto = location.protocol === "https:" ? "wss" : "ws";
-  socket = new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(token)}`);
+  const target = new URL(serverBase() || location.origin);
+  const proto = target.protocol === "https:" ? "wss" : "ws";
+  socket = new WebSocket(`${proto}://${target.host}/ws?token=${encodeURIComponent(token)}`);
   socket.onopen = () => {
     retry = 0;
     setOnline(true);
@@ -475,4 +505,4 @@ export const money = (cents: number) =>
   (cents / 100).toLocaleString("es-MX", { style: "currency", currency: "MXN" });
 
 /** Dirección de la foto de un platillo (o null si no tiene). */
-export const photoSrc = (file?: string | null) => (file ? `/api/photos/${file}` : null);
+export const photoSrc = (file?: string | null) => (file ? serverUrl(`/api/photos/${file}`) : null);

@@ -41,9 +41,9 @@ Resumen: una app instalable en las tablets que lleva **la interfaz dentro** (sie
 
 ## 4. Orden
 
-- [ ] **F6.1 — Servidor:** CORS con lista cerrada y publicación de la versión de contrato.
-- [ ] **F6.2 — Interfaz:** base del servidor configurable (HTTP, fotos, WebSocket, enlaces) y pantalla de conexión.
-- [ ] **F6.3 — Prueba de origen cruzado** (e2e): la UI desde otro origen contra el servidor real.
+- [x] **F6.1 — Servidor:** CORS con lista cerrada y publicación de la versión de contrato.
+- [x] **F6.2 — Interfaz:** base del servidor configurable (HTTP, fotos, WebSocket, enlaces) y pantalla de conexión.
+- [x] **F6.3 — Prueba de origen cruzado** (e2e): la UI desde otro origen contra el servidor real.
 - [ ] **F6.4 — Proyecto Android** (`003/apps/mobile`): Capacitor, pantalla siempre encendida, orientación libre, tráfico en claro permitido solo a la red local.
 - [ ] **F6.5 — APK:** compilar y **probar en el emulador** (conectar, entrar, pedir, cortar la red y recargar).
 - [ ] **F6.6 — Documentación y cierre.**

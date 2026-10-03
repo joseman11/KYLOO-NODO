@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
-import { api, setSession, useLive, type SessionUser } from "../api";
+import {
+  api,
+  isNativeApp,
+  serverBase,
+  setServerBase,
+  setSession,
+  useLive,
+  type SessionUser,
+} from "../api";
 import { PagedGrid } from "../fit";
 import { KylooLogo, NodoLogo, NodoMark } from "../Logo";
 import { ROLE_LABEL as ROLE, UserAvatar } from "../Avatar";
@@ -92,6 +100,18 @@ export function Login({ onLogin }: { onLogin: (u: SessionUser) => void }) {
           >
             {admin ? "Entrar con PIN" : "Administración"}
           </button>
+          {isNativeApp() && (
+            <button
+              className="btn ghost sm"
+              title={serverBase()}
+              onClick={() => {
+                setServerBase(null);
+                location.reload();
+              }}
+            >
+              Cambiar servidor
+            </button>
+          )}
         </div>
 
         <div className="login-hello">

@@ -5,10 +5,12 @@ import {
   can,
   flushPending,
   getUser,
+  isNativeApp,
   isOfflineId,
   onEvent,
   pendingCount,
   prefetchReference,
+  serverBase,
   setSession,
   startRealtime,
   stopRealtime,
@@ -20,6 +22,7 @@ import { Icon } from "./icons";
 import { NodoMark } from "./Logo";
 import { ROLE_LABEL, UserAvatar } from "./Avatar";
 import { Login } from "./views/Login";
+import { ServerSetup } from "./views/ServerSetup";
 import { Floor } from "./views/Floor";
 import { Order } from "./views/Order";
 import { Station } from "./views/Station";
@@ -61,6 +64,8 @@ export function App() {
   if (location.pathname === "/hq") return <Hq />;
   // Lista de compras compartida por enlace: pública, sin sesión
   if (location.pathname === "/s") return <SharedShopping />;
+  // App envoltorio sin servidor elegido: primero se conecta
+  if (isNativeApp() && !serverBase()) return <ServerSetup onDone={() => location.reload()} />;
   return <Staff />;
 }
 

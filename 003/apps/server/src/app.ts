@@ -10,7 +10,8 @@ import fastifyJwt from "@fastify/jwt";
 import fastifyWebsocket from "@fastify/websocket";
 import fastifyStatic from "@fastify/static";
 import { ZodError } from "zod";
-import { can, type Permission, type Role } from "@003/shared";
+import { API_CONTRACT, can, type Permission, type Role } from "@003/shared";
+import fastifyCors from "@fastify/cors";
 import { jwtSecret, type Db } from "./db";
 import { HttpError } from "./domain";
 import { Hub } from "./hub";
@@ -82,6 +83,9 @@ declare module "fastify" {
     authorize(permission?: Permission): (req: FastifyRequest, reply: FastifyReply) => Promise<void>;
   }
 }
+
+/** Orígenes de la app envoltorio de Android (Capacitor) y de iOS. */
+export const APP_ORIGINS = ["http://localhost", "https://localhost", "capacitor://localhost"];
 
 export interface AppOptions {
   hub?: Hub;
@@ -217,6 +221,22 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
     return reply.code(err.statusCode ?? 500).send({ error: err.message });
   });
 
+  // CORS: solo lo piden las apps envoltorio de las tablets (llevan la interfaz dentro y hablan con este servidor por la red
+  // local). Lista cerrada de orígenes, sin comodines; la interfaz servida por el propio servidor es del mismo origen y no lo usa.
+  const corsOrigins = [
+    ...APP_ORIGINS,
+    ...(process.env.NODO_CORS_ORIGINS ?? "")
+      .split(",")
+      .map((o) => o.trim())
+      .filter(Boolean),
+  ];
+  app.register(fastifyCors, {
+    origin: corsOrigins,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["authorization", "content-type"],
+    maxAge: 600,
+  });
+
   // Cabeceras de seguridad en todas las respuestas. La política de contenido permite lo que la app usa (estilos en línea,
   // imágenes de datos o blob de las fotos, WebSocket y WebGL del fondo) y nada de fuera; sin marcos ni cambio de base.
   const CSP = [
@@ -264,6 +284,8 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
     ok: true,
     devices,
     version,
+    // Versión del contrato con la interfaz (la app envoltorio de las tablets lleva su propia copia de la interfaz)
+    contract: API_CONTRACT,
     engine: db.dialect,
     uptimeSec: Math.round((Date.now() - startedAt) / 1000),
   }));

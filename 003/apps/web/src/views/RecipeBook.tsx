@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, can, money, photoSrc, useLive } from "../api";
+import { api, can, money, photoSrc, serverUrl, useLive } from "../api";
 import { Icon } from "../icons";
 import { resizeImage } from "../image";
 import { PagedColumns, PagedGrid, PagedRows, SubTabs } from "../fit";
@@ -221,7 +221,7 @@ function RecipeView({
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(
-        await fetch(`/api/recipe-book/${id}/text?portions=${n}`, {
+        await fetch(serverUrl(`/api/recipe-book/${id}/text?portions=${n}`), {
           headers: {
             Authorization: `Bearer ${JSON.parse(localStorage.getItem("003.session") ?? "{}").token}`,
           },
