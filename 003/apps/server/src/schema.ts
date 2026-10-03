@@ -787,4 +787,14 @@ CREATE TABLE hq_backups (
 CREATE INDEX idx_hq_backups_branch ON hq_backups(branch_id, created_at);
 `,
   },
+  {
+    id: 13,
+    name: "cajon_de_dinero",
+    sql: `
+-- Cajón de dinero conectado a la impresora de caja (pulso ESC/POS): se abre con los cobros en efectivo
+ALTER TABLE printers ADD COLUMN has_drawer INTEGER NOT NULL DEFAULT 0;
+-- Pin del conector RJ11 al que está cableado el cajón: 0 = pin 2 (lo habitual), 1 = pin 5
+ALTER TABLE printers ADD COLUMN drawer_pin INTEGER NOT NULL DEFAULT 0 CHECK (drawer_pin IN (0,1));
+`,
+  },
 ];

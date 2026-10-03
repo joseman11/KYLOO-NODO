@@ -10,6 +10,7 @@ import {
   authorize,
   refreshTable,
 } from "../domain";
+import { DRAWER_PIN2, DRAWER_PIN5 } from "../printing/markup";
 import { enqueue } from "../printing/queue";
 import { billLines } from "./operations";
 import type { Hub } from "../hub";
@@ -344,22 +345,30 @@ export async function cashRoutes(app: FastifyInstance, opts: { hub: Hub }) {
 
       const printer = (await db
         .prepare(
-          "SELECT id, paper_width FROM printers WHERE kind='caja' AND active=1 ORDER BY rowid LIMIT 1",
+          "SELECT id, paper_width, has_drawer, drawer_pin FROM printers WHERE kind='caja' AND active=1 ORDER BY rowid LIMIT 1",
         )
-        .get()) as { id: string; paper_width: number } | undefined;
+        .get()) as
+        | { id: string; paper_width: number; has_drawer: number; drawer_pin: number }
+        | undefined;
       if (printer) {
+        // Un cobro con efectivo abre el cajón: la orden va al inicio del mismo trabajo, por la misma cola que el ticket
+        // (con reintento y respaldo); si la impresora no responde, el cobro ya está registrado (I5.1)
+        const opensDrawer = !!printer.has_drawer && b.lines.some((l) => l.method === "efectivo");
         await enqueue(db, {
           kind: "ticket",
           printerId: printer.id,
-          lines: await billLines(db, accountId, printer.paper_width, {
-            tipCents: b.tip_cents,
-            changeCents: excess,
-            payments: b.lines.map((l) => ({ method: l.method, amountCents: l.amount_cents })),
-            partial:
-              closes && (await accountPaid(db, accountId)) === cover
-                ? undefined
-                : { coveredCents: cover, balanceCents: balance - cover },
-          }),
+          lines: [
+            ...(opensDrawer ? [printer.drawer_pin ? DRAWER_PIN5 : DRAWER_PIN2] : []),
+            ...(await billLines(db, accountId, printer.paper_width, {
+              tipCents: b.tip_cents,
+              changeCents: excess,
+              payments: b.lines.map((l) => ({ method: l.method, amountCents: l.amount_cents })),
+              partial:
+                closes && (await accountPaid(db, accountId)) === cover
+                  ? undefined
+                  : { coveredCents: cover, balanceCents: balance - cover },
+            })),
+          ],
         });
       }
       await audit(db, req.user.sub, closes ? "cobrar" : "cobro_parcial", "account", accountId, {

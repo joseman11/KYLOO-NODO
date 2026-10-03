@@ -104,6 +104,8 @@ export async function venueRoutes(app: FastifyInstance) {
       paper_width: z.union([z.literal(58), z.literal(80)]).default(80),
       copies: z.number().int().min(1).max(5).default(1),
       auto_cut: z.boolean().default(true),
+      has_drawer: z.boolean().default(false),
+      drawer_pin: z.union([z.literal(0), z.literal(1)]).default(0),
       active: z.boolean().default(true),
     },
   });

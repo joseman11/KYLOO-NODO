@@ -4,7 +4,7 @@ import { audit } from "../db";
 import { HttpError } from "../domain";
 import { enqueue, processQueue } from "../printing/queue";
 import { renderTest } from "../printing/render";
-import { BOLD } from "../printing/markup";
+import { BOLD, DRAWER_PIN2, DRAWER_PIN5 } from "../printing/markup";
 import type { PrinterTransport } from "../printing/transport";
 import type { Hub } from "../hub";
 
@@ -37,6 +37,32 @@ export async function printingRoutes(
       })),
     );
   });
+
+  // Abrir el cajón a mano (p. ej. dar cambio sin cobro). Va por la cola como un trabajo más y se intenta al instante.
+  app.post(
+    "/api/printers/:id/open-drawer",
+    { preHandler: app.authorize("cash.open") },
+    async (req) => {
+      const { id: printerId } = id.parse(req.params);
+      const p = (await db.prepare("SELECT * FROM printers WHERE id=?").get(printerId)) as
+        | (PrinterRow & { has_drawer: number; drawer_pin: number })
+        | undefined;
+      if (!p) throw new HttpError(404, "no_encontrado");
+      if (!p.has_drawer)
+        throw new HttpError(409, "sin_cajon", "Esta impresora no tiene un cajón configurado");
+      const jobId = await enqueue(db, {
+        kind: "cajon",
+        printerId,
+        lines: [p.drawer_pin ? DRAWER_PIN5 : DRAWER_PIN2],
+      });
+      await processQueue(db, transport, hub);
+      const job = (await db
+        .prepare("SELECT status, last_error FROM print_jobs WHERE id=?")
+        .get(jobId)) as { status: string; last_error: string | null };
+      await audit(db, req.user.sub, "abrir_cajon", "printer", printerId, { status: job.status });
+      return { ok: job.status === "impreso", status: job.status, error: job.last_error };
+    },
+  );
 
   // Imprimir prueba (HU-019): se envía directo para dar el resultado al instante
   app.post(

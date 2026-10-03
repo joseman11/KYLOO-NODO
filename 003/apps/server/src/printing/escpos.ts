@@ -1,4 +1,4 @@
-import { BIG, BOLD, HUGE } from "./markup";
+import { BIG, BOLD, DRAWER_PIN5, HUGE, isDrawerLine } from "./markup";
 
 /** Codificador mínimo ESC/POS para impresoras térmicas (texto, negritas, doble tamaño, corte). */
 
@@ -45,6 +45,11 @@ function encodeText(s: string): number[] {
 export function toEscpos(lines: string[], opts: EscposOptions = {}): Buffer {
   const out: number[] = [ESC, 0x40, ESC, 0x74, 19]; // init + code page CP858
   for (const raw of lines) {
+    // Abrir el cajón: ESC p m t1 t2 (pulso de 50 ms en el pin indicado, pausa de 500 ms). No es texto: no avanza papel.
+    if (isDrawerLine(raw)) {
+      out.push(ESC, 0x70, raw === DRAWER_PIN5 ? 1 : 0, 25, 250);
+      continue;
+    }
     if (raw.startsWith(HUGE))
       out.push(
         ESC,
@@ -88,6 +93,8 @@ export function toEscpos(lines: string[], opts: EscposOptions = {}): Buffer {
     else out.push(...encodeText(raw));
     out.push(0x0a);
   }
+  // Un trabajo que solo abre el cajón no avanza ni corta el papel
+  if (lines.every(isDrawerLine)) return Buffer.from(out);
   out.push(0x0a, 0x0a, 0x0a);
   if (opts.cut !== false) out.push(GS, 0x56, 0x42, 0x00); // corte parcial con avance
   return Buffer.from(out);
