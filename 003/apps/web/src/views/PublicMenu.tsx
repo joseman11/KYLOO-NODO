@@ -65,9 +65,10 @@ export function PublicMenu() {
     pub<Menu>(`/api/public/menu?t=${encodeURIComponent(t)}`).then(setMenu, () =>
       setError("Este código QR no es válido. Pide ayuda a tu mesero."),
     );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: se carga una sola vez al abrir
   useEffect(() => {
     void load();
-  }, [load]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Categorías principales arriba; al elegir una, el producto puede estar en cualquiera de sus subcategorías
   const top = useMemo(

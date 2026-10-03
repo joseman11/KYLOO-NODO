@@ -1028,6 +1028,7 @@ function NoteSheet({
           ))}
         </div>
         <input
+          autoFocus
           placeholder="Escribe una nota"
           value={note}
           onChange={(e) => setNote(e.target.value)}

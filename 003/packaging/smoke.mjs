@@ -71,7 +71,8 @@ try {
   assert.equal(health.engine, "sqlite");
   ok(`salud: versión ${health.version}, motor ${health.engine}`);
 
-  assert.deepEqual((await json("/api/setup/status")).body, { needsSetup: true });
+  // `local`: el asistente solo se completa desde el propio equipo (auditoría de seguridad)
+  assert.deepEqual((await json("/api/setup/status")).body, { needsSetup: true, local: true });
   assert.equal((await json("/")).status, 200);
   ok("instalación nueva: pide configuración y sirve la app web");
 
@@ -110,7 +111,7 @@ try {
 
   child = start();
   await waitUp();
-  assert.deepEqual((await json("/api/setup/status")).body, { needsSetup: false });
+  assert.deepEqual((await json("/api/setup/status")).body, { needsSetup: false, local: true });
   assert.equal(
     (await post("/api/auth/login", { username: "admin", password: "clave-de-prueba-9" })).status,
     200,

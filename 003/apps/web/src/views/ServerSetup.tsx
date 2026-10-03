@@ -137,6 +137,7 @@ export function ServerSetup({ onDone }: { onDone: () => void }) {
             inputMode="url"
             autoCapitalize="none"
             autoCorrect="off"
+            autoFocus
           />
           {error && <p className="err">{error}</p>}
           <button className="btn primary" type="submit" disabled={busy || !value.trim()}>

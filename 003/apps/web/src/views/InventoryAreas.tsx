@@ -178,6 +178,7 @@ export function ItemSheet({
         <h3>{item ? "Editar insumo" : "Nuevo insumo"}</h3>
         <div className="grid2">
           <input
+            autoFocus
             placeholder="Nombre"
             value={f.name}
             onChange={(e) => setF({ ...f, name: e.target.value })}

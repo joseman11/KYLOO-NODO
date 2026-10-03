@@ -145,9 +145,10 @@ function HqLogin({ onLogin }: { onLogin: () => void }) {
 function HqHome({ onLogout }: { onLogout: () => void }) {
   const [tab, setTab] = useState<Tab>("resumen");
   const [me, setMe] = useState<Me | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: se carga una sola vez al abrir
   useEffect(() => {
     hq<Me>("/api/hq/me").then(setMe, onLogout);
-  }, [onLogout]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="shell">
@@ -274,9 +275,10 @@ function HqBranches({ owner }: { owner: boolean }) {
   const [files, setFiles] = useState<Branch | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const load = () => hq<Branch[]>("/api/hq/branches").then(setList, () => undefined);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: se carga una sola vez al abrir
   useEffect(() => {
     void load();
-  }, [load]);
+  }, []);
   return (
     <div className="split">
       <section className="card fillcard">
@@ -425,9 +427,10 @@ function HqCatalog({ owner }: { owner: boolean }) {
   const [f, setF] = useState({ sku: "", name: "", price: "", category: "", stations: "" });
   const [err, setErr] = useState<string | null>(null);
   const load = () => hq<CatalogRow[]>("/api/hq/catalog").then(setRows, () => undefined);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: se carga una sola vez al abrir
   useEffect(() => {
     void load();
-  }, [load]);
+  }, []);
   const price = Math.round((parseFloat(f.price.replace(",", ".")) || 0) * 100);
   return (
     <div className="split">
@@ -553,10 +556,11 @@ function BackupList({
   const [err, setErr] = useState<string | null>(null);
   const base = `/api/hq/branches/${branch.id}/backups`;
   const load = () => hq<BackupFile[]>(base).then(setList, (e) => setErr((e as Error).message));
+  // biome-ignore lint/correctness/useExhaustiveDependencies: se carga una sola vez al abrir
   useEffect(() => {
     void load();
     // biome-ignore lint/correctness/useExhaustiveDependencies: se carga al abrir
-  }, [load]);
+  }, []);
   const download = async (f: BackupFile) => {
     try {
       const r = await fetch(`${base}/${f.name}`, {

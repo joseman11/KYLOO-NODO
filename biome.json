@@ -57,7 +57,7 @@
         "useButtonType": "warn",
         "noStaticElementInteractions": "warn",
         "useKeyWithClickEvents": "warn",
-        "noAutofocus": "warn",
+        "noAutofocus": "off",
         "noLabelWithoutControl": "warn",
         "useSemanticElements": "warn",
         "noSvgWithoutTitle": "warn",
@@ -78,9 +78,7 @@
   },
   "overrides": [
     {
-      "includes": [
-        "003/apps/server/src/printing/markup.ts"
-      ],
+      "includes": ["003/apps/server/src/printing/markup.ts"],
       "linter": {
         "rules": {
           "suspicious": {
@@ -90,10 +88,7 @@
       }
     },
     {
-      "includes": [
-        "003/apps/web/src/WaveCanvas.tsx",
-        "landing/components/HalftoneWaves.tsx"
-      ],
+      "includes": ["003/apps/web/src/WaveCanvas.tsx", "landing/components/HalftoneWaves.tsx"],
       "linter": {
         "rules": {
           "correctness": {

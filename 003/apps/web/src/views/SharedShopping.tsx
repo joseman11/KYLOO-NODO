@@ -35,11 +35,12 @@ export function SharedShopping() {
       },
       (e) => setErr((e as Error).message),
     );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: se carga una sola vez al abrir
   useEffect(() => {
     load();
     const t = setInterval(load, 15000);
     return () => clearInterval(t);
-  }, [load]);
+  }, []);
   const toggle = (id: string, checked: boolean) => {
     setData((d) => d && { ...d, lines: d.lines.map((l) => (l.id === id ? { ...l, checked } : l)) });
     api(`/api/shared/shopping/${token}/items/${id}`, { method: "PATCH", body: { checked } }).catch(

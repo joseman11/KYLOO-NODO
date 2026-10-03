@@ -88,6 +88,7 @@ export function Setup({
               placeholder="Nombre del local"
               value={establishment}
               onChange={(e) => setEstablishment(e.target.value)}
+              autoFocus
               required
             />
             <input

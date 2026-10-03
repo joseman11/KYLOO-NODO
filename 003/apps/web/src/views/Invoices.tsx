@@ -203,6 +203,7 @@ function ResendInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => 
           Reenviar {invoice.serie}-{invoice.folio}
         </h3>
         <input
+          autoFocus
           inputMode="email"
           placeholder="correo@cliente.com"
           value={email}

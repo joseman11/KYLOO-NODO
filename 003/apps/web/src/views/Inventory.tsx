@@ -664,6 +664,7 @@ function Purchases() {
           <div className="sheet center" role="dialog" aria-modal="true">
             <h3>Proveedor nuevo</h3>
             <input
+              autoFocus
               placeholder="Nombre"
               value={sup.name}
               onChange={(e) => setSup({ ...sup, name: e.target.value })}

@@ -137,6 +137,7 @@ function DriverSheet({
       <div className="sheet center" role="dialog" aria-modal="true">
         <h3>Repartidor</h3>
         <input
+          autoFocus
           placeholder="Nombre del repartidor"
           value={name}
           onChange={(e) => setName(e.target.value)}

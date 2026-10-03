@@ -212,6 +212,7 @@ function ZoneSheet({ zone, onClose }: { zone: Zone | null; onClose: (id?: string
       <div className="sheet center" role="dialog" aria-modal="true">
         <h3>{zone ? "Editar área" : "Nueva área"}</h3>
         <input
+          autoFocus
           placeholder="Nombre (Salón, Terraza, Barra, Privado…)"
           value={name}
           onChange={(e) => setName(e.target.value)}

@@ -528,6 +528,7 @@ function RecipeEditor({
         {tab === "datos" && (
           <div className="grid2" style={{ flex: 1, minHeight: 0, alignContent: "start" }}>
             <input
+              autoFocus
               placeholder="Nombre de la receta"
               aria-label="Nombre de la receta"
               value={form.name}
