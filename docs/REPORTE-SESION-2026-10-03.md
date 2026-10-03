@@ -9,13 +9,13 @@ git log --oneline main..feature/fundacion     # 36 commits pequeños y separable
 git diff --stat main..feature/fundacion
 cd 003 && npx -y pnpm@11.21.0 install
 npx -y pnpm@11.21.0 typecheck
-npx -y pnpm@11.21.0 --filter @003/shared --filter @003/server test      # 476 en SQLite
+npx -y pnpm@11.21.0 --filter @003/shared --filter @003/server test      # 481 en SQLite
 docker run -d --name nodo-pg -e POSTGRES_PASSWORD=nodo -e POSTGRES_DB=nodo_test -p 5433:5432 postgres:16-alpine
-NODO_PG_URL=postgres://postgres:nodo@127.0.0.1:5433/nodo_test npx -y pnpm@11.21.0 --filter @003/server test   # 477
-CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" npx -y pnpm@11.21.0 --filter @003/e2e test   # 111 e2e
+NODO_PG_URL=postgres://postgres:nodo@127.0.0.1:5433/nodo_test npx -y pnpm@11.21.0 --filter @003/server test   # 482
+CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" npx -y pnpm@11.21.0 --filter @003/e2e test   # 113 e2e
 ```
 
-Resultado final de la sesión: **typecheck limpio; 476 pruebas de servidor en SQLite y 477 en PostgreSQL; 111 e2e; 4 pruebas del empaquetado; `pnpm audit` y `npm audit` en cero.**
+Resultado final de la sesión: **typecheck limpio; 481 pruebas de servidor en SQLite y 482 en PostgreSQL; 113 e2e; 4 pruebas del empaquetado; `pnpm audit` y `npm audit` en cero.**
 
 ## Qué se hizo (por plan)
 
@@ -73,3 +73,9 @@ El dueño definió **suscripción anual**. Se ajustó la licencia: vence en `pai
 
 ## Actualización posterior: HQ desplegado
 Con autorización del dueño se generó la **clave de producción** de licencias y se **desplegó el HQ en Railway** (`https://nodo-hq-production.up.railway.app`). Detalles, IDs y cómo actualizarlo en `docs/deploy/HQ-RAILWAY.md`. Pendiente del dueño: **copia fuera de línea** de `~/.nodo-keys/` y revocar el acceso de la CLI de Railway si no se va a usar (Railway → Settings → Tokens).
+
+## Actualización posterior: app de tablet y firma de código
+- **App de tablet Android** (`PLAN-06`, `deploy/APP-TABLET.md`): lleva la interfaz dentro y abre siempre, incluso sin red. Probada en emuladores **Pixel Tablet (10")** y **tableta económica (1024×600, 2 GB)**: conexión, PIN, mapa, recarga sin red y reconexión; 61 cuadros por segundo y 254 ms de carga en la económica. APK de depuración en `003/apps/mobile/dist/`.
+- **HQ redesplegado** con el código final (`contract: 1`, PostgreSQL).
+- **Cifras finales:** 481 pruebas de servidor en SQLite y 482 en PostgreSQL, 113 e2e, 4 del empaquetado.
+- **Firma de código del instalador de Windows:** certificado de firma (OV/EV), orden de magnitud de cientos de dólares al año; se compra cuando vaya a haber un instalador entregado a alguien que no sea el dueño. Ver la respuesta en la conversación; los precios cambian y deben confirmarse con el proveedor.
