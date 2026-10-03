@@ -217,9 +217,12 @@ export async function syncWithHq(
     const keys = licensing.mode === "enforced" ? licensing.publicKeys : pub ? [pub] : [];
     if (!verifyLicenseAny(keys, lic.token)) throw new Error("La firma de la licencia no es válida");
     await put(db, "license", lic.token);
+    await db.prepare("DELETE FROM settings WHERE key='license_revoked'").run();
     await noteClock(db);
     report.license = { ok: true, plan: lic.plan };
   } catch (e) {
+    // 401/403 del HQ no es «sin Internet»: la sucursal ya no está autorizada (llave rotada, retirada o equipo distinto)
+    if (/HTTP (401|403)/.test(msg(e))) await put(db, "license_revoked", "1");
     report.license = { ok: false, error: msg(e) };
   }
 
@@ -339,6 +342,7 @@ export async function cloudRoutes(app: FastifyInstance, opts: { http: HttpLike }
     await put(db, "hq_key", body.api_key);
     if (pub) await put(db, "hq_public_key", pub);
     await put(db, "license", body.token);
+    await db.prepare("DELETE FROM settings WHERE key='license_revoked'").run();
     await noteClock(db);
     await audit(db, req.user.sub, "activar_licencia", "sistema", undefined, {
       url: base,

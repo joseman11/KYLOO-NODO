@@ -345,8 +345,10 @@ const REASONS: Record<string, string> = {
   sin_huella: "La licencia no está ligada a este equipo. Activa de nuevo con un código.",
   otro_equipo:
     "Esta licencia pertenece a otro equipo. Pide un código nuevo para activar este (ver el identificador de abajo).",
+  revocada:
+    "Nodo retiró esta licencia (suscripción cancelada o sin pago). Si crees que es un error, contáctanos; mientras tanto rige el plan gratuito.",
   vencida:
-    "La licencia venció hace más de 7 días. Conecta este equipo a Internet para renovarla; mientras tanto rige el plan gratuito.",
+    "La suscripción venció hace más de 15 días. Renuévala con Nodo y conecta este equipo a Internet; mientras tanto rige el plan gratuito.",
 };
 
 const fmtDate = (ts: number | null) =>

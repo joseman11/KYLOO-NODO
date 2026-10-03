@@ -147,6 +147,26 @@ describe("estado de la licencia", () => {
     });
   });
 
+  it("suscripción anual: la gracia es de 15 días y después queda restringida", async () => {
+    expect(GRACE_DAYS).toBe(15);
+    const exp = Date.now() - 1000;
+    await install(payload({ exp }));
+    expect(await getLicense(db, exp + 14 * DAY, enforced())).toMatchObject({
+      plan: "profesional",
+      expired: true,
+    });
+    expect(await getLicense(db, exp + 16 * DAY, enforced())).toMatchObject({ reason: "vencida" });
+  });
+
+  it("revocada por Nodo: queda restringida aunque la licencia siga vigente", async () => {
+    await install(payload());
+    await put(db, "license_revoked", "1");
+    expect(await getLicense(db, Date.now(), enforced())).toMatchObject({
+      restricted: true,
+      reason: "revocada",
+    });
+  });
+
   it("retrasar el reloj no alarga una licencia vencida", async () => {
     const exp = Date.now() + 1 * DAY;
     await install(payload({ exp }));
@@ -538,6 +558,76 @@ describe("activación de una sucursal con código", () => {
     const r = await local.call("GET", "/api/analytics/overview");
     expect(r.statusCode).toBe(402);
     expect(r.json()).toMatchObject({ error: "plan_no_incluye", feature: "analitica" });
+  });
+
+  it("la licencia vence el día hasta el que está pagada la suscripción", async () => {
+    const paidUntil = Date.now() + 200 * DAY;
+    const orgs = (await hqDb.prepare("SELECT id FROM hq_orgs").get()) as { id: string };
+    expect(
+      (
+        await hqApp.inject({
+          method: "PATCH",
+          url: `/api/hq/orgs/${orgs.id}`,
+          headers: ADMIN,
+          payload: { paid_until: paidUntil },
+        })
+      ).statusCode,
+    ).toBe(200);
+    const local = await makeLocal(FP_A);
+    await local.call("POST", "/api/license/activate", { code });
+    const lic = await getLicense(local.db, Date.now(), enforced(FP_A));
+    expect(lic?.exp).toBe(paidUntil);
+    // al renovar el pago, la siguiente sincronización trae la nueva fecha
+    const renewed = paidUntil + 365 * DAY;
+    await hqApp.inject({
+      method: "PATCH",
+      url: `/api/hq/orgs/${orgs.id}`,
+      headers: ADMIN,
+      payload: { paid_until: renewed },
+    });
+    await syncWithHq(local.db, bridge(hqApp), enforced(FP_A));
+    expect((await getLicense(local.db, Date.now(), enforced(FP_A)))?.exp).toBe(renewed);
+  });
+
+  it("si Nodo desactiva la organización, la siguiente sincronización la deja revocada; reactivarla la restablece", async () => {
+    const local = await makeLocal(FP_A);
+    await local.call("POST", "/api/license/activate", { code });
+    const org = (await hqDb.prepare("SELECT id FROM hq_orgs").get()) as { id: string };
+    await hqApp.inject({
+      method: "PATCH",
+      url: `/api/hq/orgs/${org.id}`,
+      headers: ADMIN,
+      payload: { active: false },
+    });
+    const rep = await syncWithHq(local.db, bridge(hqApp), enforced(FP_A));
+    expect(rep.license.ok).toBe(false);
+    expect(await getLicense(local.db, Date.now(), enforced(FP_A))).toMatchObject({
+      restricted: true,
+      reason: "revocada",
+    });
+    // sin Internet NO es revocación: solo un 401/403 del HQ lo es
+    await hqApp.inject({
+      method: "PATCH",
+      url: `/api/hq/orgs/${org.id}`,
+      headers: ADMIN,
+      payload: { active: true },
+    });
+    await syncWithHq(local.db, bridge(hqApp), enforced(FP_A));
+    expect(await getLicense(local.db, Date.now(), enforced(FP_A))).toMatchObject({
+      plan: "profesional",
+    });
+  });
+
+  it("un fallo de red al renovar no revoca nada", async () => {
+    const local = await makeLocal(FP_A);
+    await local.call("POST", "/api/license/activate", { code });
+    const down: HttpLike = async () => {
+      throw new Error("sin red");
+    };
+    await syncWithHq(local.db, down, enforced(FP_A));
+    expect(await getLicense(local.db, Date.now(), enforced(FP_A))).toMatchObject({
+      plan: "profesional",
+    });
   });
 
   it("el HQ firma con la clave del entorno y su clave pública coincide", async () => {

@@ -60,8 +60,11 @@ export interface LicensingContext {
 }
 export const OPEN_LICENSING: LicensingContext = { mode: "open", publicKeys: [], fingerprint: null };
 
-/** Días tras el vencimiento en que la sucursal sigue operando con el plan contratado (nunca se detiene la venta). */
-export const GRACE_DAYS = 7;
+/**
+ * Días tras el vencimiento en que la sucursal sigue operando con el plan contratado (nunca se detiene la venta).
+ * Con suscripción anual, una renovación que se retrasa no debe tumbar funciones a un local en pleno servicio: 15 días.
+ */
+export const GRACE_DAYS = 15;
 
 const b64 = (b: Buffer) => b.toString("base64url");
 
@@ -112,7 +115,9 @@ export type RestrictedReason =
   | "firma_invalida"
   | "sin_huella"
   | "otro_equipo"
-  | "vencida";
+  | "vencida"
+  /** Nodo retiró la licencia (cancelación, falta de pago, fraude): el HQ respondió que esta sucursal ya no está autorizada. */
+  | "revocada";
 
 export interface ActiveLicense extends LicensePayload {
   expired: boolean;
@@ -151,6 +156,7 @@ export async function getLicense(
     if (!lic.fp) return restricted("sin_huella");
     if (lic.fp !== ctx.fingerprint) return restricted("otro_equipo");
   }
+  if ((await setting(db, "license_revoked")) === "1") return restricted("revocada");
   const seen = Number(await setting(db, "license_clock_hwm")) || 0;
   const t = Math.max(now, seen);
   const expired = t > lic.exp;

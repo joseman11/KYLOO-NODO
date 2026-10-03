@@ -1,6 +1,6 @@
 # Licencias: cómo se emiten, se activan y se protegen
 
-> Vigente al 2026-10-03 (plan 03). Diseño y razones: [`PLAN-03`](../PLAN-03-LICENCIAS-Y-ACTIVACION.md). Modelo comercial (suscripción o pago único): sin definir; la licencia lleva plan y vencimiento y sirve para ambos.
+> Vigente al 2026-10-03 (plan 03). Diseño y razones: [`PLAN-03`](../PLAN-03-LICENCIAS-Y-ACTIVACION.md). **Modelo comercial: suscripción anual** (decidido por el dueño el 2026-10-03).
 
 ## Idea en cuatro líneas
 
@@ -45,13 +45,21 @@ npx -y pnpm@11.21.0 --filter @003/packaging build -- \
 
 El propietario (o la plataforma con `x-hq-admin`) emite un código nuevo: `POST /api/hq/branches/:id/activation-code`. Anula los anteriores sin usar. Al canjearlo en el equipo nuevo, la sucursal queda atada a la huella nueva y **la llave del equipo anterior deja de valer**. El identificador corto del equipo (`A1B2-C3D4-E5F6`) aparece en *Nube y plan* para dictarlo por teléfono.
 
+## Suscripción anual
+
+- La organización tiene una fecha **`paid_until`** (hasta cuándo está pagada). La licencia de sus sucursales **vence ese día**; sin fecha (planes de prueba) dura 30 días y se renueva sola.
+- Al cobrar la renovación, la plataforma avanza la fecha un año: `PATCH /api/hq/orgs/:id` con `x-hq-admin` y `{ "paid_until": <ms> }`. Cada local la recibe en su siguiente sincronización (cada hora con Internet); **no hay que tocar el local**.
+- Si el pago se retrasa, el local **sigue operando 15 días** con su plan (`GRACE_DAYS`); después pasa al plan gratuito sin detener la venta, y vuelve al plan contratado en cuanto se renueva y sincroniza.
+- **Cancelación o falta de pago definitiva:** desactivar la organización (`{ "active": false }`). En la siguiente sincronización el HQ responde 401/403 y el local queda **«revocado»** (plan gratuito) aunque su licencia no haya vencido. Reactivarla lo restablece. **Un fallo de red nunca revoca**: solo una negativa del HQ.
+- Una renovación anual es también la ocasión natural de cambiar de plan o de equipo.
+
 ## Qué pasa en cada estado
 
 | Estado | Efecto |
 |---|---|
 | Licencia válida | Plan contratado |
-| Vencida, dentro de 7 días | Sigue con el plan contratado |
-| Sin licencia, firma inválida, otro equipo, vencida más de 7 días | Plan **gratuito** (3 usuarios, 1 impresora, sin funciones extra). **Se sigue vendiendo.** |
+| Vencida, dentro de 15 días | Sigue con el plan contratado |
+| Sin licencia, firma inválida, otro equipo, vencida más de 15 días, o revocada | Plan **gratuito** (3 usuarios, 1 impresora, sin funciones extra). **Se sigue vendiendo.** |
 
 ## Qué protege y qué no (honestidad)
 

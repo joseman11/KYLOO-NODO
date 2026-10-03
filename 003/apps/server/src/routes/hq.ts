@@ -148,10 +148,10 @@ export async function hqRoutes(app: FastifyInstance, opts: HqOptions) {
     const b = key
       ? ((await db
           .prepare(
-            "SELECT b.id, b.org_id, b.name, o.plan FROM hq_branches b JOIN hq_orgs o ON o.id=b.org_id WHERE b.key_hash=? AND b.active=1 AND o.active=1",
+            "SELECT b.id, b.org_id, b.name, o.plan, o.paid_until FROM hq_branches b JOIN hq_orgs o ON o.id=b.org_id WHERE b.key_hash=? AND b.active=1 AND o.active=1",
           )
           .get(hashKey(key))) as
-          | { id: string; org_id: string; name: string; plan: string }
+          | { id: string; org_id: string; name: string; plan: string; paid_until: number | null }
           | undefined)
       : undefined;
     if (!b) throw new HttpError(401, "llave_invalida");
@@ -177,7 +177,10 @@ export async function hqRoutes(app: FastifyInstance, opts: HqOptions) {
   };
 
   /** Licencia firmada de una sucursal, atada a la huella de su equipo. */
-  const licenseFor = (b: { id: string; org_id: string; plan: string }, fp: string | null) => {
+  const licenseFor = (
+    b: { id: string; org_id: string; plan: string; paid_until?: number | null },
+    fp: string | null,
+  ) => {
     const plan = PLANS[b.plan] ?? PLANS.gratis!;
     const now = Date.now();
     const payload: LicensePayload = {
@@ -187,7 +190,8 @@ export async function hqRoutes(app: FastifyInstance, opts: HqOptions) {
       limits: { users: plan.users, printers: plan.printers },
       features: plan.features,
       iat: now,
-      exp: now + LICENSE_DAYS * 86_400_000,
+      // Suscripción anual: la licencia vence el día hasta el que la organización está pagada; sin fecha, ventana corta (planes de prueba)
+      exp: b.paid_until && b.paid_until > now ? b.paid_until : now + LICENSE_DAYS * 86_400_000,
       fp,
       kid: opts.keyId,
     };
@@ -203,14 +207,15 @@ export async function hqRoutes(app: FastifyInstance, opts: HqOptions) {
       .object({
         name: z.string().min(1),
         plan: z.enum(Object.keys(PLANS) as [string, ...string[]]).default("gratis"),
+        paid_until: z.number().int().nullable().default(null),
         owner: z.object({ username: z.string().min(3), password: z.string().min(8) }),
       })
       .parse(req.body);
     const orgId = newId();
     await db.transaction(async () => {
       await db
-        .prepare("INSERT INTO hq_orgs (id,name,plan,created_at) VALUES (?,?,?,?)")
-        .run(orgId, b.name, b.plan, Date.now());
+        .prepare("INSERT INTO hq_orgs (id,name,plan,paid_until,created_at) VALUES (?,?,?,?,?)")
+        .run(orgId, b.name, b.plan, b.paid_until, Date.now());
       await db
         .prepare(
           "INSERT INTO hq_users (id,org_id,username,password_hash,role) VALUES (?,?,?,?,'owner')",
@@ -227,8 +232,12 @@ export async function hqRoutes(app: FastifyInstance, opts: HqOptions) {
       .object({
         plan: z.enum(Object.keys(PLANS) as [string, ...string[]]).optional(),
         active: z.boolean().optional(),
+        /** Fecha (ms) hasta la que está pagada la suscripción anual; al renovar se avanza un año. */
+        paid_until: z.number().int().nullable().optional(),
       })
       .parse(req.body);
+    if (b.paid_until !== undefined)
+      await db.prepare("UPDATE hq_orgs SET paid_until=? WHERE id=?").run(b.paid_until, id);
     if (b.plan) await db.prepare("UPDATE hq_orgs SET plan=? WHERE id=?").run(b.plan, id);
     if (b.active !== undefined)
       await db.prepare("UPDATE hq_orgs SET active=? WHERE id=?").run(b.active ? 1 : 0, id);
@@ -706,10 +715,17 @@ export async function hqRoutes(app: FastifyInstance, opts: HqOptions) {
       if (!c || c.used_at || c.expires_at < Date.now()) return;
       const br = (await db
         .prepare(
-          "SELECT b.id, b.org_id, b.name, o.plan, o.name AS org FROM hq_branches b JOIN hq_orgs o ON o.id=b.org_id WHERE b.id=? AND b.active=1 AND o.active=1",
+          "SELECT b.id, b.org_id, b.name, o.plan, o.paid_until, o.name AS org FROM hq_branches b JOIN hq_orgs o ON o.id=b.org_id WHERE b.id=? AND b.active=1 AND o.active=1",
         )
         .get(c.branch_id)) as
-        | { id: string; org_id: string; plan: string; name: string; org: string }
+        | {
+            id: string;
+            org_id: string;
+            plan: string;
+            name: string;
+            org: string;
+            paid_until: number | null;
+          }
         | undefined;
       if (!br) return;
       const used = await db

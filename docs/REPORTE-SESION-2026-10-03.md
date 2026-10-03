@@ -9,13 +9,13 @@ git log --oneline main..feature/fundacion     # 36 commits pequeños y separable
 git diff --stat main..feature/fundacion
 cd 003 && npx -y pnpm@11.21.0 install
 npx -y pnpm@11.21.0 typecheck
-npx -y pnpm@11.21.0 --filter @003/shared --filter @003/server test      # 471 en SQLite
+npx -y pnpm@11.21.0 --filter @003/shared --filter @003/server test      # 476 en SQLite
 docker run -d --name nodo-pg -e POSTGRES_PASSWORD=nodo -e POSTGRES_DB=nodo_test -p 5433:5432 postgres:16-alpine
-NODO_PG_URL=postgres://postgres:nodo@127.0.0.1:5433/nodo_test npx -y pnpm@11.21.0 --filter @003/server test   # 472
+NODO_PG_URL=postgres://postgres:nodo@127.0.0.1:5433/nodo_test npx -y pnpm@11.21.0 --filter @003/server test   # 477
 CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" npx -y pnpm@11.21.0 --filter @003/e2e test   # 111 e2e
 ```
 
-Resultado final de la sesión: **typecheck limpio; 471 pruebas de servidor en SQLite y 472 en PostgreSQL; 111 e2e; 4 pruebas del empaquetado; `pnpm audit` y `npm audit` en cero.**
+Resultado final de la sesión: **typecheck limpio; 476 pruebas de servidor en SQLite y 477 en PostgreSQL; 111 e2e; 4 pruebas del empaquetado; `pnpm audit` y `npm audit` en cero.**
 
 ## Qué se hizo (por plan)
 
@@ -48,7 +48,7 @@ Resultado final de la sesión: **typecheck limpio; 471 pruebas de servidor en SQ
 - 🔴 **Desplegar el HQ en Railway** (guía en `deploy/HQ-RAILWAY.md`) y probar el recorrido contra esa URL.
 - 🟠 **D11:** HTTPS local o app envoltorio para que una tablet pueda *recargar* sin red (hoy solo funciona con la página ya abierta).
 - 🟠 **Firma de código** del instalador (certificado) para evitar la advertencia de Windows.
-- 🟡 Modelo comercial (suscripción o pago único), PIN de 6 dígitos para gerentes, impresora del primer local, prueba de penetración externa antes del primer cliente.
+- 🟡 PIN de 6 dígitos para gerentes, impresora del primer local, prueba de penetración externa antes del primer cliente.
 
 ## Qué probar tú en pantalla
 
@@ -67,3 +67,6 @@ Resultado final de la sesión: **typecheck limpio; 471 pruebas de servidor en SQ
 - `fast-jwt` tenía **avisos críticos de evasión de autenticación**: actualizado.
 - Las e2e son sensibles a la carga de la máquina (Chrome sin cabeza a ~8 cuadros/s): dos pruebas fallaron una vez con la máquina saturada y pasaron al repetirlas solas.
 - Las **tablets baratas** correrán a pocos cuadros por segundo: la app ahora no pinta listas sin medirlas (parpadeo corregido) y habrá que medir en hardware real.
+
+## Actualización posterior (mismo día): modelo comercial
+El dueño definió **suscripción anual**. Se ajustó la licencia: vence en `paid_until` (la fecha pagada), gracia de **15 días** (antes 7), y revocación explícita si Nodo desactiva la organización. Detalle en `docs/deploy/LICENCIAS.md`.

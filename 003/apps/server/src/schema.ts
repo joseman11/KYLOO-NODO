@@ -797,4 +797,12 @@ ALTER TABLE printers ADD COLUMN has_drawer INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE printers ADD COLUMN drawer_pin INTEGER NOT NULL DEFAULT 0 CHECK (drawer_pin IN (0,1));
 `,
   },
+  {
+    id: 14,
+    name: "suscripcion_anual",
+    sql: `
+-- Suscripción anual: hasta cuándo está pagada la organización (la licencia de sus sucursales vence ese día)
+ALTER TABLE hq_orgs ADD COLUMN paid_until INTEGER;
+`,
+  },
 ];
