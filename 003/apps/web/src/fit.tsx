@@ -7,6 +7,13 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 const PAGER_H = 56;
 
+/**
+ * Hasta que el navegador mide el contenedor (primer cuadro) el tamaño es 0×0 y la paginación calcularía
+ * «una fila por página»: se veía un parpadeo con páginas de más, muy visible en tablets lentas (a 8 cuadros
+ * por segundo duraba más de 400 ms y hacía fallar las pruebas). Mientras no hay medida solo se pinta el contenedor.
+ */
+const unmeasured = (s: { w: number; h: number }) => s.h <= 0;
+
 export function useSize<T extends HTMLElement>() {
   const ref = useRef<T>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
@@ -52,6 +59,7 @@ export function PagedGrid<T>({ items, minW, minH, gap = 12, render, empty }: {
   const paged = items.length > cols * rows;
   if (paged) ({ cols, rows } = fit(h - PAGER_H));
   const { page, pages, setPage, slice } = usePaging(items, cols * rows);
+  if (unmeasured({ w, h })) return <div ref={ref} className="fill" />;
   const gridH = paged ? h - PAGER_H : h;
   const used = Math.max(1, Math.ceil(slice.length / cols));
 
@@ -75,11 +83,12 @@ export function PagedGrid<T>({ items, minW, minH, gap = 12, render, empty }: {
 export function PagedRows<T>({ items, rowH = 48, head, row, empty, fixed }: {
   items: T[]; rowH?: number; head?: ReactNode; row: (item: T) => ReactNode; empty?: ReactNode; fixed?: boolean;
 }) {
-  const [ref, { h }] = useSize<HTMLDivElement>();
+  const [ref, { w, h }] = useSize<HTMLDivElement>();
   const headH = head ? 40 : 0;
   const fits = (hh: number) => Math.max(1, Math.floor((hh - headH) / rowH));
   const paged = items.length > fits(h);
   const { page, pages, setPage, slice } = usePaging(items, fits(paged ? h - PAGER_H : h));
+  if (unmeasured({ w, h })) return <div ref={ref} className="fill" />;
   return (
     <div ref={ref} className="fill">
       {items.length === 0 ? (
@@ -125,6 +134,7 @@ export function PagedColumns<T>({ items, colMinW, est, gap = 12, render, empty }
   if (paged) pages = pack(h - PAGER_H);
   const [page, setPage] = useState(0);
   const p = Math.min(page, pages.length - 1);
+  if (unmeasured({ w, h })) return <div ref={ref} className="fill" />;
 
   return (
     <div ref={ref} className="fill">
