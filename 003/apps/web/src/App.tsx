@@ -317,6 +317,8 @@ function Staff() {
               type="button"
               className={`rail-btn ${activeTab === t.id ? "active" : ""}`}
               aria-current={activeTab === t.id ? "page" : undefined}
+              aria-label={t.title}
+              title={t.title}
               onClick={() => {
                 setTab(t.id);
                 setAccountId(null);

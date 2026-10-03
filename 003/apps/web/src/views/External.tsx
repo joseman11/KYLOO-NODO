@@ -1,3 +1,4 @@
+import { Hint, StatusChip, type Tone } from "../ui";
 import { useState } from "react";
 import { backdrop } from "../sheet";
 import { api, money, useLive } from "../api";
@@ -17,6 +18,15 @@ interface Row {
   account_status: string;
   opened_at: number;
 }
+
+/** Estado del pedido con palabra, tono e icono (nunca el texto interno «en_camino»). */
+const STATUS_TONE: Record<string, { tone: Tone; icon: string; text: string }> = {
+  recibido: { tone: "info", icon: "ocupada", text: "Recibido" },
+  preparando: { tone: "info", icon: "ocupada", text: "Preparando" },
+  listo: { tone: "ok", icon: "check", text: "Listo" },
+  en_camino: { tone: "warn", icon: "llevar", text: "En camino" },
+  entregado: { tone: "ok", icon: "check", text: "Entregado" },
+};
 
 const NEXT: Record<string, { to: string; label: string }[]> = {
   recibido: [{ to: "listo", label: "Marcar listo" }],
@@ -49,8 +59,11 @@ export function External({ onOpen }: { onOpen: (accountId: string) => void }) {
 
   return (
     <div className="view">
-      <div className="row spread" style={{ flex: "none" }}>
-        <h2>Para llevar y delivery</h2>
+      <Hint id="llevar">
+        Cada pedido avanza con el botón verde: <strong>Marcar listo</strong>, luego{" "}
+        <strong>Sale a reparto</strong> o <strong>Entregado</strong>.
+      </Hint>
+      <div className="row" style={{ flex: "none", justifyContent: "flex-end" }}>
         <button type="button" className="btn primary" onClick={() => setCreating(true)}>
           Nuevo pedido
         </button>
@@ -72,7 +85,12 @@ export function External({ onOpen }: { onOpen: (accountId: string) => void }) {
           >
             <div className="row spread">
               <span className="n">{r.label}</span>
-              <span className="tag">{r.status}</span>
+              <StatusChip
+                tone={STATUS_TONE[r.status]?.tone ?? "mute"}
+                icon={STATUS_TONE[r.status]?.icon}
+              >
+                {STATUS_TONE[r.status]?.text ?? r.status}
+              </StatusChip>
             </div>
             <div style={{ minWidth: 0 }}>
               <div className="ellipsis">
@@ -87,15 +105,15 @@ export function External({ onOpen }: { onOpen: (accountId: string) => void }) {
             </div>
             <div className="row wrap">
               {r.account_status !== "cerrada" && (
-                <button type="button" className="btn sm" onClick={() => onOpen(r.id)}>
-                  Pedido
+                <button type="button" className="btn sm ghost" onClick={() => onOpen(r.id)}>
+                  Ver pedido
                 </button>
               )}
               {NEXT[r.status]?.map((n) => (
                 <button
                   type="button"
                   key={n.to}
-                  className="btn sm"
+                  className="btn sm ok"
                   onClick={() => (n.to === "en_camino" ? setDriverFor(r) : move(r, n.to))}
                 >
                   {n.label}

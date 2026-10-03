@@ -14,6 +14,7 @@
 | [`docs/PLAN-02-EMPAQUETADO-E-INSTALACION.md`](docs/PLAN-02-EMPAQUETADO-E-INSTALACION.md) | **Etapa abierta** (2026-10-03), sesión autónoma | Antes de tocar el arranque del servidor, la base local o el instalador. |
 | [`docs/deploy/INSTALACION.md`](docs/deploy/INSTALACION.md) | Vivo | Cómo se instala, actualiza y desinstala Nodo; cómo construir el paquete. |
 | [`docs/AUDITORIA-SEGURIDAD-2026-10-03.md`](docs/AUDITORIA-SEGURIDAD-2026-10-03.md) | **Cerrada** (2026-10-03) | Antes de tocar acceso, sesiones, cabeceras o errores; lista lo que sigue abierto. |
+| [`docs/PLAN-08-REDISENO-UX.md`](docs/PLAN-08-REDISENO-UX.md) · [`docs/DESIGN.md`](docs/DESIGN.md) | **Cerrado** (2026-10-03) | **Antes de tocar cualquier pantalla**: reglas de color, estados, tamaños y borrados. |
 | [`docs/PLAN-07-SERVIDOR-DE-RESERVA.md`](docs/PLAN-07-SERVIDOR-DE-RESERVA.md) · [`docs/deploy/RESERVA.md`](docs/deploy/RESERVA.md) | **Cerrado** (2026-10-03) | Antes de tocar `standby*.ts`, el arranque (`main.ts`) o el cambio de servidor de las tablets. |
 | [`docs/PLAN-06-APP-ENVOLTORIO.md`](docs/PLAN-06-APP-ENVOLTORIO.md) · [`docs/deploy/APP-TABLET.md`](docs/deploy/APP-TABLET.md) | **Cerrado** (2026-10-03) | Antes de tocar `apps/mobile`, CORS o cualquier llamada de la interfaz al servidor. |
 | [`docs/PLAN-05-IMPRESION-Y-RED-LOCAL.md`](docs/PLAN-05-IMPRESION-Y-RED-LOCAL.md) · [`docs/deploy/RED-LOCAL.md`](docs/deploy/RED-LOCAL.md) | **Cerrado** (2026-10-03) | Antes de tocar impresión, cajón, el cliente sin conexión o cómo se conectan las tablets. |
@@ -24,7 +25,6 @@
 | [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md) | Vivo | Antes de proponer algo: qué existe, qué mide, qué está roto, qué deuda hay. |
 | [`STRUCTURE.md`](STRUCTURE.md) | Vivo | **Antes de crear un archivo nuevo.** |
 | [`docs/README.md`](docs/README.md) | Vivo | Índice de `docs/` y reglas de uso. |
-| [`docs/DESIGN.md`](docs/DESIGN.md) | Vigente (sistema visual de Nodo) | Antes de tocar cualquier pantalla de la app. |
 | [`docs/DESIGN-reference-brex.md`](docs/DESIGN-reference-brex.md) | Referencia externa | Solo para entender de dónde viene `DESIGN.md`. No es fuente de verdad. |
 | [`docs/INVESTIGACION-COMANDEROS.md`](docs/INVESTIGACION-COMANDEROS.md) | Investigación (2026-10-01) | Antes de decidir una función nueva de producto o de pantalla. |
 | [`docs/PLAN-FASE1.md`](docs/PLAN-FASE1.md) · [`PLAN-FASE2.md`](docs/PLAN-FASE2.md) · [`PLAN-FASE3.md`](docs/PLAN-FASE3.md) | **Cerrados** (históricos, anteriores al método) | Para saber por qué se decidió algo. No son fuente de verdad del estado: gana `ESTADO-ACTUAL.md`. |
@@ -72,10 +72,12 @@
 26. ⚠️ **La clave del APK (`~/.nodo-keys/android/`) no se pierde ni se cambia**: Android solo actualiza con la misma firma. Copia fuera de línea obligatoria.
 27. ⚠️ **Ventanas modales con `backdrop()`** (`web/src/sheet.ts`): cierra con clic en el fondo o Escape comprobando `e.target`; no volver a `onClick` + `stopPropagation` en la ventana. Todo `<button>` lleva `type` (los de formulario, `submit`).
 28. 🔴 **`biome check --write --unsafe` rompe comportamiento sin avisar**: cambió `[urls.join("|")]` por `[urls.map]` (el QR dejó de generarse), `useEffect(…, [])` por `[load]` (efectos que se repiten) y quitó `autoFocus`. Nunca `--unsafe` en masa; revisar el diff (las e2e lo atraparon). `noAutofocus` está apagada a propósito: en un comandero el campo de la ventana debe tomar el foco.
+29. ⚠️ **Estados y borrados con los componentes de `web/src/ui.tsx`**: un estado se muestra con `StatusChip` (icono + palabra, nunca solo color ni el texto interno `en_camino`), una ayuda con `Hint`, y borrar con `DeleteButton` (confirma y nombra qué se borra). Prohibido `prompt()`/`confirm()`/`alert()` y naranja fuera de la acción principal. `e2e/tests/accesibilidad.test.ts` (axe) debe seguir con cero hallazgos serios.
+30. ⚠️ **Los tamaños de la v2 son estrechos a propósito en 768–1024 px**: `sin-scroll` falla si una fila o la cabecera se pasan unos píxeles; ajustar espacios en `@media (max-width: 900px)` antes que quitar contenido.
 
 ## Estado
 
-Ver [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md). Resumen al 2026-10-03 (rama `feature/fundacion`, sin integrar en `main`): typecheck limpio; 460 pruebas de servidor en SQLite y 461 en PostgreSQL; 110 e2e; `nube-web` integrada; planes 01 a 07 cerrados.
+Ver [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md). Resumen al 2026-10-03 (rama `feature/fundacion`, sin integrar en `main`): typecheck limpio; 460 pruebas de servidor en SQLite y 461 en PostgreSQL; 110 e2e; `nube-web` integrada; planes 01 a 08 cerrados.
 
 Puertos: servidor de Nodo `3003` (por defecto), HQ `3004`, demo de marisquería `3005`/`3006` (convención de los videos), landing `3000`, e2e de landing `3047`.
 

@@ -1,3 +1,4 @@
+import { DeleteButton } from "../ui";
 import { useEffect, useState } from "react";
 import { backdrop } from "../sheet";
 import QRCode from "qrcode";
@@ -119,17 +120,14 @@ export function Promotions() {
                   >
                     {p.active ? "Activa" : "Pausada"}
                   </button>
-                  <button
-                    type="button"
-                    className="btn ghost sm"
-                    onClick={() =>
+                  <DeleteButton
+                    what={`la promoción «${p.name}»`}
+                    onConfirm={() =>
                       api(`/api/promotions/${p.id}`, { method: "DELETE" }).then(() =>
                         promos.reload(),
                       )
                     }
-                  >
-                    Eliminar
-                  </button>
+                  />
                 </div>
               </div>
             </td>

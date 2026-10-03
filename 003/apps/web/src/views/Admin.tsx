@@ -106,7 +106,7 @@ export function Admin() {
               )
             }
           >
-            Backup ahora
+            Respaldar ahora
           </button>
         )}
       </div>

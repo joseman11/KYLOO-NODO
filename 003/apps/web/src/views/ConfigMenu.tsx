@@ -198,19 +198,18 @@ export function Areas() {
             {area && <div className="small ellipsis">de {area.name}</div>}
           </div>
           {area && (
-            <button
-              type="button"
-              className="btn ghost sm"
-              onClick={() =>
+            <DeleteButton
+              what={`el área «${area.name}»`}
+              iconOnly={false}
+              detail="También se quitan las estaciones de esta área."
+              onConfirm={() =>
                 api(`/api/areas/${area.id}`, { method: "DELETE" }).then(() => {
                   setAreaId(null);
                   venue.reload();
                   setErr(null);
                 }, fail)
               }
-            >
-              Eliminar área
-            </button>
+            />
           )}
         </div>
         <PagedRows

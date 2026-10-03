@@ -15,6 +15,7 @@ Aquí vive **toda la documentación persistente** de KYLOO-NODO. Lo que no está
 | [`PLAN-03-LICENCIAS-Y-ACTIVACION.md`](PLAN-03-LICENCIAS-Y-ACTIVACION.md) | Licencias atadas al equipo y activación por código | **Cerrado** (2026-10-03) |
 | [`PLAN-04-RESPALDO-EN-NUBE.md`](PLAN-04-RESPALDO-EN-NUBE.md) | Respaldo cifrado en la nube, restauración y HQ en Railway | **Cerrado** (2026-10-03) |
 | [`PLAN-06-APP-ENVOLTORIO.md`](PLAN-06-APP-ENVOLTORIO.md) | App envoltorio para tablets Android | **Cerrado** (2026-10-03) |
+| [`PLAN-08-REDISENO-UX.md`](PLAN-08-REDISENO-UX.md) | Rediseño UX/UI: estados claros, ayuda en pantalla, borrados confirmados, accesibilidad medida | **Cerrado** (2026-10-03) |
 | [`PLAN-07-SERVIDOR-DE-RESERVA.md`](PLAN-07-SERVIDOR-DE-RESERVA.md) | Servidor de reserva: copia del principal y promoción manual | **Cerrado** (2026-10-03) |
 | [`PLAN-05-IMPRESION-Y-RED-LOCAL.md`](PLAN-05-IMPRESION-Y-RED-LOCAL.md) | Impresión (cajón, descubrimiento), conexión de tablets y cliente sin conexión | **Cerrado** (2026-10-03) |
 | [`deploy/INSTALACION.md`](deploy/INSTALACION.md) | Cómo se instala, actualiza y desinstala Nodo en un local | Vivo |

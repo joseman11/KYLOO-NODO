@@ -27,14 +27,20 @@ const LABEL: Record<string, string> = {
   cancelada: "Cancelada",
   no_se_presento: "No se presentó",
 };
-const time = (ts: number) =>
-  new Date(ts).toLocaleString("es-MX", {
-    weekday: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+const hourOf = (ts: number) =>
+  new Date(ts).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false });
+const dayOf = (ts: number) => {
+  const d = new Date(ts);
+  const today = new Date();
+  const diff = Math.round(
+    (new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() -
+      new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) /
+      86_400_000,
+  );
+  if (diff === 0) return "Hoy";
+  if (diff === 1) return "Mañana";
+  return d.toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" });
+};
 const local = (ts: number) => {
   const d = new Date(ts - new Date().getTimezoneOffset() * 60000);
   return d.toISOString().slice(0, 16);
@@ -88,10 +94,10 @@ function Bookings({ onSeat }: { onSeat: (accountId: string) => void }) {
           fixed
           head={
             <tr>
-              <th style={{ width: 92 }}>Hora</th>
+              <th style={{ width: 128 }}>Cuándo</th>
               <th>Nombre</th>
-              <th className="r" style={{ width: 54 }}>
-                Pers.
+              <th className="r" style={{ width: 84 }}>
+                Personas
               </th>
               <th style={{ width: 58 }}>Mesa</th>
               <th style={{ width: 196 }} />
@@ -99,7 +105,10 @@ function Bookings({ onSeat }: { onSeat: (accountId: string) => void }) {
           }
           row={(r) => (
             <>
-              <td className="num ellipsis">{time(r.at)}</td>
+              <td className="num">
+                <strong>{hourOf(r.at)}</strong>
+                <div className="small">{dayOf(r.at)}</div>
+              </td>
               <td className="ellipsis">
                 <div className="ellipsis" style={{ fontWeight: 600 }}>
                   {r.name}
@@ -120,7 +129,7 @@ function Bookings({ onSeat }: { onSeat: (accountId: string) => void }) {
                     <>
                       <button
                         type="button"
-                        className="btn primary sm"
+                        className="btn ok sm"
                         style={{ minHeight: 40 }}
                         onClick={() =>
                           api<{ accountId: string }>(`/api/reservations/${r.id}/seat`, {

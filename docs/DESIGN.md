@@ -54,6 +54,9 @@ Neutros: `--color-ink` (texto), `--color-graphite` (secundario, 6,6:1 sobre gris
 - Foco visible azul (`--focus`) en todo; nombres accesibles en botones de icono; `prefers-reduced-motion` respetado.
 - Contraste de texto ≥ 4,5:1 (3:1 en texto grande).
 
+## 6b. Tamaños de pantalla
+Destino: tabletas (≥ 768 px de ancho, desde 1024×600 económica) y PC. Menú con etiquetas hasta 560 px; bajo 700 px de alto el menú se compacta. Teléfonos: no es un destino de diseño.
+
 ## 7. Lo que NO se hace
 - No usar naranja para estados, bordes o decoración.
 - No mostrar un estado solo con color, ni solo con icono.

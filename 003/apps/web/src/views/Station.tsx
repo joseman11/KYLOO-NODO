@@ -69,10 +69,10 @@ export function Station() {
   }, []);
 
   // Sin estación elegida (o si la guardada ya no existe) se entra a la primera: nadie debe empezar con una pantalla vacía
+  // biome-ignore lint/correctness/useExhaustiveDependencies: solo al cargar la lista de estaciones
   useEffect(() => {
     const list = stations.data;
     if (list?.length && !list.some((s) => s.id === stationId)) choose(list[0]!.id);
-    // biome-ignore lint/correctness/useExhaustiveDependencies: solo al cargar la lista de estaciones
   }, [stations.data]);
 
   const choose = (id: string) => {
@@ -247,7 +247,6 @@ function SoldOutSheet({ onClose }: { onClose: () => void }) {
             Cerrar
           </button>
         </div>
-        {/* biome-ignore lint/a11y/noAutofocus: la búsqueda es lo primero que se usa */}
         <input
           autoFocus
           placeholder="Buscar producto…"

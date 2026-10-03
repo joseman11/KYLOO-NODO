@@ -1,6 +1,6 @@
 # Plan 08 — Rediseño de experiencia de uso (UX/UI)
 
-> **Etapa abierta** (2026-10-03, rama `feature/fundacion`). Pedido del dueño: «un rediseño a todo el sistema para cumplir estándares estrictos de UX/UI, a modo de que el sistema sea extremadamente cómodo de usar por los empleados, sin capacitación excesiva, y además se vea bonito y pulido.»
+> **Etapa cerrada** (2026-10-03, rama `feature/fundacion`). Pedido del dueño: «un rediseño a todo el sistema para cumplir estándares estrictos de UX/UI, a modo de que el sistema sea extremadamente cómodo de usar por los empleados, sin capacitación excesiva, y además se vea bonito y pulido.»
 >
 > Sistema visual vigente: [`DESIGN.md`](DESIGN.md) (se reescribe aquí a la v2). Las e2e son la red de seguridad: ningún cambio de UX se acepta con la suite en rojo.
 
@@ -31,14 +31,20 @@
 9. **Accesibilidad verificable:** contraste AA, foco visible, nombres accesibles, `aria-live` en avisos, `prefers-reduced-motion`; se mide con `axe-core` en una e2e.
 
 ## 3. Orden
-- [ ] **F8.1 — Sistema v2:** tokens semánticos, tipografía, botones, chips de estado, foco, movimiento (`styles.css`, `DESIGN.md`).
-- [ ] **F8.2 — Componentes compartidos:** `StatusChip`, `Hint`, confirmación de borrado, iconos de estado.
-- [ ] **F8.3 — Navegación y marco:** pestaña inicial por rol, títulos completos, menú lateral legible y agrupado, sin títulos duplicados.
-- [ ] **F8.4 — Mesas y Pase:** tarjetas con estado claro, panel «Listos», Pase sin redundancia.
-- [ ] **F8.5 — Cuenta y cobro:** jerarquía de acciones, estado por renglón, cobro guiado.
-- [ ] **F8.6 — Cocina, Caja, Inventario, Configuración:** mismos patrones; borrados con confirmación.
-- [ ] **F8.7 — Verificación:** capturas antes/después en 1280×800, 1024×600 y 820×1180; `axe-core`; e2e completas; `sin-scroll`.
-- [ ] **F8.8 — Cierre.**
+- [x] **F8.1 — Sistema v2:** tokens semánticos, tipografía, botones, chips de estado, foco, movimiento (`styles.css`, `DESIGN.md`).
+- [x] **F8.2 — Componentes compartidos:** `StatusChip`, `Hint`, confirmación de borrado, iconos de estado.
+- [x] **F8.3 — Navegación y marco:** pestaña inicial por rol, títulos completos, menú lateral legible y agrupado, sin títulos duplicados.
+- [x] **F8.4 — Mesas y Pase:** tarjetas con estado claro, panel «Listos», Pase sin redundancia.
+- [x] **F8.5 — Cuenta y cobro:** jerarquía de acciones, estado por renglón, cobro guiado.
+- [x] **F8.6 — Cocina, Caja, Inventario, Configuración:** mismos patrones; borrados con confirmación.
+- [x] **F8.7 — Verificación:** capturas antes/después en 1280×800, 1024×600 y 820×1180; `axe-core`; e2e completas; `sin-scroll`.
+- [x] **F8.8 — Cierre.**
 
 ## 4. Registro
 - **2026-10-03** — Apertura: auditoría con capturas de la demo (Mesas, cuenta, Caja, Pase, Configuración, ingreso).
+- **2026-10-03 (cierre)** — Rediseño aplicado a todos los módulos.
+  - **Hecho:** sistema v2 (`DESIGN.md`), `StatusChip`/`Hint`/`DeleteButton`, menú lateral agrupado con etiquetas hasta 560 px, mesas/Pase/Caja/Llevar/Cocina/Inventario/Reservas con estado por icono + palabra, cuenta con acciones por jerarquía, 13 borrados con confirmación, cocina sin `prompt()`, entrada por rol, títulos completos.
+  - **Medido:** `axe-core` (WCAG 2.1 AA) con cero hallazgos serios en 9 pantallas (único hallazgo inicial: enlace enfocable dentro de `aria-hidden` en el acceso, corregido); `sin-scroll` en 5 tamaños (de 1024×600 a 800×1100); e2e 129/129.
+  - **Salió por el camino:** (a) el menú con etiquetas de 13 px no cabía en 1024×600 con 11 módulos: variante compacta bajo 700 px de alto; (b) la «papelera» de las tablas es de 32 px de ancho (excepción documentada) para que quepan las filas en 768–1024 px; (c) tres pruebas dependían de textos de la v1 («T3» a secas, `.status-bar strong`).
+  - **No cubierto (decisión):** teléfonos (< 560 px) no son un destino de diseño: el comandero está pensado para tableta y PC; la guía y los chips se ven, pero la cuenta no se reorganiza.
+  - **Pendiente:** prueba con meseros reales (el criterio «sin capacitación» solo se confirma observando a alguien nuevo: 5 minutos, sin explicarle nada, desde «abrir una mesa» hasta «cobrar»); fotos reales de productos (hoy placeholders).

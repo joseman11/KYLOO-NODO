@@ -1,3 +1,4 @@
+import { DeleteButton } from "../ui";
 import { useEffect, useState } from "react";
 import { backdrop } from "../sheet";
 import { api, useLive } from "../api";
@@ -189,18 +190,16 @@ export function Integrations() {
                     {h.failed ? ` · ${h.failed} con error` : ""}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="btn ghost sm"
-                  onClick={() =>
+                <DeleteButton
+                  what={`el destino ${h.url}`}
+                  iconOnly={false}
+                  onConfirm={() =>
                     api(`/api/webhooks/${h.id}`, { method: "DELETE" }).then(
                       () => hooks.reload(),
                       fail,
                     )
                   }
-                >
-                  Eliminar
-                </button>
+                />
               </div>
             </td>
           )}

@@ -1,3 +1,4 @@
+import { DeleteButton } from "../ui";
 import { useEffect, useState } from "react";
 import { backdrop } from "../sheet";
 import { api, useLive } from "../api";
@@ -171,15 +172,14 @@ export function Config() {
                       >
                         Probar
                       </button>
-                      <button
-                        type="button"
-                        className="btn ghost sm"
-                        onClick={() =>
+                      <DeleteButton
+                        what={`la impresora «${p.name}»`}
+                        iconOnly={false}
+                        detail="Las estaciones que la usan se quedan sin impresora."
+                        onConfirm={() =>
                           run(api(`/api/printers/${p.id}`, { method: "DELETE" }), printers.reload)
                         }
-                      >
-                        Eliminar
-                      </button>
+                      />
                     </div>
                   </div>
                 </td>

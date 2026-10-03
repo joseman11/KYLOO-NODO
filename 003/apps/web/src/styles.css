@@ -594,7 +594,44 @@ input[type="checkbox"] {
     height: 20px;
   }
 }
+/* Tabletas pequeñas: el menú se angosta pero conserva sus etiquetas (un icono solo no se entiende) */
 @media (max-width: 900px) {
+  .rail {
+    width: 72px;
+    padding: 10px 4px;
+  }
+  .rail-btn {
+    font-size: 12px;
+  }
+  .status-bar {
+    gap: 8px;
+  }
+  .status-bar .page-title {
+    font-size: 22px;
+  }
+  .user-chip small {
+    display: none;
+  }
+  .clock-btn {
+    padding: 0 10px;
+    font-size: 13px;
+  }
+  .btn.sm {
+    padding: 4px 10px;
+  }
+  .card.fillcard {
+    padding: 12px;
+  }
+  .user-chip {
+    max-width: 150px;
+  }
+  .user-chip .who2 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+@media (max-width: 560px) {
   .rail {
     width: 64px;
   }
