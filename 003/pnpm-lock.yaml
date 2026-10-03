@@ -13,6 +13,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.4
+      fastify:
+        specifier: ^5.0.0
+        version: 5.12.5
       puppeteer-core:
         specifier: ^24.0.0
         version: 24.43.1

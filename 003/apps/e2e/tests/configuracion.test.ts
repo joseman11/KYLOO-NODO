@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { placeholderPng } from "../../server/src/demo-png";
-import { type Browser, type Nodo, type Page, adminSession, firstPage, hasText, launch, newPage, pagedHasText, rectOf, rowButton, sessionFor, sleep, startNodo, tap, until, waitText } from "./harness";
+import { type Browser, type Nodo, type Page, adminSession, firstPage, hasText, launch, newPage, pagedHasText, rectOf, rowButton, sessionFor, settle, sleep, startNodo, tap, until, waitText } from "./harness";
 
 /** Configuración de punta a punta: equipo con fotos, menú, áreas y vista previa del ticket. */
 let nodo: Nodo;
@@ -23,7 +23,7 @@ const one = async <T>(sql: string, ...a: unknown[]) => await nodo.db.prepare(sql
 const goConfig = async (p: Page, tab: string) => {
   await tap(p, "Config", ".rail-btn");
   await tap(p, tab, ".view > .row.wrap > .chip");
-  await sleep(300);
+  await settle(p);
 };
 
 let admin: Awaited<ReturnType<typeof newPage>>;

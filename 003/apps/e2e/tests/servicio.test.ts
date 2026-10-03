@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Browser, type Nodo, type Page, hasText, launch, newPage, rectOf, sessionFor, sleep, startNodo, tap, until, waitText } from "./harness";
+import { type Browser, type Nodo, type Page, hasText, launch, newPage, rectOf, sessionFor, sleep, startNodo, tap, until, waitText, selectAll } from "./harness";
 
 /**
  * Servicio completo a través de la interfaz, con clics reales:
@@ -173,7 +173,7 @@ describe("4 · la caja cobra", () => {
     await until(async () => (await p.$(".sheet")) || null, "ventana de cobro");
     expect(await hasText(p, "Cuenta completa")).toBe(true);
     await tap(p, "Monto", "input");
-    await p.keyboard.down("Control"); await p.keyboard.press("KeyA"); await p.keyboard.up("Control");
+    await selectAll(p);
     await p.keyboard.type("2000", { delay: 30 });
     await sleep(300);
     expect(await hasText(p, "Cobrar $1,035.00")).toBe(true);

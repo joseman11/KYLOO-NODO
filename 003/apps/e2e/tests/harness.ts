@@ -17,7 +17,7 @@ import type { PrinterTarget, PrinterTransport } from "../../server/src/printing/
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 export const WEB_DIST = resolve(HERE, "../../web/dist");
 
-export const CHROME = process.env.CHROME_PATH ?? ["C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", "/usr/bin/google-chrome", "/usr/bin/chromium"].find((p) => existsSync(p));
+export const CHROME = process.env.CHROME_PATH ?? ["C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/usr/bin/google-chrome", "/usr/bin/chromium"].find((p) => existsSync(p));
 
 export class FakeTransport implements PrinterTransport {
   sent: { host: string | null; text: string }[] = [];
@@ -93,6 +93,26 @@ export async function tap(page: Page, text: string, sel?: string, timeout = 12_0
   return r;
 }
 
+/**
+ * Selecciona todo el texto del campo enfocado. No se usa el atajo de teclado: en macOS Ctrl+A solo mueve el cursor
+ * y Cmd+A no lo dispara Puppeteer sin comandos nativos, así que lo escrito después se anexaba («1035.002000»).
+ */
+export async function selectAll(page: Page) {
+  await page.evaluate(() => (document.activeElement as HTMLInputElement | null)?.select?.());
+}
+
+/** Espera a que la pantalla deje de cambiar (texto idéntico en tres lecturas seguidas); útil con equipos lentos. */
+export async function settle(page: Page, timeout = 12_000) {
+  let prev = "", same = 0;
+  await until(async () => {
+    const now = await bodyText(page);
+    same = now === prev ? same + 1 : 0;
+    prev = now;
+    await sleep(150);
+    return same >= 3 || null;
+  }, "que la pantalla se estabilice", timeout);
+}
+
 export const bodyText = (page: Page) => page.evaluate(() => document.body.innerText);
 export const hasText = async (page: Page, text: string) => (await bodyText(page)).includes(text);
 export const waitText = (page: Page, text: string, timeout = 12_000) => until(async () => (await hasText(page, text)) || null, `texto «${text}»`, timeout);
@@ -156,6 +176,7 @@ export type { Page, Browser };
 
 /** ¿Aparece el texto en alguna página del paginador de la pantalla actual? (recorre las páginas con «›»). */
 export async function pagedHasText(page: Page, text: string, maxPages = 12): Promise<boolean> {
+  await settle(page);
   for (let i = 0; i < maxPages; i++) {
     if (await hasText(page, text)) return true;
     const next = await rectOf(page, "›", ".view .pager button, .sheet .pager button");
