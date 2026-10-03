@@ -1,0 +1,17 @@
+{
+  "name": "kyloo-nodo",
+  "private": true,
+  "description": "Herramientas del repositorio (formato, lint, commits). El software vive en 003/ y la landing en landing/.",
+  "scripts": {
+    "format": "biome format --write 003 landing",
+    "lint": "biome check 003 landing",
+    "lint:fix": "biome check --write 003 landing",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.0",
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
+    "husky": "^9.0.0"
+  }
+}

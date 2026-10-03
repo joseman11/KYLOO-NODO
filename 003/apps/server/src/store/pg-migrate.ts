@@ -17,7 +17,10 @@ interface MasterRow { type: string; name: string; tbl_name: string; sql: string 
 const baselineCache = new Map<number, ReturnType<typeof computeFinalSchema>>();
 function sqliteFinalSchema(upTo: number) {
   let p = baselineCache.get(upTo);
-  if (!p) baselineCache.set(upTo, (p = computeFinalSchema(upTo)));
+  if (!p) {
+    p = computeFinalSchema(upTo);
+    baselineCache.set(upTo, p);
+  }
   return p;
 }
 

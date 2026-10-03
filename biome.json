@@ -1,0 +1,109 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.0.0/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/.next",
+      "!landing/public",
+      "!landing/video-src/film/states.js",
+      "!landing/video-src/film/app",
+      "!landing/video-src/preview",
+      "!**/pnpm-lock.yaml",
+      "!**/package-lock.json"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "style": {
+        "noNonNullAssertion": "off",
+        "useTemplate": "off",
+        "noDescendingSpecificity": "off",
+        "useExponentiationOperator": "off"
+      },
+      "complexity": {
+        "noImportantStyles": "off"
+      },
+      "suspicious": {
+        "noExplicitAny": "warn",
+        "noArrayIndexKey": "warn",
+        "useIterableCallbackReturn": "warn"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "warn"
+      },
+      "a11y": {
+        "useButtonType": "warn",
+        "noStaticElementInteractions": "warn",
+        "useKeyWithClickEvents": "warn",
+        "noAutofocus": "warn",
+        "noLabelWithoutControl": "warn",
+        "useSemanticElements": "warn",
+        "noSvgWithoutTitle": "warn",
+        "useAriaPropsSupportedByRole": "warn"
+      },
+      "performance": {
+        "noImgElement": "off"
+      }
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "off"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "003/apps/server/src/printing/markup.ts"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noControlCharactersInRegex": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "003/apps/web/src/WaveCanvas.tsx",
+        "landing/components/HalftoneWaves.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useHookAtTopLevel": "off"
+          },
+          "a11y": {
+            "noAriaHiddenOnFocusable": "off"
+          }
+        }
+      }
+    }
+  ]
+}
