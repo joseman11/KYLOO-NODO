@@ -43,7 +43,7 @@ El menú se guarda en la tablet al entrar y cada vez que vuelve la conexión.
 ## Qué falta (honesto)
 
 - 🔴 **Probar con equipo real:** una impresora térmica de red, un cajón de monedero y una tablet barata (rendimiento a pocos cuadros por segundo, táctil, WiFi que parpadea).
-- 🔴 **Recargar sin red:** una tablet que *recarga* la página sin conexión no puede abrirla (el *service worker* solo se activa con HTTPS y la red local es `http://`). Con la página ya abierta, todo lo anterior funciona. Solución pendiente (D11): HTTPS local con una autoridad propia o una app envoltorio (Capacitor/Tauri) en la tablet.
+- ✅ **Recargar sin red:** resuelto con la **app de tablet** (`APP-TABLET.md`): la interfaz va dentro de la app y abre siempre. En un navegador normal sobre `http://` sigue sin poder recargarse sin red.
 - 🟠 **Servidor caído:** hay reinicio automático (servicio de Windows), pero no hay servidor de reserva ni aviso en pantalla de «servidor caído» más allá del indicador de conexión (D12).
 - 🟡 Pin 5 del cajón y «copias» por impresora no tienen pantalla; el escaneo solo recorre redes /24.
 - 🟡 La cola del cliente usa `localStorage` (≈ 5 MB): sobra para una noche de comandas, pero un día entero sin red con cientos de operaciones merece IndexedDB.

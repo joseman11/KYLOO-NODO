@@ -1,0 +1,19 @@
+{
+  "name": "@003/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "App envoltorio de Nodo para tablets Android (Capacitor): lleva la interfaz dentro y habla con el servidor del local.",
+  "scripts": {
+    "sync": "cap sync android",
+    "apk": "node scripts/build-apk.mjs",
+    "test:emulator": "node scripts/emulator-test.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
+    "puppeteer-core": "^24.0.0"
+  }
+}

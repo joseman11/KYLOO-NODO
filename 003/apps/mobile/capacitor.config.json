@@ -1,0 +1,12 @@
+{
+  "appId": "mx.com.kyloo.nodo",
+  "appName": "Nodo",
+  "webDir": "../web/dist",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

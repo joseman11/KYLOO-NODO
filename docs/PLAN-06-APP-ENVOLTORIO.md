@@ -1,6 +1,6 @@
 # Plan 06 — App envoltorio para tablets (Android)
 
-> **Etapa abierta** (2026-10-03, rama `feature/fundacion`). Resuelve D11 de [`PLAN-00`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) (E13 y E14 de [`ESTADO-ACTUAL`](ESTADO-ACTUAL.md)): una tablet que **recarga o se abre sin red** debe seguir funcionando.
+> **Etapa cerrada** (2026-10-03, rama `feature/fundacion`). Resuelve D11 de [`PLAN-00`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) (E13 y E14 de [`ESTADO-ACTUAL`](ESTADO-ACTUAL.md)): una tablet que **recarga o se abre sin red** debe seguir funcionando.
 >
 > **Se sigue estrictamente.** Una sesión que retome esto lo lee entero y marca la casilla de cada fase, con su commit, al cerrarla.
 >
@@ -44,9 +44,9 @@ Resumen: una app instalable en las tablets que lleva **la interfaz dentro** (sie
 - [x] **F6.1 — Servidor:** CORS con lista cerrada y publicación de la versión de contrato.
 - [x] **F6.2 — Interfaz:** base del servidor configurable (HTTP, fotos, WebSocket, enlaces) y pantalla de conexión.
 - [x] **F6.3 — Prueba de origen cruzado** (e2e): la UI desde otro origen contra el servidor real.
-- [ ] **F6.4 — Proyecto Android** (`003/apps/mobile`): Capacitor, pantalla siempre encendida, orientación libre, tráfico en claro permitido solo a la red local.
-- [ ] **F6.5 — APK:** compilar y **probar en el emulador** (conectar, entrar, pedir, cortar la red y recargar).
-- [ ] **F6.6 — Documentación y cierre.**
+- [x] **F6.4 — Proyecto Android** (`003/apps/mobile`): Capacitor, pantalla siempre encendida, orientación libre, tráfico en claro permitido solo a la red local.
+- [x] **F6.5 — APK:** compilar y **probar en el emulador** (conectar, entrar, pedir, cortar la red y recargar).
+- [x] **F6.6 — Documentación y cierre.**
 
 ## 5. Decidido con el dueño
 
@@ -54,4 +54,15 @@ Resumen: una app instalable en las tablets que lleva **la interfaz dentro** (sie
 
 ## 6. Registro
 
-*(se rellena al cerrar cada fase)*
+- **2026-10-03** — Cierre del plan.
+  - **Hecho:** F6.1–F6.3 `4731cde`; F6.4–F6.6 en el commit de cierre.
+  - **Probado:** 5 pruebas de servidor (CORS cerrado, preflight, `NODO_CORS_ORIGINS`, contrato), 2 e2e de origen cruzado, y **en el emulador Android *Pixel Tablet* (2560×1600)** con el servidor real: la app pide el servidor, conecta (CORS, contrato, HTTP en claro dentro de la app), acceso por PIN, mapa de mesas, **recarga sin red (abre con lo último conocido y el aviso «Sin conexión») y reconexión sola**. En el *Pixel 7* (teléfono) la prueba detectó que la lista de usuarios se pagina en pantalla chica: la app está pensada para tableta.
+  - **Salió por el camino:** Gradle no soporta el JDK 25 de Android Studio (se usó un JDK 21 portátil); Railway/otros no intervienen aquí; la interfaz ahora depende del paquete `shared` (contrato) y el `Dockerfile` del HQ ya lo copia.
+  - **Decisiones tomadas por la sesión:** D6.1 a D6.5; «sin service worker» dentro de la app; tráfico en claro permitido solo porque la app habla con el servidor elegido por el instalador.
+  - **Estado de la máquina:** emulador `Tablet_10` abierto con ventana (y `Pixel_7`, `Tablet_7_economica` creados); JDK 21 en el directorio temporal.
+
+### Cómo retomarlo
+Plan 06 cerrado. Quedan: probar en una tableta física, APK firmado, icono propio y escaneo del QR.
+
+### Pendiente
+- 🔴 Tableta física económica. 🟠 APK firmado, icono. 🟡 Escaneo QR, iOS, modo quiosco.

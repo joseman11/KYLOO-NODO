@@ -14,6 +14,7 @@
 | [`docs/PLAN-02-EMPAQUETADO-E-INSTALACION.md`](docs/PLAN-02-EMPAQUETADO-E-INSTALACION.md) | **Etapa abierta** (2026-10-03), sesión autónoma | Antes de tocar el arranque del servidor, la base local o el instalador. |
 | [`docs/deploy/INSTALACION.md`](docs/deploy/INSTALACION.md) | Vivo | Cómo se instala, actualiza y desinstala Nodo; cómo construir el paquete. |
 | [`docs/AUDITORIA-SEGURIDAD-2026-10-03.md`](docs/AUDITORIA-SEGURIDAD-2026-10-03.md) | **Cerrada** (2026-10-03) | Antes de tocar acceso, sesiones, cabeceras o errores; lista lo que sigue abierto. |
+| [`docs/PLAN-06-APP-ENVOLTORIO.md`](docs/PLAN-06-APP-ENVOLTORIO.md) · [`docs/deploy/APP-TABLET.md`](docs/deploy/APP-TABLET.md) | **Cerrado** (2026-10-03) | Antes de tocar `apps/mobile`, CORS o cualquier llamada de la interfaz al servidor. |
 | [`docs/PLAN-05-IMPRESION-Y-RED-LOCAL.md`](docs/PLAN-05-IMPRESION-Y-RED-LOCAL.md) · [`docs/deploy/RED-LOCAL.md`](docs/deploy/RED-LOCAL.md) | **Cerrado** (2026-10-03) | Antes de tocar impresión, cajón, el cliente sin conexión o cómo se conectan las tablets. |
 | [`docs/PLAN-04-RESPALDO-EN-NUBE.md`](docs/PLAN-04-RESPALDO-EN-NUBE.md) · [`docs/deploy/RESPALDOS.md`](docs/deploy/RESPALDOS.md) · [`docs/deploy/HQ-RAILWAY.md`](docs/deploy/HQ-RAILWAY.md) | **Cerrado** (2026-10-03) | Antes de tocar respaldos, restauración o el despliegue del HQ. |
 | [`docs/PLAN-03-LICENCIAS-Y-ACTIVACION.md`](docs/PLAN-03-LICENCIAS-Y-ACTIVACION.md) · [`docs/deploy/LICENCIAS.md`](docs/deploy/LICENCIAS.md) | **Etapa abierta** (2026-10-03) | Antes de tocar licencias, activación o el HQ. |
@@ -63,6 +64,8 @@
 20. ⚠️ **El cajón de dinero es una orden dentro del trabajo de impresión** (`DRAWER_PIN2/5` en `printing/markup.ts`, pulso `ESC p` en `escpos.ts`): viaja por la cola, así que hereda reintento y respaldo. No abrirlo con una conexión aparte.
 21. 🔴 **`pnpm audit --prod` y `npm audit` (landing) deben dar cero**: se corrigieron avisos críticos de `fast-jwt`. Antes de actualizar dependencias o desplegar, correrlos; los `overrides` de `003/pnpm-workspace.yaml` y `landing/package.json` explican por qué están.
 22. ⚠️ **`/api/setup` solo desde `localhost`**: un dispositivo de la red ve «configura desde el propio equipo». `NODO_SETUP_REMOTE=1` solo para desarrollo/contenedores. Los 5xx devuelven `error_interno` con un `id` (el texto va al registro): no volver a devolver `err.message`.
+23. 🔴 **Toda llamada de la interfaz al servidor pasa por `serverUrl()`/`serverBase()`** (`web/src/api.ts`): la app de tablet lleva la UI dentro y el servidor es otro origen. Un `fetch("/api/…")` a pelo funciona en el navegador y falla en la app sin avisar. Si cambias la API de forma que rompa a una interfaz anterior, sube `API_CONTRACT` (`packages/shared/src/contract.ts`).
+24. ⚠️ **Gradle no soporta el JDK 25 de Android Studio**: para el APK usar JDK 17 a 21 (`JAVA_HOME`).
 
 ## Estado
 
