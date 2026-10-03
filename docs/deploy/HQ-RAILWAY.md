@@ -54,5 +54,5 @@ curl localhost:3050/api/health        # {"ok":true,…,"engine":"pg"}
 
 - 🔴 Primera instalación real en Railway y comprobar el recorrido completo contra esa URL.
 - 🟠 Copia de seguridad del volumen de respaldos (réplica a otro almacenamiento) y plan de recuperación si se pierde el volumen.
-- 🟡 La consola web del HQ (`/hq`, *Sucursales*) ya crea sucursales, emite códigos de activación (la llave de sucursal ya no se muestra) y muestra el equipo activado y el último respaldo de cada una; faltan la descarga/borrado de respaldos y el panel de uso de espacio.
+- ✅ La consola web del HQ (`/hq`, *Sucursales*) crea sucursales, emite códigos de activación (la llave de sucursal ya no se muestra), muestra el equipo activado y el espacio de respaldos usado frente a la cuota, y permite **descargar o borrar** cada respaldo (cifrado: el HQ no puede abrirlo).
 - 🟡 Probar el cifrado de extremo a extremo con un respaldo de varios cientos de MB (las pruebas cubren bloques, bordes y manipulación, no volúmenes grandes).
