@@ -381,6 +381,69 @@ describe("respaldo cifrado en la nube", () => {
   });
 });
 
+describe("consola del HQ: respaldos de una sucursal", () => {
+  it("el propietario ve el espacio usado, descarga el texto cifrado y puede borrarlo; otra organización no", async () => {
+    const l = await makeLocal(FP_A);
+    await l.call("POST", "/api/license/activate", { code });
+    const r = (await l.call("POST", "/api/cloud/backup/now")).json();
+    const H = { Authorization: `Bearer ${ownerToken}` };
+
+    const branches = (
+      await hqApp.inject({ method: "GET", url: "/api/hq/branches", headers: H })
+    ).json();
+    expect(branches[0].backups).toBe(1);
+    expect(branches[0].backup_bytes).toBe(r.size);
+    expect(branches[0].backup_quota_bytes).toBeGreaterThan(r.size);
+
+    const url = `/api/hq/branches/${branchId}/backups/${r.name}`;
+    const dl = await hqApp.inject({ method: "GET", url, headers: H });
+    expect(dl.statusCode).toBe(200);
+    expect(dl.rawPayload.length).toBe(r.size);
+    expect(dl.rawPayload.equals(readFileSync(join(tmp, "hq-store", branchId, r.name)))).toBe(true);
+    expect(String(dl.headers["content-disposition"])).toContain(r.name);
+    // sigue siendo texto cifrado: nada legible
+    expect(dl.rawPayload.includes(Buffer.from("SQLite format 3"))).toBe(false);
+
+    // otra organización no ve ni borra los respaldos ajenos
+    await hqApp.inject({
+      method: "POST",
+      url: "/api/hq/orgs",
+      headers: { "x-hq-admin": "plataforma" },
+      payload: {
+        name: "Otra",
+        plan: "gratis",
+        owner: { username: "intruso", password: "clave-segura-2" },
+      },
+    });
+    const other = (
+      await hqApp.inject({
+        method: "POST",
+        url: "/api/hq/login",
+        payload: { username: "intruso", password: "clave-segura-2" },
+      })
+    ).json().token;
+    const HO = { Authorization: `Bearer ${other}` };
+    expect((await hqApp.inject({ method: "GET", url, headers: HO })).statusCode).toBe(404);
+    expect((await hqApp.inject({ method: "DELETE", url, headers: HO })).statusCode).toBe(404);
+    expect(existsSync(join(tmp, "hq-store", branchId, r.name))).toBe(true);
+
+    // el propietario lo borra: desaparece el archivo y se libera la cuota
+    expect((await hqApp.inject({ method: "DELETE", url, headers: H })).statusCode).toBe(200);
+    expect(existsSync(join(tmp, "hq-store", branchId, r.name))).toBe(false);
+    expect((await hqApp.inject({ method: "GET", url, headers: H })).statusCode).toBe(404);
+    const after = (
+      await hqApp.inject({ method: "GET", url: "/api/hq/branches", headers: H })
+    ).json();
+    expect(after[0].backup_bytes).toBe(0);
+  });
+
+  it("sin sesión de propietario no se descarga ni se borra", async () => {
+    const url = `/api/hq/branches/${branchId}/backups/nodo-20260101-000000-abcd.nbk`;
+    expect((await hqApp.inject({ method: "GET", url })).statusCode).toBe(401);
+    expect((await hqApp.inject({ method: "DELETE", url })).statusCode).toBe(401);
+  });
+});
+
 describe("el HQ protege el almacén", () => {
   async function activated() {
     const l = await makeLocal(FP_A);

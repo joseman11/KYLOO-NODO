@@ -42,6 +42,13 @@ interface Branch {
   fingerprint_short: string | null;
   backups: number;
   last_backup: number | null;
+  backup_bytes: number;
+  backup_quota_bytes: number;
+}
+interface BackupFile {
+  name: string;
+  size: number;
+  created_at: number;
 }
 interface ActivationCode {
   code: string;
@@ -68,6 +75,8 @@ interface CatalogRow {
   station_names: string[];
   active: number;
 }
+
+const mb = (n: number) => `${(n / 1024 / 1024).toFixed(n < 10 * 1024 * 1024 ? 1 : 0)} MB`;
 
 const dayStr = (ts: number) => {
   const d = new Date(ts);
@@ -260,6 +269,7 @@ function HqBranches({ owner }: { owner: boolean }) {
   const [list, setList] = useState<Branch[]>([]);
   const [name, setName] = useState("");
   const [code, setCode] = useState<ActivationCode | null>(null);
+  const [files, setFiles] = useState<Branch | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const load = () => hq<Branch[]>("/api/hq/branches").then(setList, () => undefined);
   useEffect(() => {
@@ -288,9 +298,13 @@ function HqBranches({ owner }: { owner: boolean }) {
                 {b.activated ? <span className="num">{b.fingerprint_short}</span> : "sin activar"}
               </td>
               <td className="small">
-                {b.backups
-                  ? `${b.backups} · ${new Date(b.last_backup ?? 0).toLocaleDateString("es-MX")}`
-                  : "ninguno"}
+                {b.backups ? (
+                  <button className="btn ghost sm" onClick={() => setFiles(b)}>
+                    {b.backups} · {mb(b.backup_bytes)} de {mb(b.backup_quota_bytes)}
+                  </button>
+                ) : (
+                  "ninguno"
+                )}
               </td>
               <td className="small">
                 {b.last_seen
@@ -364,6 +378,16 @@ function HqBranches({ owner }: { owner: boolean }) {
             Cada sucursal se activa con un código de un solo uso en Configuración → Nube y plan.
           </p>
         </section>
+      )}
+      {files && (
+        <BackupList
+          branch={files}
+          owner={owner}
+          onClose={() => {
+            setFiles(null);
+            void load();
+          }}
+        />
       )}
       {code && (
         <div className="sheet-bg" onClick={() => setCode(null)}>
@@ -505,6 +529,81 @@ function HqCatalog({ owner }: { owner: boolean }) {
           </p>
         </section>
       )}
+    </div>
+  );
+}
+
+/** Respaldos de una sucursal: están cifrados con una clave que solo tiene el cliente (el HQ no puede abrirlos). */
+function BackupList({
+  branch,
+  owner,
+  onClose,
+}: {
+  branch: Branch;
+  owner: boolean;
+  onClose: () => void;
+}) {
+  const [list, setList] = useState<BackupFile[]>([]);
+  const [err, setErr] = useState<string | null>(null);
+  const base = `/api/hq/branches/${branch.id}/backups`;
+  const load = () => hq<BackupFile[]>(base).then(setList, (e) => setErr((e as Error).message));
+  useEffect(() => {
+    void load();
+    // biome-ignore lint/correctness/useExhaustiveDependencies: se carga al abrir
+  }, []);
+  const download = async (f: BackupFile) => {
+    try {
+      const r = await fetch(`${base}/${f.name}`, {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!r.ok) throw new Error(`No se pudo descargar (${r.status})`);
+      const url = URL.createObjectURL(await r.blob());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = f.name;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  };
+  return (
+    <div className="sheet-bg" onClick={onClose}>
+      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+        <h3>Respaldos de {branch.name}</h3>
+        <p className="small">
+          Usa {mb(branch.backup_bytes)} de {mb(branch.backup_quota_bytes)}. Están cifrados con una
+          clave que solo tiene el cliente: Nodo no puede abrirlos.
+        </p>
+        {err && <p className="err">{err}</p>}
+        {list.map((f) => (
+          <div key={f.name} className="row spread" style={{ gap: 8 }}>
+            <span className="small">
+              {new Date(f.created_at).toLocaleString("es-MX", { hour12: false })} · {mb(f.size)}
+            </span>
+            <span className="row" style={{ gap: 6 }}>
+              <button className="btn ghost sm" onClick={() => download(f)}>
+                Descargar
+              </button>
+              {owner && (
+                <button
+                  className="btn ghost sm"
+                  onClick={() =>
+                    hq(`${base}/${f.name}`, { method: "DELETE" }).then(load, (e) =>
+                      setErr((e as Error).message),
+                    )
+                  }
+                >
+                  Borrar
+                </button>
+              )}
+            </span>
+          </div>
+        ))}
+        <button className="btn primary" onClick={onClose}>
+          Cerrar
+        </button>
+      </div>
     </div>
   );
 }

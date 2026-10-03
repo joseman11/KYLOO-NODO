@@ -314,13 +314,15 @@ export async function hqRoutes(app: FastifyInstance, opts: HqOptions) {
       .prepare(
         `SELECT b.id, b.name, b.last_seen, b.active, b.created_at, b.activated_at, b.fingerprint,
                 (SELECT COUNT(*) FROM hq_backups k WHERE k.branch_id=b.id) AS backups,
-                (SELECT MAX(k.created_at) FROM hq_backups k WHERE k.branch_id=b.id) AS last_backup
+                (SELECT MAX(k.created_at) FROM hq_backups k WHERE k.branch_id=b.id) AS last_backup,
+                (SELECT COALESCE(SUM(k.size),0) FROM hq_backups k WHERE k.branch_id=b.id) AS backup_bytes
          FROM hq_branches b WHERE b.org_id=? ORDER BY b.name`,
       )
       .all(s.org)) as { fingerprint: string | null }[];
     // La huella completa no sale del HQ; se muestra una forma corta para atender un cambio de equipo
     return rows.map(({ fingerprint, ...r }) => ({
       ...r,
+      backup_quota_bytes: quota,
       activated: !!fingerprint,
       fingerprint_short: fingerprint ? shortFingerprint(fingerprint) : null,
     }));
@@ -670,6 +672,39 @@ export async function hqRoutes(app: FastifyInstance, opts: HqOptions) {
         "SELECT name, size, created_at FROM hq_backups WHERE branch_id=? ORDER BY created_at DESC",
       )
       .all(id);
+  });
+
+  /** Un respaldo de una sucursal de la organización del propietario (cifrado: el HQ no puede leerlo). */
+  const ownedBackup = async (req: FastifyRequest) => {
+    if (!opts.backupStoreDir)
+      throw new HttpError(501, "respaldo_no_disponible", "Este servidor no guarda respaldos");
+    const s = owner(req);
+    const p = z.object({ id: z.string(), name: z.string().regex(NAME) }).parse(req.params);
+    const row = (await db
+      .prepare(
+        "SELECT k.size, k.sha256 FROM hq_backups k JOIN hq_branches b ON b.id=k.branch_id WHERE k.branch_id=? AND k.name=? AND b.org_id=?",
+      )
+      .get(p.id, p.name, s.org)) as { size: number; sha256: string } | undefined;
+    if (!row) throw new HttpError(404, "no_encontrado");
+    return { branchId: p.id, name: p.name, row };
+  };
+
+  // Descarga del texto cifrado (p. ej. para guardarlo aparte o llevarlo a una PC nueva a mano)
+  app.get("/api/hq/branches/:id/backups/:name", async (req, reply) => {
+    const { branchId, name, row } = await ownedBackup(req);
+    reply.header("content-type", "application/octet-stream");
+    reply.header("content-disposition", `attachment; filename="${name}"`);
+    reply.header("content-length", String(statSync(storePath(branchId, name)).size));
+    reply.header("x-sha256", row.sha256);
+    return reply.send(createReadStream(storePath(branchId, name)));
+  });
+
+  // Borrado definitivo de un respaldo (libera espacio de la cuota)
+  app.delete("/api/hq/branches/:id/backups/:name", async (req) => {
+    const { branchId, name } = await ownedBackup(req);
+    await db.prepare("DELETE FROM hq_backups WHERE branch_id=? AND name=?").run(branchId, name);
+    rmSync(storePath(branchId, name), { force: true });
+    return { ok: true };
   });
 
   // ---------- Activación (plan 03) ----------
