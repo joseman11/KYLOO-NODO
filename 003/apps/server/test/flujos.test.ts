@@ -573,7 +573,7 @@ describe("inventario y recetas", () => {
     });
     const alerts = (await c(X.adm, "GET", "/api/inventory/alerts")).body as { name?: string }[];
     expect(JSON.stringify(alerts)).toContain("Limón");
-    await c(X.adm, "PUT", `/api/recipes/${X.prod["Margarita"]}`, {
+    await c(X.adm, "PUT", `/api/recipes/${X.prod.Margarita}`, {
       lines: [{ itemId: item, quantity: 20 }],
     });
     const acc = await open("1");

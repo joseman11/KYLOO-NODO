@@ -233,6 +233,7 @@ function Staff() {
           .filter((t) => t.show)
           .map((t) => (
             <button
+              type="button"
               key={t.id}
               className={`rail-btn ${tab === t.id ? "active" : ""}`}
               onClick={() => {
@@ -256,6 +257,7 @@ function Staff() {
           </span>
           <span className="grow" />
           <button
+            type="button"
             className={`clock-btn ${clock.data?.on_shift ? "on" : ""}`}
             onClick={toggleClock}
             title="Checador de entrada y salida"
@@ -272,7 +274,7 @@ function Staff() {
               <small>{ROLE_LABEL[user.role] ?? user.role}</small>
             </div>
           </div>
-          <button className="btn ghost sm" onClick={logout}>
+          <button type="button" className="btn ghost sm" onClick={logout}>
             Salir
           </button>
         </div>

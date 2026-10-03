@@ -119,6 +119,7 @@ function Bookings({ onSeat }: { onSeat: (accountId: string) => void }) {
                   {["pendiente", "confirmada"].includes(r.status) && (
                     <>
                       <button
+                        type="button"
                         className="btn primary sm"
                         style={{ minHeight: 40 }}
                         onClick={() =>
@@ -195,6 +196,7 @@ function Bookings({ onSeat }: { onSeat: (accountId: string) => void }) {
           onChange={(e) => setF({ ...f, at: e.target.value })}
         />
         <button
+          type="button"
           className="btn primary"
           disabled={!f.name || !f.at}
           onClick={() =>
@@ -274,6 +276,7 @@ function Customers() {
         />
         {err && <p className="err">{err}</p>}
         <button
+          type="button"
           className="btn primary"
           disabled={!f.name}
           onClick={() =>

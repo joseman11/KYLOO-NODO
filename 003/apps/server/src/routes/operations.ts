@@ -17,7 +17,7 @@ import {
 import { consumeForItems, emitAlerts, restoreForItem } from "../inventory";
 import { enqueue } from "../printing/queue";
 import { produce, routesFor } from "../production";
-import { renderBill, renderComanda } from "../printing/render";
+import { renderBill } from "../printing/render";
 import { ticketStyle } from "../ticket-style";
 import { BIG } from "../printing/markup";
 import type { Hub } from "../hub";
@@ -55,7 +55,7 @@ export async function operationsRoutes(app: FastifyInstance, opts: { hub: Hub })
   const { hub } = opts;
   const id = z.object({ id: z.string() });
 
-  const printerOf = async (printerId: string) =>
+  const _printerOf = async (printerId: string) =>
     (await db.prepare("SELECT paper_width FROM printers WHERE id=?").get(printerId)) as
       | { paper_width: number }
       | undefined;

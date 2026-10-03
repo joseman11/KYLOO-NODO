@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { backdrop } from "../sheet";
 import { decodeQr } from "../qr";
 import { normalizeServer, probeServer } from "../server-address";
 import { setServerBase } from "../api";
@@ -49,8 +50,8 @@ function QrScanner({ onFound, onClose }: { onFound: (text: string) => void; onCl
     };
   }, [onFound]);
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>Escanea el código QR</h3>
         <p className="small">Apunta a la pantalla del servidor: Configuración → Conectar.</p>
         {error ? (
@@ -136,7 +137,6 @@ export function ServerSetup({ onDone }: { onDone: () => void }) {
             inputMode="url"
             autoCapitalize="none"
             autoCorrect="off"
-            autoFocus
           />
           {error && <p className="err">{error}</p>}
           <button className="btn primary" type="submit" disabled={busy || !value.trim()}>

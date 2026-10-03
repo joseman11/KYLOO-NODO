@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { backdrop } from "../sheet";
 import { api, can, money, photoSrc, serverUrl, useLive } from "../api";
 import { Icon } from "../icons";
 import { resizeImage } from "../image";
@@ -77,11 +78,16 @@ export function RecipeBook() {
   return (
     <div className="view">
       <div className="row wrap" style={{ flex: "none" }}>
-        <button className={`chip ${cat === "all" ? "on" : ""}`} onClick={() => setCat("all")}>
+        <button
+          type="button"
+          className={`chip ${cat === "all" ? "on" : ""}`}
+          onClick={() => setCat("all")}
+        >
           Todas
         </button>
         {cats.data?.map((c) => (
           <button
+            type="button"
             key={c.id}
             className={`chip ${cat === c.id ? "on" : ""}`}
             onClick={() => setCat(c.id)}
@@ -90,7 +96,11 @@ export function RecipeBook() {
           </button>
         ))}
         {count("none") > 0 && (
-          <button className={`chip ${cat === "none" ? "on" : ""}`} onClick={() => setCat("none")}>
+          <button
+            type="button"
+            className={`chip ${cat === "none" ? "on" : ""}`}
+            onClick={() => setCat("none")}
+          >
             Sin categoría
           </button>
         )}
@@ -103,12 +113,13 @@ export function RecipeBook() {
           onChange={(e) => setQ(e.target.value)}
         />
         {edit && (
-          <button className="btn sm" onClick={() => setManage(true)}>
+          <button type="button" className="btn sm" onClick={() => setManage(true)}>
             Categorías
           </button>
         )}
         {edit && (
           <button
+            type="button"
             className="btn primary sm"
             style={{ minHeight: 40 }}
             onClick={() => setOpen("new")}
@@ -129,7 +140,7 @@ export function RecipeBook() {
           </p>
         }
         render={(r) => (
-          <button className="recipe-card" onClick={() => setOpen(r.id)}>
+          <button type="button" className="recipe-card" onClick={() => setOpen(r.id)}>
             <div
               className="ph"
               style={
@@ -233,12 +244,8 @@ function RecipeView({
     }
   };
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div
-        className="sheet center"
-        style={{ width: "min(980px, 100%)", height: "100%" }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" style={{ width: "min(980px, 100%)", height: "100%" }}>
         <div className="row spread" style={{ flex: "none" }}>
           <div style={{ minWidth: 0 }}>
             <h2 className="ellipsis">{r?.name}</h2>
@@ -253,17 +260,27 @@ function RecipeView({
           </div>
           <div className="row">
             <div className="stepper" role="group" aria-label="Porciones">
-              <button className="btn" aria-label="Menos porciones" onClick={() => step(-1)}>
+              <button
+                type="button"
+                className="btn"
+                aria-label="Menos porciones"
+                onClick={() => step(-1)}
+              >
                 −
               </button>
               <span className="num" style={{ minWidth: 70, textAlign: "center", fontWeight: 700 }}>
                 {fmt(n)} <span className="small">{r?.yield_unit}</span>
               </span>
-              <button className="btn" aria-label="Más porciones" onClick={() => step(1)}>
+              <button
+                type="button"
+                className="btn"
+                aria-label="Más porciones"
+                onClick={() => step(1)}
+              >
                 +
               </button>
             </div>
-            <button className="btn sm" onClick={onClose}>
+            <button type="button" className="btn sm" onClick={onClose}>
               Cerrar
             </button>
           </div>
@@ -314,14 +331,15 @@ function RecipeView({
         {msg && <p className="small">{msg}</p>}
         <div className="row wrap" style={{ flex: "none", justifyContent: "space-between" }}>
           <div className="row wrap">
-            <button className="btn" onClick={copy}>
+            <button type="button" className="btn" onClick={copy}>
               Copiar
             </button>
-            <button className="btn" onClick={() => window.print()}>
+            <button type="button" className="btn" onClick={() => window.print()}>
               Imprimir
             </button>
             {manage && r?.product_id && (
               <button
+                type="button"
                 className="btn"
                 onClick={() =>
                   api<{ items: number }>(`/api/recipe-book/${id}/apply-to-product`, {
@@ -343,6 +361,7 @@ function RecipeView({
             <div className="row wrap">
               {sure ? (
                 <button
+                  type="button"
                   className="btn"
                   style={{ color: "var(--bad)" }}
                   onClick={() =>
@@ -358,11 +377,11 @@ function RecipeView({
                   ¿Seguro? Sí, eliminar
                 </button>
               ) : (
-                <button className="btn ghost" onClick={() => setSure(true)}>
+                <button type="button" className="btn ghost" onClick={() => setSure(true)}>
                   Eliminar
                 </button>
               )}
-              <button className="btn primary" onClick={onEdit}>
+              <button type="button" className="btn primary" onClick={onEdit}>
                 Editar
               </button>
             </div>
@@ -418,8 +437,8 @@ function RecipeEditor({
   const c = cur.data;
   if (id && !c)
     return (
-      <div className="sheet-bg" onClick={() => onClose(false)}>
-        <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+      <div className="sheet-bg" {...backdrop(() => onClose(false))}>
+        <div className="sheet center" role="dialog" aria-modal="true">
           <p className="muted">Cargando…</p>
         </div>
       </div>
@@ -489,11 +508,10 @@ function RecipeEditor({
     }
   };
   return (
-    <div className="sheet-bg" onClick={() => !busy && onClose(false)}>
+    <div className="sheet-bg" {...backdrop(() => !busy && onClose(false))}>
       <div
         className="sheet center"
         style={{ width: "min(860px, 100%)", height: "min(620px, 100%)" }}
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="row spread" style={{ flex: "none" }}>
           <h3>{id ? "Editar receta" : "Nueva receta"}</h3>
@@ -510,7 +528,6 @@ function RecipeEditor({
         {tab === "datos" && (
           <div className="grid2" style={{ flex: 1, minHeight: 0, alignContent: "start" }}>
             <input
-              autoFocus
               placeholder="Nombre de la receta"
               aria-label="Nombre de la receta"
               value={form.name}
@@ -601,6 +618,7 @@ function RecipeEditor({
                 </label>
                 {photoNow && (
                   <button
+                    type="button"
                     className="btn ghost sm"
                     onClick={() => setPhoto({ pending: null, remove: true })}
                   >
@@ -674,6 +692,7 @@ function RecipeEditor({
                       }
                     />
                     <button
+                      type="button"
                       className="btn ghost sm"
                       aria-label="Quitar ingrediente"
                       onClick={() => setRows(rows.filter((_, k) => k !== i))}
@@ -706,6 +725,7 @@ function RecipeEditor({
                 ))}
               </select>
               <button
+                type="button"
                 className="btn"
                 onClick={() =>
                   setRows([...rows, { itemId: "", name: "", qty: "", unit: "", note: "" }])
@@ -735,10 +755,15 @@ function RecipeEditor({
         )}
         {err && <p className="err">{err}</p>}
         <div className="row" style={{ justifyContent: "flex-end", flex: "none" }}>
-          <button className="btn" disabled={busy} onClick={() => onClose(false)}>
+          <button type="button" className="btn" disabled={busy} onClick={() => onClose(false)}>
             Cancelar
           </button>
-          <button className="btn primary" disabled={busy || !form.name.trim()} onClick={save}>
+          <button
+            type="button"
+            className="btn primary"
+            disabled={busy || !form.name.trim()}
+            onClick={save}
+          >
             Guardar
           </button>
         </div>
@@ -761,15 +786,14 @@ function CategoriesSheet({ cats, onClose }: { cats: RCat[]; onClose: () => void 
       (e) => setErr((e as Error).message),
     );
   return (
-    <div className="sheet-bg" onClick={onClose}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
       <div
         className="sheet center"
         style={{ width: "min(560px, 100%)", height: "min(520px, 100%)" }}
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="row spread">
           <h3>Categorías de recetas</h3>
-          <button className="btn sm" onClick={onClose}>
+          <button type="button" className="btn sm" onClick={onClose}>
             Cerrar
           </button>
         </div>
@@ -801,6 +825,7 @@ function CategoriesSheet({ cats, onClose }: { cats: RCat[]; onClose: () => void 
                   }}
                 />
                 <button
+                  type="button"
                   className="btn ghost sm"
                   aria-label={`Borrar ${k.name}`}
                   onClick={() => run(api(`/api/recipe-categories/${k.id}`, { method: "DELETE" }))}
@@ -819,6 +844,7 @@ function CategoriesSheet({ cats, onClose }: { cats: RCat[]; onClose: () => void 
             onChange={(e) => setName(e.target.value)}
           />
           <button
+            type="button"
             className="btn primary"
             disabled={!name.trim()}
             onClick={() =>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { backdrop } from "../sheet";
 import QRCode from "qrcode";
 import { api, money, serverBase, useLive } from "../api";
 import { PagedGrid, PagedRows } from "../fit";
@@ -107,6 +108,7 @@ export function Promotions() {
                 </span>
                 <div className="row">
                   <button
+                    type="button"
                     className="btn ghost sm"
                     onClick={() =>
                       api(`/api/promotions/${p.id}`, {
@@ -118,6 +120,7 @@ export function Promotions() {
                     {p.active ? "Activa" : "Pausada"}
                   </button>
                   <button
+                    type="button"
                     className="btn ghost sm"
                     onClick={() =>
                       api(`/api/promotions/${p.id}`, { method: "DELETE" }).then(() =>
@@ -171,6 +174,7 @@ export function Promotions() {
         <div className="row" style={{ gap: 4 }}>
           {DAYS.map((d, i) => (
             <button
+              type="button"
               key={d}
               className={`opt grow ${f.days.includes(i) ? "on" : ""}`}
               style={{ minHeight: 40, padding: 0, fontSize: 13 }}
@@ -195,7 +199,12 @@ export function Promotions() {
           />
         </div>
         {err && <p className="err">{err}</p>}
-        <button className="btn primary" disabled={!f.name || (needsValue && !value)} onClick={save}>
+        <button
+          type="button"
+          className="btn primary"
+          disabled={!f.name || (needsValue && !value)}
+          onClick={save}
+        >
           Crear promoción
         </button>
       </section>
@@ -241,28 +250,24 @@ export function QrCodes() {
         minH={56}
         gap={8}
         render={(t) => (
-          <button className="opt" style={{ height: "100%" }} onClick={() => open(t)}>
+          <button type="button" className="opt" style={{ height: "100%" }} onClick={() => open(t)}>
             Mesa {t.number}
           </button>
         )}
       />
       {show && (
-        <div className="sheet-bg" onClick={() => setShow(null)}>
-          <div
-            className="sheet center"
-            style={{ alignItems: "center" }}
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="sheet-bg" {...backdrop(() => setShow(null))}>
+          <div className="sheet center" style={{ alignItems: "center" }}>
             <h2>Mesa {show.number}</h2>
             <img src={show.img} width={240} height={240} alt={`QR mesa ${show.number}`} />
             <p className="small" style={{ wordBreak: "break-all", userSelect: "text" }}>
               {show.url}
             </p>
             <div className="row">
-              <button className="btn" onClick={() => window.print()}>
+              <button type="button" className="btn" onClick={() => window.print()}>
                 Imprimir
               </button>
-              <button className="btn primary" onClick={() => setShow(null)}>
+              <button type="button" className="btn primary" onClick={() => setShow(null)}>
                 Cerrar
               </button>
             </div>

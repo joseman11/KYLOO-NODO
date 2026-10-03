@@ -42,6 +42,7 @@ export function Pager({
   return (
     <div className="pager">
       <button
+        type="button"
         className="btn"
         disabled={page <= 0}
         onClick={() => onPage(page - 1)}
@@ -53,6 +54,7 @@ export function Pager({
         {page + 1} / {pages}
       </span>
       <button
+        type="button"
         className="btn"
         disabled={page >= pages - 1}
         onClick={() => onPage(page + 1)}
@@ -271,6 +273,7 @@ export function SubTabs<T extends string>({
     <div className="row wrap">
       {tabs.map((t) => (
         <button
+          type="button"
           key={t.id}
           className={`chip ${value === t.id ? "on" : ""}`}
           onClick={() => onChange(t.id)}

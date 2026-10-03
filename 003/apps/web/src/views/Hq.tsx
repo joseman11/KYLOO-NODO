@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { backdrop } from "../sheet";
 import { PagedRows, SubTabs } from "../fit";
 import { money } from "../api";
 
@@ -146,7 +147,7 @@ function HqHome({ onLogout }: { onLogout: () => void }) {
   const [me, setMe] = useState<Me | null>(null);
   useEffect(() => {
     hq<Me>("/api/hq/me").then(setMe, onLogout);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [onLogout]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="shell">
@@ -157,6 +158,7 @@ function HqHome({ onLogout }: { onLogout: () => void }) {
           plan {me?.plan} · {me?.branches_used}/{me?.limits.branches ?? "∞"} sucursales
         </span>
         <button
+          type="button"
           className="btn ghost"
           style={{ color: "#fff", minHeight: 24, padding: "0 8px" }}
           onClick={onLogout}
@@ -274,7 +276,7 @@ function HqBranches({ owner }: { owner: boolean }) {
   const load = () => hq<Branch[]>("/api/hq/branches").then(setList, () => undefined);
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
   return (
     <div className="split">
       <section className="card fillcard">
@@ -299,7 +301,7 @@ function HqBranches({ owner }: { owner: boolean }) {
               </td>
               <td className="small">
                 {b.backups ? (
-                  <button className="btn ghost sm" onClick={() => setFiles(b)}>
+                  <button type="button" className="btn ghost sm" onClick={() => setFiles(b)}>
                     {b.backups} · {mb(b.backup_bytes)} de {mb(b.backup_quota_bytes)}
                   </button>
                 ) : (
@@ -314,6 +316,7 @@ function HqBranches({ owner }: { owner: boolean }) {
               <td className="r">
                 {owner && (
                   <button
+                    type="button"
                     className="btn ghost sm"
                     title="Emite un código de activación nuevo (equipo nuevo o código perdido)"
                     onClick={() =>
@@ -331,6 +334,7 @@ function HqBranches({ owner }: { owner: boolean }) {
                 )}
                 {owner && (
                   <button
+                    type="button"
                     className="btn ghost sm"
                     onClick={() =>
                       hq(`/api/hq/branches/${b.id}`, {
@@ -352,6 +356,7 @@ function HqBranches({ owner }: { owner: boolean }) {
           <h3>Nueva sucursal</h3>
           <input placeholder="Nombre" value={name} onChange={(e) => setName(e.target.value)} />
           <button
+            type="button"
             className="btn primary"
             disabled={!name}
             onClick={() =>
@@ -390,8 +395,8 @@ function HqBranches({ owner }: { owner: boolean }) {
         />
       )}
       {code && (
-        <div className="sheet-bg" onClick={() => setCode(null)}>
-          <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-bg" {...backdrop(() => setCode(null))}>
+          <div className="sheet center" role="dialog" aria-modal="true">
             <h3>Código de activación de {code.branch}</h3>
             <p className="small">
               Se escribe una sola vez en Configuración → Nube y plan del equipo del local (con
@@ -405,7 +410,7 @@ function HqBranches({ owner }: { owner: boolean }) {
               onFocus={(e) => e.currentTarget.select()}
               style={{ fontFamily: "ui-monospace, monospace", fontSize: 20, letterSpacing: 1 }}
             />
-            <button className="btn primary" onClick={() => setCode(null)}>
+            <button type="button" className="btn primary" onClick={() => setCode(null)}>
               Listo
             </button>
           </div>
@@ -422,7 +427,7 @@ function HqCatalog({ owner }: { owner: boolean }) {
   const load = () => hq<CatalogRow[]>("/api/hq/catalog").then(setRows, () => undefined);
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
   const price = Math.round((parseFloat(f.price.replace(",", ".")) || 0) * 100);
   return (
     <div className="split">
@@ -486,6 +491,7 @@ function HqCatalog({ owner }: { owner: boolean }) {
           />
           {err && <p className="err">{err}</p>}
           <button
+            type="button"
             className="btn primary"
             disabled={!f.sku || !f.name || !price}
             onClick={() =>
@@ -550,7 +556,7 @@ function BackupList({
   useEffect(() => {
     void load();
     // biome-ignore lint/correctness/useExhaustiveDependencies: se carga al abrir
-  }, []);
+  }, [load]);
   const download = async (f: BackupFile) => {
     try {
       const r = await fetch(`${base}/${f.name}`, {
@@ -568,8 +574,8 @@ function BackupList({
     }
   };
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>Respaldos de {branch.name}</h3>
         <p className="small">
           Usa {mb(branch.backup_bytes)} de {mb(branch.backup_quota_bytes)}. Están cifrados con una
@@ -582,11 +588,12 @@ function BackupList({
               {new Date(f.created_at).toLocaleString("es-MX", { hour12: false })} · {mb(f.size)}
             </span>
             <span className="row" style={{ gap: 6 }}>
-              <button className="btn ghost sm" onClick={() => download(f)}>
+              <button type="button" className="btn ghost sm" onClick={() => download(f)}>
                 Descargar
               </button>
               {owner && (
                 <button
+                  type="button"
                   className="btn ghost sm"
                   onClick={() =>
                     hq(`${base}/${f.name}`, { method: "DELETE" }).then(load, (e) =>
@@ -600,7 +607,7 @@ function BackupList({
             </span>
           </div>
         ))}
-        <button className="btn primary" onClick={onClose}>
+        <button type="button" className="btn primary" onClick={onClose}>
           Cerrar
         </button>
       </div>

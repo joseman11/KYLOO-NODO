@@ -141,11 +141,16 @@ export function Floor({ onOpen }: { onOpen: (accountId: string) => void }) {
     <div className="view">
       <div className="row">
         <div className="chips grow">
-          <button className={`chip ${zone === null ? "on" : ""}`} onClick={() => setZone(null)}>
+          <button
+            type="button"
+            className={`chip ${zone === null ? "on" : ""}`}
+            onClick={() => setZone(null)}
+          >
             Todas
           </button>
           {zones.data?.map((z) => (
             <button
+              type="button"
               key={z.id}
               className={`chip ${zone === z.id ? "on" : ""}`}
               onClick={() => setZone(z.id)}
@@ -172,6 +177,7 @@ export function Floor({ onOpen }: { onOpen: (accountId: string) => void }) {
             const total = t.accounts.reduce((s, x) => s + x.total_cents - x.paid_cents, 0);
             return (
               <button
+                type="button"
                 className={`table-card ${t.status} ${sel === t.id ? "selected" : ""}`}
                 onClick={() => select(t)}
               >
@@ -246,6 +252,7 @@ export function Floor({ onOpen }: { onOpen: (accountId: string) => void }) {
                       </div>
                       {can("item.mark_delivered") && (
                         <button
+                          type="button"
                           className="btn primary"
                           style={{ minHeight: 44, flex: "none", padding: "0 12px" }}
                           onClick={() =>
@@ -314,7 +321,7 @@ function TableDetail({
             {LABEL[table.status]} · capacidad {table.capacity}
           </div>
         </div>
-        <button className="btn ghost sm" onClick={onClose}>
+        <button type="button" className="btn ghost sm" onClick={onClose}>
           ✕
         </button>
       </div>
@@ -329,6 +336,7 @@ function TableDetail({
           </div>
           <NumPad value={guests} onChange={setGuests} max={2} />
           <button
+            type="button"
             className="btn primary"
             disabled={!guests || Number(guests) < 1}
             onClick={onOpenTable}
@@ -343,6 +351,7 @@ function TableDetail({
               <span className="small">Unida a la mesa {table.linked_to}</span>
               {can("bill.merge") && (
                 <button
+                  type="button"
                   className="btn sm"
                   onClick={() =>
                     api(`/api/tables/${table.id}/unjoin`, { body: {} }).catch((e) =>
@@ -393,6 +402,7 @@ function TableDetail({
               )}
               <div className="row">
                 <button
+                  type="button"
                   className="btn primary grow"
                   style={{ minHeight: 48 }}
                   onClick={() => onOpen(acc.id)}
@@ -400,18 +410,19 @@ function TableDetail({
                   Abrir cuenta
                 </button>
                 {can("payment.take") && (
-                  <button className="btn grow" onClick={() => onPay(acc)}>
+                  <button type="button" className="btn grow" onClick={() => onPay(acc)}>
                     Cobrar
                   </button>
                 )}
               </div>
               {a === acc && !table.linked_to && can("bill.merge") && acc.status === "abierta" && (
-                <button className="btn" onClick={() => onJoin(acc.id)}>
+                <button type="button" className="btn" onClick={() => onJoin(acc.id)}>
                   Juntar mesas
                 </button>
               )}
               {a === acc && can("order.create") && acc.status === "abierta" && (
                 <button
+                  type="button"
                   className="btn"
                   onClick={() =>
                     api(`/api/accounts/${acc.id}/request-bill`, { method: "POST", body: {} }).catch(

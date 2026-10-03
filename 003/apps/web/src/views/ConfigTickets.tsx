@@ -91,6 +91,7 @@ export function Tickets() {
         <div className="row wrap" style={{ gap: 6 }}>
           {CHARS.map(([c, label]) => (
             <button
+              type="button"
               key={c}
               className={`opt ${cur.sep === c ? "on" : ""}`}
               style={{
@@ -107,6 +108,7 @@ export function Tickets() {
           ))}
         </div>
         <button
+          type="button"
           className={`opt ${cur.group ? "on" : ""}`}
           style={{ textAlign: "left", minHeight: 44 }}
           onClick={() => setGroup(!cur.group)}
@@ -121,7 +123,7 @@ export function Tickets() {
           style={{ resize: "none", overflow: "hidden", fontFamily: "inherit", minHeight: 64 }}
         />
         <div className="row">
-          <button className="btn primary grow" onClick={save}>
+          <button type="button" className="btn primary grow" onClick={save}>
             Guardar
           </button>
           {msg && <span className="small">{msg}</span>}

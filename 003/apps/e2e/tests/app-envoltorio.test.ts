@@ -9,7 +9,6 @@ import {
   hasText,
   launch,
   newPage,
-  settle,
   startNodo,
   tap,
   until,

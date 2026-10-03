@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { backdrop } from "../sheet";
 import { api, can, serverBase, useLive } from "../api";
 import { PagedRows } from "../fit";
 import { fmt, toNum, UNITS, type Item } from "./InventoryAreas";
@@ -75,10 +76,10 @@ export function Lists({
         </span>
         {edit && (
           <div className="row">
-            <button className="btn" onClick={() => create(false)}>
+            <button type="button" className="btn" onClick={() => create(false)}>
               + Lista manual
             </button>
-            <button className="btn primary" onClick={() => create(true)}>
+            <button type="button" className="btn primary" onClick={() => create(true)}>
               Desde lo que falta
             </button>
           </div>
@@ -115,7 +116,7 @@ export function Lists({
             </td>
             <td className="small">{day(l.created_at)}</td>
             <td className="r">
-              <button className="btn sm" onClick={() => setOpen(l.id)}>
+              <button type="button" className="btn sm" onClick={() => setOpen(l.id)}>
                 Abrir
               </button>
             </td>
@@ -172,12 +173,8 @@ function ListSheet({ id, items, onClose }: { id: string; items: Item[]; onClose:
     ).then(setShare, (e) => setErr((e as Error).message));
   const chosen = items.find((i) => i.id === add.item);
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div
-        className="sheet center"
-        style={{ width: "min(900px, 100%)", height: "100%" }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" style={{ width: "min(900px, 100%)", height: "100%" }}>
         <div className="row spread">
           <div style={{ minWidth: 0 }}>
             {edit ? (
@@ -203,7 +200,7 @@ function ListSheet({ id, items, onClose }: { id: string; items: Item[]; onClose:
           </div>
           <div className="row">
             <span className="tag">{STATUS[d?.status ?? ""] ?? ""}</span>
-            <button className="btn sm" onClick={onClose}>
+            <button type="button" className="btn sm" onClick={onClose}>
               Cerrar
             </button>
           </div>
@@ -235,6 +232,7 @@ function ListSheet({ id, items, onClose }: { id: string; items: Item[]; onClose:
             <>
               <td>
                 <button
+                  type="button"
                   className={`check ${l.checked ? "on" : ""}`}
                   disabled={closed}
                   aria-label={l.checked ? `Desmarcar ${l.name}` : `Marcar ${l.name}`}
@@ -300,6 +298,7 @@ function ListSheet({ id, items, onClose }: { id: string; items: Item[]; onClose:
               <td className="r">
                 {edit && (
                   <button
+                    type="button"
                     className="btn ghost sm"
                     aria-label={`Quitar ${l.name}`}
                     onClick={() =>
@@ -353,6 +352,7 @@ function ListSheet({ id, items, onClose }: { id: string; items: Item[]; onClose:
               ))}
             </select>
             <button
+              type="button"
               className="btn"
               disabled={!toNum(add.qty) || (!add.item && !add.name.trim())}
               onClick={() =>
@@ -377,6 +377,7 @@ function ListSheet({ id, items, onClose }: { id: string; items: Item[]; onClose:
           <div className="row wrap">
             {edit && (
               <button
+                type="button"
                 className="btn"
                 onClick={() =>
                   run(
@@ -396,6 +397,7 @@ function ListSheet({ id, items, onClose }: { id: string; items: Item[]; onClose:
             )}
             {can("purchase.manage") && (
               <button
+                type="button"
                 className="btn"
                 onClick={() =>
                   run(
@@ -417,6 +419,7 @@ function ListSheet({ id, items, onClose }: { id: string; items: Item[]; onClose:
               !closed &&
               (sure ? (
                 <button
+                  type="button"
                   className="btn"
                   style={{ color: "var(--bad)" }}
                   onClick={() =>
@@ -426,17 +429,18 @@ function ListSheet({ id, items, onClose }: { id: string; items: Item[]; onClose:
                   ¿Seguro? Sí, eliminar
                 </button>
               ) : (
-                <button className="btn ghost" onClick={() => setSure(true)}>
+                <button type="button" className="btn ghost" onClick={() => setSure(true)}>
                   Eliminar
                 </button>
               ))}
           </div>
           <div className="row wrap">
-            <button className="btn" onClick={doShare}>
+            <button type="button" className="btn" onClick={doShare}>
               Compartir
             </button>
             {edit && (
               <button
+                type="button"
                 className="btn primary"
                 disabled={!d?.lines.some((l) => l.checked)}
                 onClick={() =>
@@ -502,7 +506,6 @@ function ShareSheet({
       <div
         className="sheet center"
         style={{ width: "min(640px, 100%)", height: "min(520px, 100%)" }}
-        onClick={(e) => e.stopPropagation()}
       >
         <h3>Compartir lista</h3>
         <p className="small">
@@ -516,7 +519,7 @@ function ShareSheet({
             aria-label="Enlace de la lista"
             onFocus={(e) => e.target.select()}
           />
-          <button className="btn" onClick={() => copy(url, "Enlace")}>
+          <button type="button" className="btn" onClick={() => copy(url, "Enlace")}>
             Copiar enlace
           </button>
         </div>
@@ -534,11 +537,12 @@ function ShareSheet({
           >
             WhatsApp
           </a>
-          <button className="btn" onClick={() => copy(data.text, "Texto")}>
+          <button type="button" className="btn" onClick={() => copy(data.text, "Texto")}>
             Copiar texto
           </button>
           {nativeShare && (
             <button
+              type="button"
               className="btn"
               onClick={() =>
                 navigator
@@ -549,14 +553,14 @@ function ShareSheet({
               Compartir…
             </button>
           )}
-          <button className="btn" onClick={() => window.print()}>
+          <button type="button" className="btn" onClick={() => window.print()}>
             Imprimir
           </button>
-          <button className="btn ghost" onClick={onUnshare}>
+          <button type="button" className="btn ghost" onClick={onUnshare}>
             Dejar de compartir
           </button>
           <span className="grow" />
-          <button className="btn" onClick={onClose}>
+          <button type="button" className="btn" onClick={onClose}>
             Listo
           </button>
         </div>

@@ -107,6 +107,7 @@ export function Station() {
         </h2>
         {stations.data?.map((s) => (
           <button
+            type="button"
             key={s.id}
             className={`btn ${s.id === stationId ? "active" : ""}`}
             onClick={() => choose(s.id)}
@@ -115,7 +116,7 @@ export function Station() {
           </button>
         ))}
         {can("station.update") && stationId && (
-          <button className="btn" onClick={soldOut}>
+          <button type="button" className="btn" onClick={soldOut}>
             Agotar producto
           </button>
         )}
@@ -184,6 +185,7 @@ export function Station() {
               ))}
               {n && (
                 <button
+                  type="button"
                   className={`btn ${t.status === "preparando" ? "primary" : ""}`}
                   style={{ minHeight: 52 }}
                   onClick={() => advance(t)}

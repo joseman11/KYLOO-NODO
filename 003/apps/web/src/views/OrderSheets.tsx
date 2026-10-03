@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { backdrop } from "../sheet";
 import { ApiError, api, money, useLive } from "../api";
 
 export function DiscountSheet({
@@ -57,14 +58,15 @@ export function DiscountSheet({
   };
 
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>Descuento · subtotal {money(subtotalCents)}</h3>
         {promos.data && promos.data.length > 0 && (
           <div className="col">
             <div className="small">Promociones vigentes</div>
             {promos.data.slice(0, 3).map((p) => (
               <button
+                type="button"
                 key={p.id}
                 className="opt"
                 onClick={() =>
@@ -83,6 +85,7 @@ export function DiscountSheet({
         <div className="row wrap">
           {[5, 10, 15, 20, 30].map((p) => (
             <button
+              type="button"
               key={p}
               className={`opt ${pct === p ? "on" : ""}`}
               onClick={() => {
@@ -128,6 +131,7 @@ export function DiscountSheet({
         )}
         {err && <p className="err">{err}</p>}
         <button
+          type="button"
           className="btn primary"
           disabled={(!pct && !cents) || reason.length < 2}
           onClick={apply}
@@ -153,8 +157,8 @@ export function CustomerSheet({ accountId, onClose }: { accountId: string; onClo
   const assign = (customerId: string) =>
     api(`/api/accounts/${accountId}/customer`, { body: { customerId } }).then(onClose);
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>Cliente de la cuenta</h3>
         <input
           placeholder="Buscar por nombre o teléfono"
@@ -163,7 +167,7 @@ export function CustomerSheet({ accountId, onClose }: { accountId: string; onClo
         />
         <div className="col">
           {list.data?.slice(0, 6).map((c) => (
-            <button key={c.id} className="opt" onClick={() => assign(c.id)}>
+            <button type="button" key={c.id} className="opt" onClick={() => assign(c.id)}>
               {c.name} {c.phone && <span className="small">· {c.phone}</span>}
             </button>
           ))}
@@ -176,6 +180,7 @@ export function CustomerSheet({ accountId, onClose }: { accountId: string; onClo
             onChange={(e) => setName(e.target.value)}
           />
           <button
+            type="button"
             className="btn"
             disabled={!name}
             onClick={() =>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { backdrop } from "../sheet";
 import { api, can, money, useLive } from "../api";
 import { PagedRows, SubTabs } from "../fit";
 import {
@@ -124,10 +125,11 @@ function Stock({ items }: { items: { data: Item[] | null; reload: () => void } }
         extra={
           edit ? (
             <>
-              <button className="btn sm" onClick={() => setManage(true)}>
+              <button type="button" className="btn sm" onClick={() => setManage(true)}>
                 Áreas y categorías
               </button>
               <button
+                type="button"
                 className="btn primary sm"
                 style={{ minHeight: 40 }}
                 onClick={() => setForm("new")}
@@ -185,10 +187,10 @@ function Stock({ items }: { items: { data: Item[] | null; reload: () => void } }
               <td className="r">
                 {edit && (
                   <span className="row" style={{ justifyContent: "flex-end", gap: 4 }}>
-                    <button className="btn sm" onClick={() => setMove(i)}>
+                    <button type="button" className="btn sm" onClick={() => setMove(i)}>
                       Movimiento
                     </button>
-                    <button className="btn sm" onClick={() => setForm(i)}>
+                    <button type="button" className="btn sm" onClick={() => setForm(i)}>
                       Editar
                     </button>
                   </span>
@@ -305,6 +307,7 @@ function ReorderTab({ rows, onList }: { rows: Reorder[]; onList: (id: string) =>
               {shown.length} insumo(s) por pedir{area ? " en esta selección" : ""}
             </span>
             <button
+              type="button"
               className="btn primary"
               disabled={shown.length === 0}
               onClick={() =>
@@ -333,14 +336,19 @@ function MoveSheet({ item, onClose }: { item: Item; onClose: () => void }) {
   const [err, setErr] = useState<string | null>(null);
   const need = kind === "merma" || kind === "ajuste";
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>
           {item.name} · {fmt(item.stock)} {item.unit}
         </h3>
         <div className="row wrap">
           {["entrada", "salida", "merma", "ajuste"].map((k) => (
-            <button key={k} className={`opt ${kind === k ? "on" : ""}`} onClick={() => setKind(k)}>
+            <button
+              type="button"
+              key={k}
+              className={`opt ${kind === k ? "on" : ""}`}
+              onClick={() => setKind(k)}
+            >
               {k}
             </button>
           ))}
@@ -364,6 +372,7 @@ function MoveSheet({ item, onClose }: { item: Item; onClose: () => void }) {
         )}
         {err && <p className="err">{err}</p>}
         <button
+          type="button"
           className="btn primary"
           disabled={!toNum(qty) || (need && !reason)}
           onClick={() =>
@@ -420,7 +429,7 @@ function Recipes() {
               <td className="r num">{c ? `${c.margin_pct}%` : "—"}</td>
               <td className="r">
                 {can("inventory.modify") && (
-                  <button className="btn sm" onClick={() => setSel(p)}>
+                  <button type="button" className="btn sm" onClick={() => setSel(p)}>
                     Receta
                   </button>
                 )}
@@ -462,12 +471,8 @@ function RecipeEditor({
     qty ?? Object.fromEntries((current.data ?? []).map((l) => [l.item_id, String(l.quantity)]));
   const [err, setErr] = useState<string | null>(null);
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div
-        className="sheet center"
-        style={{ height: "min(560px, 100%)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" style={{ height: "min(560px, 100%)" }}>
         <h3>Receta · {product.name}</h3>
         <p className="small">
           Cantidad de cada insumo por unidad vendida. Se descuenta al enviar la comanda.
@@ -494,6 +499,7 @@ function RecipeEditor({
         />
         {err && <p className="err">{err}</p>}
         <button
+          type="button"
           className="btn primary"
           onClick={() =>
             api(`/api/recipes/${product.id}`, {
@@ -557,6 +563,7 @@ function Purchases() {
                   <span className="num">{money(p.total_cents)}</span>
                   {manage && p.status === "borrador" && (
                     <button
+                      type="button"
                       className="btn sm"
                       onClick={() =>
                         run(api(`/api/purchase-orders/${p.id}/send`, { body: {} }), pos.reload)
@@ -567,6 +574,7 @@ function Purchases() {
                   )}
                   {manage && (p.status === "borrador" || p.status === "enviada") && (
                     <button
+                      type="button"
                       className="btn primary sm"
                       style={{ minHeight: 44 }}
                       onClick={() =>
@@ -624,6 +632,7 @@ function Purchases() {
             />
           </div>
           <button
+            type="button"
             className="btn primary"
             disabled={!po.supplierId || !po.item || !toNum(po.qty)}
             onClick={() =>
@@ -645,17 +654,16 @@ function Purchases() {
           >
             Crear orden
           </button>
-          <button className="btn" onClick={() => setSupOpen(true)}>
+          <button type="button" className="btn" onClick={() => setSupOpen(true)}>
             + Proveedor nuevo
           </button>
         </section>
       )}
       {supOpen && (
-        <div className="sheet-bg" onClick={() => setSupOpen(false)}>
-          <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-bg" {...backdrop(() => setSupOpen(false))}>
+          <div className="sheet center" role="dialog" aria-modal="true">
             <h3>Proveedor nuevo</h3>
             <input
-              autoFocus
               placeholder="Nombre"
               value={sup.name}
               onChange={(e) => setSup({ ...sup, name: e.target.value })}
@@ -666,6 +674,7 @@ function Purchases() {
               onChange={(e) => setSup({ ...sup, phone: e.target.value })}
             />
             <button
+              type="button"
               className="btn primary"
               disabled={!sup.name}
               onClick={() =>

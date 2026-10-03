@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { backdrop } from "../sheet";
 import { ApiError, api, money, useLive } from "../api";
 import { PagedRows } from "../fit";
 
@@ -82,6 +83,7 @@ export function InvoiceList() {
             <td className="r">
               <div className="row" style={{ justifyContent: "flex-end" }}>
                 <button
+                  type="button"
                   className="btn sm"
                   onClick={() =>
                     download(`/api/invoices/${i.id}/xml`, `${i.serie}-${i.folio}.xml`).catch((e) =>
@@ -92,6 +94,7 @@ export function InvoiceList() {
                   XML
                 </button>
                 <button
+                  type="button"
                   className="btn sm"
                   onClick={() =>
                     download(`/api/invoices/${i.id}/html`, null).catch((e) =>
@@ -102,12 +105,12 @@ export function InvoiceList() {
                   Imprimir / PDF
                 </button>
                 {i.status === "emitida" && (
-                  <button className="btn sm" onClick={() => setResend(i)}>
+                  <button type="button" className="btn sm" onClick={() => setResend(i)}>
                     Reenviar
                   </button>
                 )}
                 {i.status === "emitida" && (
-                  <button className="btn ghost sm" onClick={() => setCancel(i)}>
+                  <button type="button" className="btn ghost sm" onClick={() => setCancel(i)}>
                     Cancelar
                   </button>
                 )}
@@ -150,14 +153,15 @@ function CancelInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => 
   const [note, setNote] = useState("");
   const [err, setErr] = useState<string | null>(null);
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>
           Cancelar factura {invoice.serie}-{invoice.folio}
         </h3>
         <div className="col">
           {MOTIVOS.map(([k, l]) => (
             <button
+              type="button"
               key={k}
               className={`opt ${motivo === k ? "on" : ""}`}
               style={{ textAlign: "left" }}
@@ -174,6 +178,7 @@ function CancelInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => 
         />
         {err && <p className="err">{err}</p>}
         <button
+          type="button"
           className="btn primary"
           onClick={() =>
             api(`/api/invoices/${invoice.id}/cancel`, {
@@ -192,13 +197,12 @@ function ResendInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => 
   const [email, setEmail] = useState("");
   const [err, setErr] = useState<string | null>(null);
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>
           Reenviar {invoice.serie}-{invoice.folio}
         </h3>
         <input
-          autoFocus
           inputMode="email"
           placeholder="correo@cliente.com"
           value={email}
@@ -210,6 +214,7 @@ function ResendInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => 
         </p>
         {err && <p className="err">{err}</p>}
         <button
+          type="button"
           className="btn primary"
           disabled={!email.includes("@")}
           onClick={() =>
@@ -265,7 +270,7 @@ export function FiscalSheet({ accountId, onClose }: { accountId: string; onClose
               para emitir facturas oficiales.
             </p>
           )}
-          <button className="btn primary" onClick={onClose}>
+          <button type="button" className="btn primary" onClick={onClose}>
             Listo
           </button>
         </div>
@@ -273,8 +278,8 @@ export function FiscalSheet({ accountId, onClose }: { accountId: string; onClose
     );
   }
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>Datos fiscales del cliente</h3>
         <input
           placeholder="RFC"
@@ -318,10 +323,11 @@ export function FiscalSheet({ accountId, onClose }: { accountId: string; onClose
         />
         {err && <p className="err">{err}</p>}
         <div className="row">
-          <button className="btn grow" onClick={onClose}>
+          <button type="button" className="btn grow" onClick={onClose}>
             Ahora no
           </button>
           <button
+            type="button"
             className="btn primary grow"
             disabled={!f.rfc || !f.razon_social || !f.cp}
             onClick={submit}

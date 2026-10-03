@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { backdrop } from "../sheet";
 import { api, useLive } from "../api";
 import { PagedRows } from "../fit";
 
@@ -75,6 +76,7 @@ export function AreaBar({
     <div className="col" style={{ gap: 8, flex: "none" }}>
       <div className="row wrap">
         <button
+          type="button"
           className={`chip ${area === null ? "on" : ""}`}
           onClick={() => {
             onArea(null);
@@ -85,6 +87,7 @@ export function AreaBar({
         </button>
         {areas.map((a) => (
           <button
+            type="button"
             key={a.id}
             className={`chip ${area === a.id ? "on" : ""}`}
             onClick={() => {
@@ -100,11 +103,16 @@ export function AreaBar({
       </div>
       {area && mine.length > 0 && (
         <div className="row wrap">
-          <button className={`chip sub ${cat === null ? "on" : ""}`} onClick={() => onCat(null)}>
+          <button
+            type="button"
+            className={`chip sub ${cat === null ? "on" : ""}`}
+            onClick={() => onCat(null)}
+          >
             Todo {areas.find((a) => a.id === area)?.name}
           </button>
           {mine.map((c) => (
             <button
+              type="button"
               key={c.id}
               className={`chip sub ${cat === c.id ? "on" : ""}`}
               onClick={() => onCat(c.id)}
@@ -165,16 +173,11 @@ export function ItemSheet({
     );
   };
   return (
-    <div className="sheet-bg" onClick={() => !busy && onClose(false)}>
-      <div
-        className="sheet center"
-        style={{ width: "min(640px, 100%)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="sheet-bg" {...backdrop(() => !busy && onClose(false))}>
+      <div className="sheet center" style={{ width: "min(640px, 100%)" }}>
         <h3>{item ? "Editar insumo" : "Nuevo insumo"}</h3>
         <div className="grid2">
           <input
-            autoFocus
             placeholder="Nombre"
             value={f.name}
             onChange={(e) => setF({ ...f, name: e.target.value })}
@@ -237,10 +240,15 @@ export function ItemSheet({
         </p>
         {err && <p className="err">{err}</p>}
         <div className="row" style={{ justifyContent: "flex-end" }}>
-          <button className="btn" disabled={busy} onClick={() => onClose(false)}>
+          <button type="button" className="btn" disabled={busy} onClick={() => onClose(false)}>
             Cancelar
           </button>
-          <button className="btn primary" disabled={busy || !f.name.trim()} onClick={save}>
+          <button
+            type="button"
+            className="btn primary"
+            disabled={busy || !f.name.trim()}
+            onClick={save}
+          >
             Guardar
           </button>
         </div>
@@ -276,15 +284,14 @@ export function AreasSheet({
     if (name && name !== current) run(api(path, { method: "PATCH", body: { name } }));
   };
   return (
-    <div className="sheet-bg" onClick={onClose}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
       <div
         className="sheet center"
         style={{ width: "min(860px, 100%)", height: "min(560px, 100%)" }}
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="row spread">
           <h3>Áreas y categorías del inventario</h3>
-          <button className="btn sm" onClick={onClose}>
+          <button type="button" className="btn sm" onClick={onClose}>
             Cerrar
           </button>
         </div>
@@ -304,6 +311,7 @@ export function AreasSheet({
                 <td style={{ padding: 0 }}>
                   <div className="row" style={{ height: 52, gap: 6 }}>
                     <button
+                      type="button"
                       className={`opt ${sel === a.id ? "on" : ""}`}
                       style={{ minHeight: 40, padding: "0 12px" }}
                       onClick={() => setSel(a.id)}
@@ -317,6 +325,7 @@ export function AreasSheet({
                       onBlur={(e) => rename(`/api/inventory/areas/${a.id}`, a.name, e.target.value)}
                     />
                     <button
+                      type="button"
                       className="btn ghost sm"
                       aria-label={`Borrar ${a.name}`}
                       onClick={() =>
@@ -340,6 +349,7 @@ export function AreasSheet({
                 onChange={(e) => setNewArea(e.target.value)}
               />
               <button
+                type="button"
                 className="btn"
                 disabled={!newArea.trim()}
                 onClick={() =>
@@ -375,6 +385,7 @@ export function AreasSheet({
                       }
                     />
                     <button
+                      type="button"
                       className="btn ghost sm"
                       aria-label={`Borrar ${c.name}`}
                       onClick={() =>
@@ -396,6 +407,7 @@ export function AreasSheet({
                 onChange={(e) => setNewCat(e.target.value)}
               />
               <button
+                type="button"
                 className="btn"
                 disabled={!sel || !newCat.trim()}
                 onClick={() =>

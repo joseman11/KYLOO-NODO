@@ -254,7 +254,7 @@ export async function hqRoutes(app: FastifyInstance, opts: HqOptions) {
       .get(b.username)) as
       | { id: string; org_id: string; role: string; password_hash: string; active: number }
       | undefined;
-    if (!u || !u.active || !verifySecret(b.password, u.password_hash))
+    if (!u?.active || !verifySecret(b.password, u.password_hash))
       return reply.code(401).send({ error: "credenciales_invalidas" });
     return { token: app.jwt.sign({ hq: true, org: u.org_id, sub: u.id, role: u.role } as never) };
   });

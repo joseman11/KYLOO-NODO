@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { backdrop } from "../sheet";
 import { money, photoSrc } from "../api";
 import { flattenCategories, withDescendants, type Category } from "../categories";
 import { PagedGrid, PagedRows } from "../fit";
@@ -66,7 +67,7 @@ export function PublicMenu() {
     );
   useEffect(() => {
     void load();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [load]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Categorías principales arriba; al elegir una, el producto puede estar en cualquiera de sus subcategorías
   const top = useMemo(
@@ -147,10 +148,10 @@ export function PublicMenu() {
           <h2>Menú · Mesa {menu.table.number}</h2>
         </div>
         <div className="row">
-          <button className="btn sm" onClick={() => call("mesero")}>
+          <button type="button" className="btn sm" onClick={() => call("mesero")}>
             Mesero
           </button>
-          <button className="btn sm" onClick={() => call("cuenta")}>
+          <button type="button" className="btn sm" onClick={() => call("cuenta")}>
             Cuenta
           </button>
         </div>
@@ -161,11 +162,16 @@ export function PublicMenu() {
         </p>
       )}
       <div className="chips">
-        <button className={`chip ${cat === null ? "on" : ""}`} onClick={() => setCat(null)}>
+        <button
+          type="button"
+          className={`chip ${cat === null ? "on" : ""}`}
+          onClick={() => setCat(null)}
+        >
           Todo
         </button>
         {top.map((c) => (
           <button
+            type="button"
             key={c.id}
             className={`chip ${cat === c.id ? "on" : ""}`}
             onClick={() => setCat(c.id)}
@@ -206,6 +212,7 @@ export function PublicMenu() {
             </div>
             {menu.can_order && (
               <button
+                type="button"
                 className="btn primary"
                 style={{ minHeight: 48 }}
                 disabled={p.availability !== "disponible"}
@@ -218,18 +225,19 @@ export function PublicMenu() {
         )}
       />
       {count > 0 && (
-        <button className="btn primary" style={{ flex: "none" }} onClick={() => setReview(true)}>
+        <button
+          type="button"
+          className="btn primary"
+          style={{ flex: "none" }}
+          onClick={() => setReview(true)}
+        >
           Ver pedido · {count} · {money(total)}
         </button>
       )}
 
       {review && (
-        <div className="sheet-bg" onClick={() => setReview(false)}>
-          <div
-            className="sheet center"
-            style={{ height: "min(520px, 100%)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="sheet-bg" {...backdrop(() => setReview(false))}>
+          <div className="sheet center" style={{ height: "min(520px, 100%)" }}>
             <h3>Tu pedido</h3>
             <PagedRows
               items={cart}
@@ -242,6 +250,7 @@ export function PublicMenu() {
                       <div className="small ellipsis">{l.labels.join(", ")}</div>
                     </span>
                     <button
+                      type="button"
                       className="btn ghost sm"
                       onClick={() => setCart(cart.filter((x) => x.key !== l.key))}
                     >
@@ -251,7 +260,7 @@ export function PublicMenu() {
                 </td>
               )}
             />
-            <button className="btn primary" onClick={order}>
+            <button type="button" className="btn primary" onClick={order}>
               Enviar pedido · {money(total)}
             </button>
           </div>

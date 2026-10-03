@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { backdrop } from "../sheet";
 import { api, money, photoSrc, useLive } from "../api";
 import { resizeImage } from "../image";
 import { Icon } from "../icons";
@@ -84,6 +85,7 @@ export function StationPicker({
               .filter((s) => s.areaId === a.id)
               .map((s) => (
                 <button
+                  type="button"
                   key={s.id}
                   className={`opt ${value.includes(s.id) ? "on" : ""}`}
                   style={{ minHeight: 40, padding: "0 12px" }}
@@ -148,6 +150,7 @@ export function Areas() {
           row={(a) => (
             <td style={{ padding: 0 }}>
               <button
+                type="button"
                 className={`opt ${a.id === area?.id ? "on" : ""}`}
                 style={{ width: "100%", height: 46, textAlign: "left" }}
                 onClick={() => {
@@ -168,6 +171,7 @@ export function Areas() {
             onChange={(e) => setNewArea(e.target.value)}
           />
           <button
+            type="button"
             className="btn"
             disabled={!newArea.trim()}
             onClick={() =>
@@ -194,6 +198,7 @@ export function Areas() {
           </div>
           {area && (
             <button
+              type="button"
               className="btn ghost sm"
               onClick={() =>
                 api(`/api/areas/${area.id}`, { method: "DELETE" }).then(() => {
@@ -220,6 +225,7 @@ export function Areas() {
             <td style={{ padding: 0 }}>
               <div className="row" style={{ height: 56 }}>
                 <button
+                  type="button"
                   className={`opt grow ${s.id === station?.id ? "on" : ""}`}
                   style={{ height: 48, textAlign: "left" }}
                   onClick={() => setStationId(s.id)}
@@ -230,6 +236,7 @@ export function Areas() {
                   </span>
                 </button>
                 <button
+                  type="button"
                   className="btn ghost sm"
                   aria-label="Eliminar estación"
                   onClick={() =>
@@ -255,6 +262,7 @@ export function Areas() {
               onChange={(e) => setNewStation(e.target.value)}
             />
             <button
+              type="button"
               className="btn"
               disabled={!newStation.trim()}
               onClick={() =>
@@ -298,6 +306,7 @@ export function Areas() {
               .map((s) => s.name);
             return (
               <button
+                type="button"
                 className={`opt ${on ? "on" : ""}`}
                 style={{
                   height: "100%",
@@ -395,13 +404,14 @@ export function Categories() {
               </td>
               <td className="r">
                 <div className="row" style={{ justifyContent: "flex-end", gap: 4 }}>
-                  <button className="btn sm" onClick={() => setRouting(c)}>
+                  <button type="button" className="btn sm" onClick={() => setRouting(c)}>
                     Destino
                   </button>
-                  <button className="btn ghost sm" onClick={() => setEditing(c)}>
+                  <button type="button" className="btn ghost sm" onClick={() => setEditing(c)}>
                     Editar
                   </button>
                   <button
+                    type="button"
                     className="btn ghost sm"
                     onClick={() =>
                       api(`/api/categories/${c.id}`, { method: "DELETE" }).then(() => {
@@ -440,6 +450,7 @@ export function Categories() {
           principal.
         </p>
         <button
+          type="button"
           className="btn primary"
           disabled={!name.trim()}
           onClick={() =>
@@ -489,8 +500,8 @@ function EditCategory({ node, tree, onClose }: { node: Node; tree: Node[]; onClo
   const [parent, setParent] = useState(node.parent_id ?? "");
   const [err, setErr] = useState<string | null>(null);
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>Editar categoría</h3>
         <input value={name} onChange={(e) => setName(e.target.value)} />
         <select value={parent} onChange={(e) => setParent(e.target.value)}>
@@ -505,6 +516,7 @@ function EditCategory({ node, tree, onClose }: { node: Node; tree: Node[]; onClo
         </select>
         {err && <p className="err">{err}</p>}
         <button
+          type="button"
           className="btn primary"
           disabled={!name.trim()}
           onClick={() =>
@@ -538,8 +550,8 @@ function RouteCategory({
   const [apply, setApply] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>¿A dónde se envía "{node.name}"?</h3>
         <p className="small">
           Los productos nuevos de esta categoría se enviarán aquí sin tener que elegirlo cada vez.
@@ -551,6 +563,7 @@ function RouteCategory({
           stations={venue.stations}
         />
         <button
+          type="button"
           className={`opt ${apply ? "on" : ""}`}
           style={{ textAlign: "left" }}
           onClick={() => setApply(!apply)}
@@ -560,6 +573,7 @@ function RouteCategory({
         </button>
         {err && <p className="err">{err}</p>}
         <button
+          type="button"
           className="btn primary"
           onClick={() =>
             api(`/api/categories/${node.id}/routes`, {
@@ -662,7 +676,12 @@ export function Products() {
             {(products.data ?? []).length} productos · cada uno se envía a la estación que elijas, o
             a la de su categoría
           </span>
-          <button className="btn primary" style={{ minHeight: 48 }} onClick={() => setOpen(true)}>
+          <button
+            type="button"
+            className="btn primary"
+            style={{ minHeight: 48 }}
+            onClick={() => setOpen(true)}
+          >
             + Nuevo producto
           </button>
         </div>
@@ -723,6 +742,7 @@ export function Products() {
               <td className="r">
                 <div className="row" style={{ justifyContent: "flex-end", gap: 4 }}>
                   <button
+                    type="button"
                     className="btn ghost sm"
                     title="Marcar agotado / disponible"
                     onClick={() =>
@@ -739,6 +759,7 @@ export function Products() {
                     {p.availability === "agotado" ? "Agotado" : "Agotar"}
                   </button>
                   <button
+                    type="button"
                     className="btn sm"
                     onClick={() => {
                       setForm({
@@ -755,6 +776,7 @@ export function Products() {
                     Editar
                   </button>
                   <button
+                    type="button"
                     className="btn ghost sm"
                     onClick={() =>
                       api(`/api/products/${p.id}`, { method: "DELETE" }).then(
@@ -775,12 +797,8 @@ export function Products() {
         />
       </section>
       {open && (
-        <div className="sheet-bg" onClick={reset}>
-          <div
-            className="sheet center"
-            style={{ width: "min(520px, 100%)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="sheet-bg" {...backdrop(reset)}>
+          <div className="sheet center" style={{ width: "min(520px, 100%)" }}>
             <h3>{form.id ? "Editar producto" : "Nuevo producto"}</h3>
             <input
               placeholder="Nombre (Coca, Taco de calamar, Mojito…)"
@@ -877,6 +895,7 @@ export function Products() {
                 </label>
                 {(photo.pending || (photo.current && !photo.remove)) && (
                   <button
+                    type="button"
                     className="btn ghost sm"
                     onClick={() => setPhoto({ ...photo, pending: null, remove: true })}
                   >
@@ -901,10 +920,11 @@ export function Products() {
             )}
             {err && <p className="err">{err}</p>}
             <div className="row">
-              <button className="btn grow" onClick={reset}>
+              <button type="button" className="btn grow" onClick={reset}>
                 Cancelar
               </button>
               <button
+                type="button"
                 className="btn primary grow"
                 disabled={
                   !form.name.trim() ||

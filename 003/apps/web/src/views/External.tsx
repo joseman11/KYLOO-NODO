@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { backdrop } from "../sheet";
 import { api, money, useLive } from "../api";
 import { PagedGrid } from "../fit";
 
@@ -50,7 +51,7 @@ export function External({ onOpen }: { onOpen: (accountId: string) => void }) {
     <div className="view">
       <div className="row spread" style={{ flex: "none" }}>
         <h2>Para llevar y delivery</h2>
-        <button className="btn primary" onClick={() => setCreating(true)}>
+        <button type="button" className="btn primary" onClick={() => setCreating(true)}>
           Nuevo pedido
         </button>
       </div>
@@ -86,12 +87,13 @@ export function External({ onOpen }: { onOpen: (accountId: string) => void }) {
             </div>
             <div className="row wrap">
               {r.account_status !== "cerrada" && (
-                <button className="btn sm" onClick={() => onOpen(r.id)}>
+                <button type="button" className="btn sm" onClick={() => onOpen(r.id)}>
                   Pedido
                 </button>
               )}
               {NEXT[r.status]?.map((n) => (
                 <button
+                  type="button"
                   key={n.to}
                   className="btn sm"
                   onClick={() => (n.to === "en_camino" ? setDriverFor(r) : move(r, n.to))}
@@ -131,16 +133,20 @@ function DriverSheet({
 }) {
   const [name, setName] = useState("");
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>Repartidor</h3>
         <input
-          autoFocus
           placeholder="Nombre del repartidor"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <button className="btn primary" disabled={!name.trim()} onClick={() => onPick(name.trim())}>
+        <button
+          type="button"
+          className="btn primary"
+          disabled={!name.trim()}
+          onClick={() => onPick(name.trim())}
+        >
           Sale a reparto
         </button>
       </div>
@@ -159,12 +165,13 @@ function NewExternal({
   const [err, setErr] = useState<string | null>(null);
   const fee = Math.round((parseFloat(f.fee.replace(",", ".")) || 0) * 100);
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>Nuevo pedido</h3>
         <div className="row">
           {["llevar", "delivery"].map((k) => (
             <button
+              type="button"
               key={k}
               className={`opt grow ${f.kind === k ? "on" : ""}`}
               onClick={() => setF({ ...f, kind: k })}
@@ -201,6 +208,7 @@ function NewExternal({
         )}
         {err && <p className="err">{err}</p>}
         <button
+          type="button"
           className="btn primary"
           disabled={!f.name || (f.kind === "delivery" && !f.address)}
           onClick={() =>

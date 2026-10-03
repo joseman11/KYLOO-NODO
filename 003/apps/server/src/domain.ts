@@ -146,8 +146,7 @@ export async function authorize(
     | { id: string; role: Role; pin_hash: string | null; active: number }
     | undefined;
   if (
-    !u ||
-    !u.active ||
+    !u?.active ||
     !verifySecret(pin, u.pin_hash) ||
     !can(DEFAULT_ROLE_PERMISSIONS[u.role], permission)
   ) {

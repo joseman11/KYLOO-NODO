@@ -39,7 +39,7 @@ export function SharedShopping() {
     load();
     const t = setInterval(load, 15000);
     return () => clearInterval(t);
-  }, []);
+  }, [load]);
   const toggle = (id: string, checked: boolean) => {
     setData((d) => d && { ...d, lines: d.lines.map((l) => (l.id === id ? { ...l, checked } : l)) });
     api(`/api/shared/shopping/${token}/items/${id}`, { method: "PATCH", body: { checked } }).catch(
@@ -87,6 +87,7 @@ export function SharedShopping() {
               row={(l) => (
                 <td style={{ padding: 0 }}>
                   <button
+                    type="button"
                     className="shared-row"
                     disabled={closed}
                     onClick={() => toggle(l.id, !l.checked)}

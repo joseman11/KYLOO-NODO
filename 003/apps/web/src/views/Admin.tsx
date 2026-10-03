@@ -98,6 +98,7 @@ export function Admin() {
         <SubTabs tabs={tabs} value={tab} onChange={setTab} />
         {can("user.manage") && (
           <button
+            type="button"
             className="btn sm"
             onClick={() =>
               api("/api/backups", { method: "POST", body: {} }).then((r: { file: string }) =>
@@ -226,7 +227,7 @@ export function Admin() {
                       {p.name}{" "}
                       <span className="small">{p.online ? "conectada" : "sin respuesta"}</span>
                     </span>
-                    <button className="btn sm" onClick={() => test(p.id)}>
+                    <button type="button" className="btn sm" onClick={() => test(p.id)}>
                       Imprimir prueba
                     </button>
                   </div>
@@ -249,6 +250,7 @@ export function Admin() {
                       {j.kind} · {j.last_error}
                     </span>
                     <button
+                      type="button"
                       className="btn sm"
                       onClick={() =>
                         api(`/api/print-jobs/${j.id}/retry`, { body: {} }).then(() => jobs.reload())

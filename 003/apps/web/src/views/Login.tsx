@@ -91,6 +91,7 @@ export function Login({ onLogin }: { onLogin: (u: SessionUser) => void }) {
             <strong className="ellipsis">{info.data?.name ?? "Nodo"}</strong>
           </div>
           <button
+            type="button"
             className="btn ghost sm"
             onClick={() => {
               setAdmin(!admin);
@@ -102,6 +103,7 @@ export function Login({ onLogin }: { onLogin: (u: SessionUser) => void }) {
           </button>
           {isNativeApp() && (
             <button
+              type="button"
               className="btn ghost sm"
               title={serverBase()}
               onClick={() => {
@@ -164,6 +166,7 @@ export function Login({ onLogin }: { onLogin: (u: SessionUser) => void }) {
                 gap={10}
                 render={(u) => (
                   <button
+                    type="button"
                     className="user-card"
                     onClick={() => {
                       setSelected(u.id);
@@ -190,6 +193,7 @@ export function Login({ onLogin }: { onLogin: (u: SessionUser) => void }) {
                 <div className="small">{ROLE[chosen.role] ?? chosen.role} · escribe tu PIN</div>
               </div>
               <button
+                type="button"
                 className="btn sm"
                 onClick={() => {
                   setSelected(null);
@@ -207,17 +211,22 @@ export function Login({ onLogin }: { onLogin: (u: SessionUser) => void }) {
             </div>
             <div className="pad">
               {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
-                <button key={d} className="btn" onClick={() => press(d)}>
+                <button type="button" key={d} className="btn" onClick={() => press(d)}>
                   {d}
                 </button>
               ))}
-              <button className="btn" onClick={() => setPin(pin.slice(0, -1))}>
+              <button type="button" className="btn" onClick={() => setPin(pin.slice(0, -1))}>
                 ⌫
               </button>
-              <button className="btn" onClick={() => press("0")}>
+              <button type="button" className="btn" onClick={() => press("0")}>
                 0
               </button>
-              <button className="btn primary" disabled={pin.length < 4} onClick={submitPin}>
+              <button
+                type="button"
+                className="btn primary"
+                disabled={pin.length < 4}
+                onClick={submitPin}
+              >
                 Entrar
               </button>
             </div>

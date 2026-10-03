@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { backdrop } from "../sheet";
 import {
   ApiError,
   type QueuedItemView,
@@ -198,7 +199,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
 
   const [cat, setCat] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [searching, setSearching] = useState(false);
+  const [_searching, _setSearching] = useState(false);
   const [cart, setCart] = useState<CartEntry[]>([]);
   const [sel, setSel] = useState<string | null>(null);
   const [mult, setMult] = useState(1);
@@ -229,7 +230,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
   const tree = useMemo(() => flattenCategories(allCats), [allCats]);
   const selected = tree.find((c) => c.id === cat) ?? null;
   const hasKids = (id: string) => allCats.some((c) => c.parent_id === id);
-  const subRow = selected
+  const _subRow = selected
     ? hasKids(selected.id)
       ? tree.filter((c) => c.parent_id === selected.id)
       : selected.parent_id
@@ -447,7 +448,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
     <div className="view">
       {/* Encabezado: mesa, mesero, comensales y tiempo */}
       <div className="comanda-head">
-        <button className="btn sm" onClick={onBack}>
+        <button type="button" className="btn sm" onClick={onBack}>
           ← Mesas
         </button>
         <h2>
@@ -455,6 +456,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
         </h2>
         <span className="small">{a?.waiter}</span>
         <button
+          type="button"
           className="chip"
           style={{ minHeight: 36 }}
           disabled={!!closed || !a}
@@ -465,6 +467,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
         <span className="small">abierta hace {mins} min</span>
         <span className="grow" />
         <button
+          type="button"
           className={`chip ${showPhotos ? "on" : ""}`}
           style={{ minHeight: 36 }}
           onClick={() => {
@@ -509,6 +512,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
               <td style={{ padding: 0 }}>
                 {r.t === "cart" && (
                   <button
+                    type="button"
                     className={`tk ${sel === r.l.key ? "sel" : ""}`}
                     style={{ background: sel === r.l.key ? undefined : "#fff7f2" }}
                     onClick={() => setSel(r.l.key)}
@@ -541,6 +545,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
                       {r.s.hold ? " · retenido" : ""} ──
                     </span>
                     <button
+                      type="button"
                       className="btn ghost sm"
                       style={{ color: "#fff" }}
                       aria-label="Quitar separador"
@@ -552,6 +557,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
                 )}
                 {r.t === "sent" && (
                   <button
+                    type="button"
                     className={`tk ${sel === r.i.id ? "sel" : ""}`}
                     onClick={() => setSel(r.i.id)}
                   >
@@ -584,6 +590,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
                     <span className="num">−{money(r.d.amount_cents)}</span>
                     {can("discount.apply") && !closed && (
                       <button
+                        type="button"
                         className="btn ghost sm"
                         aria-label="Quitar descuento"
                         onClick={() =>
@@ -604,6 +611,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
                     <span className="num">{money(r.cents)}</span>
                     {r.label === "Cargo por servicio" && can("discount.apply") && !closed && (
                       <button
+                        type="button"
                         className="btn ghost sm"
                         title="Dispensar el cargo por servicio"
                         onClick={() =>
@@ -626,7 +634,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
             {selRow?.t === "cart" && (
               <>
                 <div className="stepper">
-                  <button className="btn" onClick={() => step(selRow.l.key, -1)}>
+                  <button type="button" className="btn" onClick={() => step(selRow.l.key, -1)}>
                     −
                   </button>
                   <span
@@ -635,14 +643,15 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
                   >
                     {selRow.l.quantity}
                   </span>
-                  <button className="btn" onClick={() => step(selRow.l.key, 1)}>
+                  <button type="button" className="btn" onClick={() => step(selRow.l.key, 1)}>
                     +
                   </button>
                 </div>
-                <button className="btn grow" onClick={() => setNoteFor(selRow.l)}>
+                <button type="button" className="btn grow" onClick={() => setNoteFor(selRow.l)}>
                   ✎ Nota
                 </button>
                 <button
+                  type="button"
                   className="btn ghost"
                   onClick={() => {
                     setCart((c) => c.filter((x) => x.key !== selRow.l.key));
@@ -659,7 +668,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
                   {selRow.i.quantity} × {selRow.i.name}
                 </span>
                 {can("item.cancel") && (
-                  <button className="btn" onClick={() => setCancelItem(selRow.i)}>
+                  <button type="button" className="btn" onClick={() => setCancelItem(selRow.i)}>
                     Cancelar producto
                   </button>
                 )}
@@ -686,6 +695,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
             </strong>
           </div>
           <button
+            type="button"
             className="btn primary block"
             style={{ flex: "none" }}
             disabled={lines.length === 0 || busy || !!closed}
@@ -702,6 +712,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
             <span className="small">Cant.</span>
             {[1, 2, 3, 4, 5].map((n) => (
               <button
+                type="button"
                 key={n}
                 className={`chip ${mult === n ? "on" : ""}`}
                 style={{ minHeight: 38, padding: "0 10px" }}
@@ -711,6 +722,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
               </button>
             ))}
             <button
+              type="button"
               className={`chip ${mult > 5 ? "on" : ""}`}
               style={{ minHeight: 38, padding: "0 10px" }}
               onClick={() => setMenu("qty")}
@@ -721,6 +733,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
               Asiento
             </span>
             <button
+              type="button"
               className={`chip ${seat === null ? "on" : ""}`}
               style={{ minHeight: 38, padding: "0 10px" }}
               onClick={() => setSeat(null)}
@@ -729,6 +742,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
             </button>
             {seats.map((n) => (
               <button
+                type="button"
                 key={n}
                 className={`chip ${seat === n ? "on" : ""}`}
                 style={{ minHeight: 38, padding: "0 10px" }}
@@ -768,6 +782,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
                 row={(r) => (
                   <td style={{ padding: 0 }}>
                     <button
+                      type="button"
                       className={`opt ${r.on ? "on" : ""}`}
                       style={{
                         width: "100%",
@@ -808,6 +823,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
                 const unavailable = p.availability !== "disponible" || !!closed;
                 return (
                   <button
+                    type="button"
                     className={`product ${src ? "pic" : ""}`}
                     disabled={unavailable}
                     onClick={() => (p.modifier_group_ids.length ? setPicking(p) : addProduct(p))}
@@ -846,6 +862,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
               .filter((f) => f.show)
               .map((f) => (
                 <button
+                  type="button"
                   key={f.label}
                   className={`btn ${f.ember ? "primary" : ""}`}
                   style={{
@@ -1000,23 +1017,22 @@ function NoteSheet({
 }) {
   const [note, setNote] = useState(line.note);
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>Nota · {line.product.name}</h3>
         <div className="row wrap">
           {NOTES.map((n) => (
-            <button key={n} className="opt" onClick={() => setNote(n)}>
+            <button type="button" key={n} className="opt" onClick={() => setNote(n)}>
               {n}
             </button>
           ))}
         </div>
         <input
-          autoFocus
           placeholder="Escribe una nota"
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
-        <button className="btn primary" onClick={() => onSave(note.trim())}>
+        <button type="button" className="btn primary" onClick={() => onSave(note.trim())}>
           Guardar nota
         </button>
       </div>
@@ -1035,14 +1051,15 @@ function SeparatorSheet({
   const [custom, setCustom] = useState("");
   const [hold, setHold] = useState(false);
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>Agregar separador</h3>
         <p className="small">
           Los productos que agregues después saldrán bajo este nombre en la comanda, para que la
           cocina sepa cuándo preparar cada parte.
         </p>
         <button
+          type="button"
           className={`opt ${hold ? "on" : ""}`}
           style={{ textAlign: "left" }}
           onClick={() => setHold(!hold)}
@@ -1051,7 +1068,7 @@ function SeparatorSheet({
         </button>
         <div className="row wrap">
           {COURSES.map((c) => (
-            <button key={c} className="opt" onClick={() => onPick(c, hold)}>
+            <button type="button" key={c} className="opt" onClick={() => onPick(c, hold)}>
               {c}
             </button>
           ))}
@@ -1065,6 +1082,7 @@ function SeparatorSheet({
             onChange={(e) => setCustom(e.target.value)}
           />
           <button
+            type="button"
             className="btn primary"
             style={{ minHeight: 48 }}
             disabled={!custom.trim()}
@@ -1094,8 +1112,8 @@ function FireSheet({
       setErr((e as Error).message),
     );
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>Mandar tiempo a cocina</h3>
         <p className="small">
           Estos tiempos esperan. Al mandarlos, cocina y barra reciben su comanda con el título
@@ -1103,6 +1121,7 @@ function FireSheet({
         </p>
         {courses.map((c) => (
           <button
+            type="button"
             key={c}
             className="btn primary"
             onClick={() => fire(c === "Tiempo" ? undefined : c)}
@@ -1111,7 +1130,7 @@ function FireSheet({
           </button>
         ))}
         {courses.length > 1 && (
-          <button className="btn" onClick={() => fire()}>
+          <button type="button" className="btn" onClick={() => fire()}>
             Mandar todos
           </button>
         )}
@@ -1133,12 +1152,8 @@ function GuestsSheet({
   const [n, setN] = useState(String(current));
   const [err, setErr] = useState<string | null>(null);
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div
-        className="sheet center"
-        style={{ width: "min(360px, 100%)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" style={{ width: "min(360px, 100%)" }}>
         <h3>Comensales</h3>
         <div
           className="num"
@@ -1149,6 +1164,7 @@ function GuestsSheet({
         <NumPad value={n} onChange={setN} max={2} />
         {err && <p className="err">{err}</p>}
         <button
+          type="button"
           className="btn primary"
           disabled={!n || Number(n) < 1}
           onClick={() =>
@@ -1168,12 +1184,8 @@ function GuestsSheet({
 function QtySheet({ onPick, onClose }: { onPick: (n: number) => void; onClose: () => void }) {
   const [n, setN] = useState("");
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div
-        className="sheet center"
-        style={{ width: "min(360px, 100%)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" style={{ width: "min(360px, 100%)" }}>
         <h3>Cantidad del siguiente producto</h3>
         <div
           className="num"
@@ -1183,6 +1195,7 @@ function QtySheet({ onPick, onClose }: { onPick: (n: number) => void; onClose: (
         </div>
         <NumPad value={n} onChange={setN} max={2} />
         <button
+          type="button"
           className="btn primary"
           disabled={!n || Number(n) < 1}
           onClick={() => onPick(Number(n))}
@@ -1217,8 +1230,8 @@ export function ModifierSheet({
   const ok = groups.every((g) => !g.required || (sel[g.id]?.length ?? 0) > 0);
   const chosen = groups.flatMap((g) => g.modifiers.filter((m) => sel[g.id]?.includes(m.id)));
   return (
-    <div className="sheet-bg" onClick={onCancel}>
-      <div className="sheet" style={{ overflow: "auto" }} onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onCancel)}>
+      <div className="sheet" style={{ overflow: "auto" }}>
         <h3>{product.name}</h3>
         {groups.map((g) => (
           <div key={g.id} className="col">
@@ -1230,6 +1243,7 @@ export function ModifierSheet({
             <div className="row wrap">
               {g.modifiers.map((m) => (
                 <button
+                  type="button"
                   key={m.id}
                   className={`opt ${sel[g.id]?.includes(m.id) ? "on" : ""}`}
                   onClick={() => toggle(g, m.id)}
@@ -1242,6 +1256,7 @@ export function ModifierSheet({
           </div>
         ))}
         <button
+          type="button"
           className="btn primary"
           disabled={!ok}
           onClick={() =>
@@ -1287,14 +1302,15 @@ function CancelSheet({ item, onClose }: { item: Item; onClose: () => void }) {
     }
   };
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>
           Cancelar {item.quantity} × {item.name}
         </h3>
         <div className="row wrap">
           {REASONS.map((r) => (
             <button
+              type="button"
               key={r}
               className={`opt ${reason === r ? "on" : ""}`}
               onClick={() => setReason(r)}
@@ -1327,10 +1343,10 @@ function CancelSheet({ item, onClose }: { item: Item; onClose: () => void }) {
         )}
         {err && <p className="err">{err}</p>}
         <div className="row">
-          <button className="btn grow" onClick={onClose}>
+          <button type="button" className="btn grow" onClick={onClose}>
             Volver
           </button>
-          <button className="btn primary grow" onClick={submit}>
+          <button type="button" className="btn primary grow" onClick={submit}>
             Cancelar producto
           </button>
         </div>
@@ -1374,12 +1390,8 @@ function MoveSheet({
             run: () => go("move", { tableId: t.id }),
           }));
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div
-        className="sheet center"
-        style={{ height: "min(480px, 100%)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" style={{ height: "min(480px, 100%)" }}>
         <h3>{kind === "transfer" ? "Transferir a otro mesero" : "Mover a otra mesa"}</h3>
         <PagedGrid
           items={options}
@@ -1387,13 +1399,13 @@ function MoveSheet({
           minH={56}
           empty={<p className="muted">No hay opciones disponibles</p>}
           render={(o) => (
-            <button className="opt" style={{ height: "100%" }} onClick={o.run}>
+            <button type="button" className="opt" style={{ height: "100%" }} onClick={o.run}>
               {o.label}
             </button>
           )}
         />
         {err && <p className="err">{err}</p>}
-        <button className="btn" onClick={onClose}>
+        <button type="button" className="btn" onClick={onClose}>
           Cerrar
         </button>
       </div>
@@ -1416,18 +1428,15 @@ function SplitSheet({ account, onClose }: { account: Account; onClose: () => voi
     ...new Set(items.map((i) => i.seat).filter((x): x is number => x !== null)),
   ].sort((a, b) => a - b);
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div
-        className="sheet center"
-        style={{ height: "min(560px, 100%)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" style={{ height: "min(560px, 100%)" }}>
         <h3>Dividir cuenta: elige lo que pasa a la cuenta nueva</h3>
         {seatsUsed.length > 0 && (
           <div className="row wrap">
             <span className="small">Elegir por asiento:</span>
             {seatsUsed.map((n) => (
               <button
+                type="button"
                 key={n}
                 className="opt"
                 style={{ minHeight: 40 }}
@@ -1444,6 +1453,7 @@ function SplitSheet({ account, onClose }: { account: Account; onClose: () => voi
           row={(i) => (
             <td style={{ padding: 0 }}>
               <button
+                type="button"
                 className={`opt block ${sel.includes(i.id) ? "on" : ""}`}
                 style={{ width: "100%", height: 48, textAlign: "left" }}
                 onClick={() => toggle(i.id)}
@@ -1459,6 +1469,7 @@ function SplitSheet({ account, onClose }: { account: Account; onClose: () => voi
         </p>
         {err && <p className="err">{err}</p>}
         <button
+          type="button"
           className="btn primary"
           disabled={sel.length === 0 || sel.length === items.length}
           onClick={() =>
@@ -1508,12 +1519,8 @@ export function MergeSheet({ account, onClose }: { account: { id: string }; onCl
     req.then(onClose, (e) => setErr((e as Error).message));
   };
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div
-        className="sheet center"
-        style={{ height: "min(480px, 100%)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" style={{ height: "min(480px, 100%)" }}>
         <h3>Juntar con otra mesa{mine ? ` (mesa ${mine.number})` : ""}</h3>
         <PagedGrid
           items={options}
@@ -1521,7 +1528,12 @@ export function MergeSheet({ account, onClose }: { account: { id: string }; onCl
           minH={64}
           empty={<p className="muted">No hay mesas para juntar</p>}
           render={(t) => (
-            <button className="opt" style={{ height: "100%" }} onClick={() => pick(t)}>
+            <button
+              type="button"
+              className="opt"
+              style={{ height: "100%" }}
+              onClick={() => pick(t)}
+            >
               Mesa {t.number}
               <br />
               <span className="small">
@@ -1533,7 +1545,7 @@ export function MergeSheet({ account, onClose }: { account: { id: string }; onCl
           )}
         />
         {err && <p className="err">{err}</p>}
-        <button className="btn" onClick={onClose}>
+        <button type="button" className="btn" onClick={onClose}>
           Cerrar
         </button>
       </div>

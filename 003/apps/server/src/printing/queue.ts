@@ -75,7 +75,7 @@ export async function processQueue(
       | PrinterRow
       | undefined;
     try {
-      if (!printer || !printer.active) throw new Error("Impresora inactiva o inexistente");
+      if (!printer?.active) throw new Error("Impresora inactiva o inexistente");
       const lines = JSON.parse(job.content) as string[];
       const data = toEscpos(lines, { cut: !!printer.auto_cut });
       for (let c = 0; c < printer.copies; c++)

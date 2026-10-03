@@ -811,7 +811,7 @@ export async function seedDemo(
     await addUser("Chef Ramón", "cocina", { pin: "7777" });
     await addUser("Barman Toño", "bar", { pin: "8888" });
     const meseros = ["Juan", "Pedro", "Lucía", "Marco"].map((n) => staff[n]!.id);
-    const cajero = staff["Caja"]!.id;
+    const cajero = staff.Caja!.id;
 
     // ── Ajustes del negocio ──
     const setting = (k: string, v: string) =>
@@ -2761,7 +2761,7 @@ export async function seedDemo(
     for (const n of ["Cerveza Corona", "Aguachile verde", "Taco de camarón"]) {
       await run(
         "UPDATE user_favorites SET pinned=1 WHERE user_id=? AND product_id=?",
-        staff["Juan"]!.id,
+        staff.Juan!.id,
         products.find((p) => p.name === n)!.id,
       );
     }

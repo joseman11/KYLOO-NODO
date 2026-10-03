@@ -42,7 +42,7 @@ export async function authRoutes(app: FastifyInstance) {
 
   /** Cuenta intentos fallidos y bloquea temporalmente (protección contra fuerza bruta de PIN). */
   async function attempt(user: UserRow | undefined, ok: (u: UserRow) => boolean) {
-    if (!user || !user.active) return { status: 401 as const };
+    if (!user?.active) return { status: 401 as const };
     if (user.locked_until > Date.now()) return { status: 429 as const };
     if (ok(user)) {
       await db

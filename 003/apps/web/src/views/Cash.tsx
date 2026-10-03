@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { backdrop } from "../sheet";
 import { ApiError, api, can, money, useLive } from "../api";
 import { PagedGrid } from "../fit";
 import { NumPad } from "../numpad";
@@ -80,6 +81,7 @@ export function Cash() {
   const [drawerMsg, setDrawerMsg] = useState<string | null>(null);
   const drawerButton = drawer && (
     <button
+      type="button"
       className="btn"
       onClick={() =>
         api<{ ok: boolean; error?: string }>(`/api/printers/${drawer.id}/open-drawer`, {
@@ -109,6 +111,7 @@ export function Cash() {
         {err && <p className="err">{err}</p>}
         {drawerButton}
         <button
+          type="button"
           className="btn primary"
           disabled={!can("cash.open") || cash.data === undefined}
           onClick={() =>
@@ -145,10 +148,10 @@ export function Cash() {
         <h2>Caja</h2>
         <div className="row">
           {drawerButton}
-          <button className="btn" onClick={() => setGift(true)}>
+          <button type="button" className="btn" onClick={() => setGift(true)}>
             Tarjeta de regalo
           </button>
-          <button className="btn" onClick={() => setClosing(true)}>
+          <button type="button" className="btn" onClick={() => setClosing(true)}>
             Corte / Movimientos
           </button>
         </div>
@@ -182,6 +185,7 @@ export function Cash() {
         empty={<p className="muted">No hay cuentas abiertas</p>}
         render={(a) => (
           <button
+            type="button"
             className={`table-card ${a.status === "pago_solicitado" ? "esperando_pago" : "ocupada"}`}
             disabled={!can("payment.take")}
             onClick={() => setPaying({ id: a.id, table: a.table })}
@@ -368,12 +372,13 @@ export function PaySheet({
           )}
           <div className="row">
             {done.closed && can("invoice.manage") && (
-              <button className="btn grow" onClick={() => setInvoicing(true)}>
+              <button type="button" className="btn grow" onClick={() => setInvoicing(true)}>
                 Facturar
               </button>
             )}
             {!done.closed && (
               <button
+                type="button"
                 className="btn primary grow"
                 onClick={() => {
                   setDone(null);
@@ -385,7 +390,11 @@ export function PaySheet({
                 Cobrar siguiente parte
               </button>
             )}
-            <button className={`btn grow ${done.closed ? "primary" : ""}`} onClick={onClose}>
+            <button
+              type="button"
+              className={`btn grow ${done.closed ? "primary" : ""}`}
+              onClick={onClose}
+            >
               {done.closed ? "Listo" : "Cerrar"}
             </button>
           </div>
@@ -396,12 +405,8 @@ export function PaySheet({
   }
 
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div
-        className="sheet center"
-        style={{ width: "min(600px, 100%)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" style={{ width: "min(600px, 100%)" }}>
         <div className="row spread">
           <h2>{table}</h2>
           <div className="small" style={{ textAlign: "right" }}>
@@ -418,6 +423,7 @@ export function PaySheet({
             ] as const
           ).map(([k, l]) => (
             <button
+              type="button"
               key={k}
               className={`opt grow ${mode === k ? "on" : ""}`}
               disabled={k === "asiento" && unpaidSeats.length === 0}
@@ -436,6 +442,7 @@ export function PaySheet({
             <span className="small grow">¿Entre cuántas personas falta dividir?</span>
             <div className="stepper">
               <button
+                type="button"
                 className="btn"
                 onClick={() => setPeople(String(Math.max(1, remainingParts - 1)))}
               >
@@ -444,7 +451,11 @@ export function PaySheet({
               <span className="num" style={{ minWidth: 32, textAlign: "center", fontWeight: 600 }}>
                 {remainingParts}
               </span>
-              <button className="btn" onClick={() => setPeople(String(remainingParts + 1))}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setPeople(String(remainingParts + 1))}
+              >
                 +
               </button>
             </div>
@@ -456,6 +467,7 @@ export function PaySheet({
               .filter((s) => s.seat !== null)
               .map((s) => (
                 <button
+                  type="button"
                   key={s.seat}
                   className={`opt ${seat === s.seat ? "on" : ""}`}
                   disabled={s.paid}
@@ -514,6 +526,7 @@ export function PaySheet({
         ))}
         <div className="row">
           <button
+            type="button"
             className="btn"
             disabled={lines.length >= 3}
             onClick={() => setLines([...lines, { method: "tarjeta", amount: "", reference: "" }])}
@@ -548,6 +561,7 @@ export function PaySheet({
         </div>
         {err && <p className="err">{err}</p>}
         <button
+          type="button"
           className="btn primary"
           disabled={cover <= 0 || missing > 0 || (mode === "asiento" && !chosenSeat)}
           onClick={submit}
@@ -586,7 +600,7 @@ function GiftSheet({ onClose }: { onClose: () => void }) {
           <p className="small" style={{ textAlign: "center" }}>
             Saldo {money(sold.balance_cents)}. El código también salió en la impresora de caja.
           </p>
-          <button className="btn primary" onClick={onClose}>
+          <button type="button" className="btn primary" onClick={onClose}>
             Listo
           </button>
         </div>
@@ -594,12 +608,8 @@ function GiftSheet({ onClose }: { onClose: () => void }) {
     );
   }
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div
-        className="sheet center"
-        style={{ width: "min(420px, 100%)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" style={{ width: "min(420px, 100%)" }}>
         <h3>Vender tarjeta de regalo</h3>
         <div className="num" style={{ fontSize: 34, fontWeight: 600, textAlign: "center" }}>
           {money(cents)}
@@ -608,6 +618,7 @@ function GiftSheet({ onClose }: { onClose: () => void }) {
         <div className="row">
           {["efectivo", "tarjeta", "transferencia"].map((m) => (
             <button
+              type="button"
               key={m}
               className={`opt grow ${method === m ? "on" : ""}`}
               onClick={() => setMethod(m)}
@@ -618,6 +629,7 @@ function GiftSheet({ onClose }: { onClose: () => void }) {
         </div>
         {err && <p className="err">{err}</p>}
         <button
+          type="button"
           className="btn primary"
           disabled={cents < 1000}
           onClick={() =>
@@ -679,7 +691,7 @@ function CutSheet({ summary: s, onClose }: { summary: Summary; onClose: () => vo
           <p>
             Diferencia: <strong className="num">{money(result)}</strong>
           </p>
-          <button className="btn primary" onClick={() => location.reload()}>
+          <button type="button" className="btn primary" onClick={() => location.reload()}>
             Aceptar
           </button>
         </div>
@@ -687,8 +699,8 @@ function CutSheet({ summary: s, onClose }: { summary: Summary; onClose: () => vo
     );
   }
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <div className="row spread">
           <h2>Caja</h2>
           <div className="row">
@@ -700,6 +712,7 @@ function CutSheet({ summary: s, onClose }: { summary: Summary; onClose: () => vo
               ] as const
             ).map(([id, l]) => (
               <button
+                type="button"
                 key={id}
                 className={`chip ${tab === id ? "on" : ""}`}
                 onClick={() => {
@@ -797,6 +810,7 @@ function CutSheet({ summary: s, onClose }: { summary: Summary; onClose: () => vo
             )}
             {err && <p className="err">{err}</p>}
             <button
+              type="button"
               className="btn primary"
               disabled={!toCents(move.amount) || move.reason.length < 2}
               onClick={saveMove}
@@ -830,6 +844,7 @@ function CutSheet({ summary: s, onClose }: { summary: Summary; onClose: () => vo
             )}
             {err && <p className="err">{err}</p>}
             <button
+              type="button"
               className="btn primary"
               disabled={!counted || (diff !== 0 && !reason)}
               onClick={close}
@@ -838,7 +853,7 @@ function CutSheet({ summary: s, onClose }: { summary: Summary; onClose: () => vo
             </button>
           </>
         )}
-        <button className="btn ghost" onClick={onClose}>
+        <button type="button" className="btn ghost" onClick={onClose}>
           Cerrar ventana
         </button>
       </div>

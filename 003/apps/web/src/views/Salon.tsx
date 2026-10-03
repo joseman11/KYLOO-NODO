@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { backdrop } from "../sheet";
 import { api, useLive } from "../api";
 import { PagedGrid, PagedRows } from "../fit";
 import { NumPad } from "../numpad";
@@ -65,6 +66,7 @@ export function Salon() {
           row={(z) => (
             <td style={{ padding: 0 }}>
               <button
+                type="button"
                 className={`opt ${z.id === current ? "on" : ""}`}
                 style={{
                   width: "100%",
@@ -83,6 +85,7 @@ export function Salon() {
           )}
         />
         <button
+          type="button"
           className="btn primary"
           style={{ flex: "none" }}
           onClick={() => setZoneSheet("new")}
@@ -107,14 +110,15 @@ export function Salon() {
           </div>
           <div className="row">
             {zone && (
-              <button className="btn sm" onClick={() => setZoneSheet(zone)}>
+              <button type="button" className="btn sm" onClick={() => setZoneSheet(zone)}>
                 Editar área
               </button>
             )}
-            <button className="btn sm" disabled={!zone} onClick={() => setBulk(true)}>
+            <button type="button" className="btn sm" disabled={!zone} onClick={() => setBulk(true)}>
               + Varias mesas
             </button>
             <button
+              type="button"
               className="btn primary"
               style={{ minHeight: 48 }}
               disabled={!zone && current !== NONE}
@@ -137,6 +141,7 @@ export function Salon() {
           }
           render={(t) => (
             <button
+              type="button"
               className={`table-card ${t.status === "fuera_de_servicio" ? "fuera_de_servicio" : ""}`}
               onClick={() => setTableSheet(t)}
             >
@@ -203,11 +208,10 @@ function ZoneSheet({ zone, onClose }: { zone: Zone | null; onClose: (id?: string
     ).then(onClose, (e) => setErr((e as Error).message));
   };
   return (
-    <div className="sheet-bg" onClick={() => onClose()}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(() => onClose())}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>{zone ? "Editar área" : "Nueva área"}</h3>
         <input
-          autoFocus
           placeholder="Nombre (Salón, Terraza, Barra, Privado…)"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -226,6 +230,7 @@ function ZoneSheet({ zone, onClose }: { zone: Zone | null; onClose: (id?: string
         <div className="row">
           {zone && (
             <button
+              type="button"
               className="btn ghost"
               onClick={() =>
                 api(`/api/zones/${zone.id}`, { method: "DELETE" }).then(
@@ -237,7 +242,7 @@ function ZoneSheet({ zone, onClose }: { zone: Zone | null; onClose: (id?: string
               Eliminar
             </button>
           )}
-          <button className="btn primary grow" disabled={!name.trim()} onClick={save}>
+          <button type="button" className="btn primary grow" disabled={!name.trim()} onClick={save}>
             {zone ? "Guardar" : "Crear área"}
           </button>
         </div>
@@ -286,12 +291,8 @@ function TableSheet({
   };
 
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div
-        className="sheet center"
-        style={{ width: "min(420px, 100%)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" style={{ width: "min(420px, 100%)" }}>
         <div className="row spread">
           <h3>{table ? `Mesa ${table.number}` : "Nueva mesa"}</h3>
           <select
@@ -309,6 +310,7 @@ function TableSheet({
         </div>
         <div className="row">
           <button
+            type="button"
             className={`opt grow ${field === "number" ? "on" : ""}`}
             style={{ height: 64, textAlign: "left" }}
             onClick={() => setField("number")}
@@ -317,6 +319,7 @@ function TableSheet({
             <div style={{ fontSize: 24, fontWeight: 600 }}>{finalNumber || "—"}</div>
           </button>
           <button
+            type="button"
             className={`opt grow ${field === "capacity" ? "on" : ""}`}
             style={{ height: 64, textAlign: "left" }}
             onClick={() => setField("capacity")}
@@ -337,11 +340,16 @@ function TableSheet({
           <NumPad value={capacity} onChange={setCapacity} max={2} />
         )}
         <div className="row">
-          <button className={`opt grow ${vip ? "on" : ""}`} onClick={() => setVip(!vip)}>
+          <button
+            type="button"
+            className={`opt grow ${vip ? "on" : ""}`}
+            onClick={() => setVip(!vip)}
+          >
             {vip ? "✓ " : ""}Mesa VIP
           </button>
           {table && (
             <button
+              type="button"
               className="opt grow"
               onClick={() =>
                 api(`/api/tables/${table.id}/service`, {
@@ -357,6 +365,7 @@ function TableSheet({
         <div className="row">
           {table && (
             <button
+              type="button"
               className="btn ghost"
               onClick={() =>
                 api(`/api/tables/${table.id}`, { method: "DELETE" }).then(
@@ -371,7 +380,7 @@ function TableSheet({
               Eliminar
             </button>
           )}
-          <button className="btn primary grow" disabled={!finalNumber} onClick={save}>
+          <button type="button" className="btn primary grow" disabled={!finalNumber} onClick={save}>
             {table ? "Guardar" : "Crear mesa"}
           </button>
         </div>
@@ -401,15 +410,12 @@ function BulkSheet({
   const n = Math.min(60, Math.max(0, Number(count) || 0));
   const last = zone.prefix + (nextNum + Math.max(0, n - 1));
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div
-        className="sheet center"
-        style={{ width: "min(420px, 100%)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" style={{ width: "min(420px, 100%)" }}>
         <h3>Crear varias mesas en {zone.name}</h3>
         <div className="row">
           <button
+            type="button"
             className={`opt grow ${field === "count" ? "on" : ""}`}
             style={{ height: 64, textAlign: "left" }}
             onClick={() => setField("count")}
@@ -418,6 +424,7 @@ function BulkSheet({
             <div style={{ fontSize: 24, fontWeight: 600 }}>{count || "—"}</div>
           </button>
           <button
+            type="button"
             className={`opt grow ${field === "capacity" ? "on" : ""}`}
             style={{ height: 64, textAlign: "left" }}
             onClick={() => setField("capacity")}
@@ -438,6 +445,7 @@ function BulkSheet({
         </p>
         {err && <p className="err">{err}</p>}
         <button
+          type="button"
           className="btn primary"
           disabled={n < 1}
           onClick={() =>

@@ -134,7 +134,7 @@ describe("inventario y recetas", () => {
     });
     return { adm, carne, pan, burger };
   }
-  const stock = async (adm: string, id: string) =>
+  const stock = async (_adm: string, id: string) =>
     ((await db.prepare("SELECT stock FROM inventory_items WHERE id=?").get(id)) as {
       stock: number;
     } & unknown) &&

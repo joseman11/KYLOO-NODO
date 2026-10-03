@@ -182,10 +182,7 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
       return reply
         .code(400)
         .send({ error: "validacion", message: "Texto con caracteres no válidos" });
-    if (
-      /UNIQUE|FOREIGN KEY|CHECK|NOT NULL/.test(err.message) ||
-      (pgCode && pgCode.startsWith("23"))
-    ) {
+    if (/UNIQUE|FOREIGN KEY|CHECK|NOT NULL/.test(err.message) || pgCode?.startsWith("23")) {
       // Mensajes comprensibles para los casos más comunes; el detalle técnico se conserva en `detail`
       const unique = /UNIQUE/.test(err.message) || pgCode === "23505";
       const friendly =

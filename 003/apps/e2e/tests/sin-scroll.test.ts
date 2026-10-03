@@ -6,7 +6,6 @@ import {
   adminSession,
   launch,
   newPage,
-  rectOf,
   sleep,
   startNodo,
   tap,

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { backdrop } from "../sheet";
 import { api, useLive } from "../api";
 import { PagedRows, SubTabs } from "../fit";
 import { Promotions, QrCodes } from "./ConfigExtra";
@@ -104,7 +105,7 @@ export function Config() {
           <section className="card fillcard">
             <div className="row spread" style={{ flex: "none" }}>
               <h3>Impresoras</h3>
-              <button className="btn sm" onClick={() => setFinder(true)}>
+              <button type="button" className="btn sm" onClick={() => setFinder(true)}>
                 Buscar en la red
               </button>
             </div>
@@ -129,6 +130,7 @@ export function Config() {
                     <div className="row" style={{ flex: "none", gap: 6 }}>
                       {p.kind === "caja" && (
                         <button
+                          type="button"
                           className={`btn sm ${p.has_drawer ? "" : "ghost"}`}
                           title="Cajón de dinero conectado a esta impresora"
                           onClick={() =>
@@ -145,6 +147,7 @@ export function Config() {
                         </button>
                       )}
                       <button
+                        type="button"
                         className="btn ghost sm"
                         onClick={() =>
                           api<{ ok: boolean; error?: string }>(`/api/printers/${p.id}/test`, {
@@ -164,6 +167,7 @@ export function Config() {
                         Probar
                       </button>
                       <button
+                        type="button"
                         className="btn ghost sm"
                         onClick={() =>
                           run(api(`/api/printers/${p.id}`, { method: "DELETE" }), printers.reload)
@@ -258,8 +262,8 @@ function PrinterFinder({ onClose, onAdded }: { onClose: () => void; onAdded: () 
   const draft = (f: Found) =>
     drafts[f.host] ?? { name: `Impresora ${f.host.split(".").pop()}`, kind: "cocina" };
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>Impresoras en la red</h3>
         {scanning && <p className="small">Buscando… tarda unos segundos.</p>}
         {err && <p className="err">{err}</p>}
@@ -296,6 +300,7 @@ function PrinterFinder({ onClose, onAdded }: { onClose: () => void; onAdded: () 
                   ))}
                 </select>
                 <button
+                  type="button"
                   className="btn sm primary"
                   onClick={() =>
                     api("/api/printers", {
@@ -321,10 +326,10 @@ function PrinterFinder({ onClose, onAdded }: { onClose: () => void; onAdded: () 
           </div>
         ))}
         <div className="row">
-          <button className="btn" disabled={scanning} onClick={scan}>
+          <button type="button" className="btn" disabled={scanning} onClick={scan}>
             Buscar de nuevo
           </button>
-          <button className="btn primary" onClick={onClose}>
+          <button type="button" className="btn primary" onClick={onClose}>
             Cerrar
           </button>
         </div>
@@ -359,6 +364,7 @@ function PrinterForm({ onSaved, onError }: { onSaved: () => void; onError: (m: s
         <option value="58">58 mm</option>
       </select>
       <button
+        type="button"
         className="btn"
         disabled={!f.name}
         onClick={() =>

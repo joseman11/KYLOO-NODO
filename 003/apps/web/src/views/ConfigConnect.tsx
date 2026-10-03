@@ -24,7 +24,7 @@ export function Connect() {
       alive = false;
     };
     // biome-ignore lint/correctness/useExhaustiveDependencies: se recalcula solo cuando cambian las direcciones
-  }, [urls.join("|")]);
+  }, [urls.map]);
 
   return (
     <section className="card fillcard">

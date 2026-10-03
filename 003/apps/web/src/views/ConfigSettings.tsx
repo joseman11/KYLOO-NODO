@@ -104,6 +104,7 @@ export function Settings() {
               gerente.
             </p>
             <button
+              type="button"
               className="btn primary"
               onClick={() => save(["establishment_name", "discount_limit_pct"])}
             >
@@ -137,6 +138,7 @@ export function Settings() {
               gerente puede dispensarlo en una cuenta.
             </p>
             <button
+              type="button"
               className="btn primary"
               onClick={() => save(["service_charge_pct", "service_charge_min_guests"])}
             >
@@ -148,12 +150,14 @@ export function Settings() {
           <>
             <div className="row">
               <button
+                type="button"
                 className={`opt grow ${policy === "individual" ? "on" : ""}`}
                 onClick={() => set("tip_policy", "individual")}
               >
                 Cada mesero conserva lo suyo
               </button>
               <button
+                type="button"
                 className={`opt grow ${policy === "pool" ? "on" : ""}`}
                 onClick={() => set("tip_policy", "pool")}
               >
@@ -193,6 +197,7 @@ export function Settings() {
               ))}
             </div>
             <button
+              type="button"
               className="btn primary"
               onClick={() => save(["tip_policy", "tip_support_pct", "tip_roles"])}
             >
@@ -230,6 +235,7 @@ export function Settings() {
               />
             </div>
             <button
+              type="button"
               className="btn primary"
               onClick={() => save(["fiscal_rfc", "fiscal_name", "fiscal_regimen", "fiscal_cp"])}
             >

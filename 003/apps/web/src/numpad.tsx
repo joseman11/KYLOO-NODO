@@ -12,17 +12,22 @@ export function NumPad({
   return (
     <div className="pad">
       {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
-        <button key={d} className="btn" onClick={() => press(d)}>
+        <button type="button" key={d} className="btn" onClick={() => press(d)}>
           {d}
         </button>
       ))}
-      <button className="btn" aria-label="Borrar" onClick={() => onChange(value.slice(0, -1))}>
+      <button
+        type="button"
+        className="btn"
+        aria-label="Borrar"
+        onClick={() => onChange(value.slice(0, -1))}
+      >
         ⌫
       </button>
-      <button className="btn" onClick={() => press("0")}>
+      <button type="button" className="btn" onClick={() => press("0")}>
         0
       </button>
-      <button className="btn" aria-label="Limpiar" onClick={() => onChange("")}>
+      <button type="button" className="btn" aria-label="Limpiar" onClick={() => onChange("")}>
         C
       </button>
     </div>

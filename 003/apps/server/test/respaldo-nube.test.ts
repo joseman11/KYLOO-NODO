@@ -14,7 +14,7 @@ import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app";
 import { runCloudBackup, cloudBackupStatus, startCloudBackupWorker } from "../src/cloud-backup";
-import { type Db, openDb } from "../src/db";
+import { openDb } from "../src/db";
 import { fingerprintOf } from "../src/fingerprint";
 import { Hub } from "../src/hub";
 import { generateSigningKeys } from "../src/license";

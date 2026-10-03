@@ -100,6 +100,7 @@ export function StaffPanel() {
                 <td className="r">
                   {r.on_shift && can("user.manage") && (
                     <button
+                      type="button"
                       className="btn ghost sm"
                       onClick={() =>
                         api(`/api/clock/${r.id}/out`, { body: {} }).then(
@@ -241,6 +242,7 @@ export function GiftCardsPanel() {
               <td className="r">
                 {c.status === "activa" && can("refund.authorize") && (
                   <button
+                    type="button"
                     className="btn ghost sm"
                     onClick={() =>
                       api(`/api/gift-cards/${c.code}/cancel`, { body: {} }).then(

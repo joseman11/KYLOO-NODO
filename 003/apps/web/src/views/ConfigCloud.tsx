@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { backdrop } from "../sheet";
 import { api, useLive } from "../api";
 import { PagedRows } from "../fit";
 
@@ -73,8 +74,8 @@ function SecretSheet({
   onClose: () => void;
 }) {
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>{title}</h3>
         <p className="small">Cópiala ahora: no se volverá a mostrar.</p>
         <input
@@ -83,7 +84,7 @@ function SecretSheet({
           onFocus={(e) => e.currentTarget.select()}
           style={{ fontFamily: "ui-monospace, monospace", fontSize: 13 }}
         />
-        <button className="btn primary" onClick={onClose}>
+        <button type="button" className="btn primary" onClick={onClose}>
           Ya la guardé
         </button>
       </div>
@@ -120,6 +121,7 @@ export function Integrations() {
                   {i.name} <span className="tag">{KINDS.find((k) => k[0] === i.kind)?.[1]}</span>
                 </span>
                 <button
+                  type="button"
                   className="btn sm"
                   onClick={() =>
                     api(`/api/integrations/${i.id}`, {
@@ -149,6 +151,7 @@ export function Integrations() {
             ))}
           </select>
           <button
+            type="button"
             className="btn primary"
             style={{ minHeight: 48 }}
             disabled={!form.name}
@@ -187,6 +190,7 @@ export function Integrations() {
                   </div>
                 </div>
                 <button
+                  type="button"
                   className="btn ghost sm"
                   onClick={() =>
                     api(`/api/webhooks/${h.id}`, { method: "DELETE" }).then(
@@ -209,6 +213,7 @@ export function Integrations() {
         <div className="row wrap" style={{ flex: "none" }}>
           {EVENTS.map((ev) => (
             <button
+              type="button"
               key={ev}
               className={`opt ${hook.events.includes(ev) ? "on" : ""}`}
               style={{ minHeight: 40, padding: "0 10px", fontSize: 13 }}
@@ -226,6 +231,7 @@ export function Integrations() {
           ))}
         </div>
         <button
+          type="button"
           className="btn primary"
           style={{ flex: "none" }}
           disabled={!hook.url}
@@ -283,8 +289,8 @@ function RecoveryKeySheet({
       (e) => setErr((e as Error).message),
     );
   return (
-    <div className="sheet-bg" onClick={() => onClose(false)}>
-      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg" {...backdrop(() => onClose(false))}>
+      <div className="sheet center" role="dialog" aria-modal="true">
         <h3>Clave de recuperación</h3>
         {key ? (
           <>
@@ -299,11 +305,12 @@ function RecoveryKeySheet({
               style={{ fontFamily: "ui-monospace, monospace", fontSize: 13 }}
             />
             {confirmed ? (
-              <button className="btn primary" onClick={() => onClose(false)}>
+              <button type="button" className="btn primary" onClick={() => onClose(false)}>
                 Cerrar
               </button>
             ) : (
               <button
+                type="button"
                 className="btn primary"
                 onClick={() =>
                   api("/api/cloud/backup/key/confirm", { method: "POST", body: {} }).then(
@@ -325,7 +332,7 @@ function RecoveryKeySheet({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <button className="btn primary" disabled={!password} onClick={show}>
+            <button type="button" className="btn primary" disabled={!password} onClick={show}>
               Mostrar
             </button>
           </>
@@ -392,6 +399,7 @@ export function Cloud() {
             </p>
             <div className="row" style={{ flex: "none" }}>
               <button
+                type="button"
                 className="btn primary"
                 disabled={busy}
                 onClick={() => {
@@ -408,6 +416,7 @@ export function Cloud() {
                 {busy ? "Sincronizando…" : "Sincronizar ahora"}
               </button>
               <button
+                type="button"
                 className="btn ghost"
                 onClick={() =>
                   api("/api/cloud/unlink", { method: "POST", body: {} }).then(() => {
@@ -431,6 +440,7 @@ export function Cloud() {
                 )}
                 <div className="row" style={{ marginTop: 6 }}>
                   <button
+                    type="button"
                     className="btn sm"
                     disabled={backing}
                     onClick={() => {
@@ -442,7 +452,7 @@ export function Cloud() {
                   >
                     {backing ? "Respaldando…" : "Respaldar ahora"}
                   </button>
-                  <button className="btn sm ghost" onClick={() => setKeySheet(true)}>
+                  <button type="button" className="btn sm ghost" onClick={() => setKeySheet(true)}>
                     {bk.keyConfirmed
                       ? "Ver clave de recuperación"
                       : "Guardar clave de recuperación"}
@@ -484,6 +494,7 @@ export function Cloud() {
               style={{ fontFamily: "ui-monospace, monospace", letterSpacing: 1 }}
             />
             <button
+              type="button"
               className="btn primary"
               disabled={busy || code.replace(/[^A-Za-z0-9]/g, "").length < 12}
               onClick={() => {
@@ -500,7 +511,7 @@ export function Cloud() {
               {busy ? "Activando…" : "Activar este equipo"}
             </button>
             {s?.mode !== "enforced" && (
-              <button className="btn ghost sm" onClick={() => setManual(!manual)}>
+              <button type="button" className="btn ghost sm" onClick={() => setManual(!manual)}>
                 {manual ? "Ocultar vinculación manual" : "Vinculación manual (desarrollo)"}
               </button>
             )}
@@ -517,6 +528,7 @@ export function Cloud() {
                   onChange={(e) => setForm({ ...form, key: e.target.value })}
                 />
                 <button
+                  type="button"
                   className="btn"
                   disabled={!form.url || !form.key}
                   onClick={() =>

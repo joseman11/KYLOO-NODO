@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { backdrop } from "../sheet";
 import { api, photoSrc, useLive } from "../api";
 import { PagedRows } from "../fit";
 import { resizeImage } from "../image";
@@ -97,6 +98,7 @@ export function Users() {
           Su foto aparece en la pantalla de acceso. Cada persona entra con su PIN.
         </span>
         <button
+          type="button"
           className="btn primary"
           onClick={() => {
             setForm(EMPTY);
@@ -142,6 +144,7 @@ export function Users() {
             </td>
             <td className="r">
               <button
+                type="button"
                 className="btn sm"
                 onClick={() => {
                   setForm({
@@ -165,8 +168,8 @@ export function Users() {
       />
 
       {form && (
-        <div className="sheet-bg" onClick={() => !busy && setForm(null)}>
-          <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-bg" {...backdrop(() => !busy && setForm(null))}>
+          <div className="sheet center" role="dialog" aria-modal="true">
             <h3>{form.id ? "Editar trabajador" : "Nuevo trabajador"}</h3>
             <div className="row" style={{ gap: 14 }}>
               <div className="portrait">
@@ -216,6 +219,7 @@ export function Users() {
                 </label>
                 {preview && (
                   <button
+                    type="button"
                     className="btn ghost sm"
                     onClick={() => setForm({ ...form, pending: null, remove: true })}
                   >
@@ -264,10 +268,15 @@ export function Users() {
             )}
             {err && <p className="err">{err}</p>}
             <div className="row" style={{ justifyContent: "flex-end" }}>
-              <button className="btn" disabled={busy} onClick={() => setForm(null)}>
+              <button type="button" className="btn" disabled={busy} onClick={() => setForm(null)}>
                 Cancelar
               </button>
-              <button className="btn primary" disabled={busy || !form.name.trim()} onClick={save}>
+              <button
+                type="button"
+                className="btn primary"
+                disabled={busy || !form.name.trim()}
+                onClick={save}
+              >
                 Guardar
               </button>
             </div>

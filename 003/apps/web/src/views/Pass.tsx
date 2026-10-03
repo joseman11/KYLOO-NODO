@@ -117,6 +117,7 @@ export function Pass() {
                   </span>
                   {t.status === "listo" && can("item.mark_delivered") && (
                     <button
+                      type="button"
                       className="btn primary sm"
                       onClick={() =>
                         act(api(`/api/tickets/${t.id}/status`, { body: { status: "entregado" } }))
@@ -127,6 +128,7 @@ export function Pass() {
                   )}
                   {t.status === "listo" && can("station.update") && (
                     <button
+                      type="button"
                       className="btn ghost sm"
                       title="Devolver a cocina"
                       onClick={() =>
@@ -149,6 +151,7 @@ export function Pass() {
                 </span>
                 {can("order.create") && (
                   <button
+                    type="button"
                     className="btn sm"
                     onClick={() => act(api(`/api/accounts/${c.account_id}/fire`, { body: {} }))}
                   >
