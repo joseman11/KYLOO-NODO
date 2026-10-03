@@ -138,8 +138,11 @@ export async function createBackup(db: Db, dir: string): Promise<string> {
   mkdirSync(dir, { recursive: true });
   const name = `003-${new Date().toISOString().replace(/[:.]/g, "-")}.sqlite`;
   await db.backup(join(dir, name));
-  // Conserva solo los 14 más recientes
-  for (const old of listBackups(dir).slice(14)) rmSync(join(dir, old.file), { force: true });
+  // Conserva solo los 14 automáticos más recientes; las copias previas a una migración tienen su propia retención
+  for (const old of listBackups(dir)
+    .filter((b) => b.file.startsWith("003-"))
+    .slice(14))
+    rmSync(join(dir, old.file), { force: true });
   return name;
 }
 

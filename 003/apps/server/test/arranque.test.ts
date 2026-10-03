@@ -1,4 +1,12 @@
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -108,6 +116,46 @@ describe("registros", () => {
     expect(text).toContain("fallo de prueba");
     expect(text).not.toContain("secreto");
     await app.close();
+  });
+});
+
+describe("retención de respaldos", () => {
+  it("el límite de 14 automáticos no borra las copias previas a una migración", async () => {
+    const { createBackup, listBackups } = await import("../src/routes/reports");
+    const dir = join(tmp, "bk");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "pre-migracion-3-a-4.sqlite"), "x");
+    for (let i = 0; i < 16; i++)
+      writeFileSync(join(dir, `003-2026-01-${String(i + 10).padStart(2, "0")}.sqlite`), "x");
+    // Los respaldos son del motor local: se usa una base SQLite en archivo aunque la suite corra en PostgreSQL
+    const db = await openDb(join(tmp, "origen.sqlite"));
+    await createBackup(db, dir);
+    const files = listBackups(dir).map((b) => b.file);
+    expect(files.filter((f) => f.startsWith("003-"))).toHaveLength(14);
+    expect(files).toContain("pre-migracion-3-a-4.sqlite");
+    await db.close();
+  });
+
+  it("solo se conservan las 5 copias previas a migración más recientes", async () => {
+    const file = join(tmp, "p.sqlite");
+    const m = (id: number) => ({
+      id,
+      name: `m${id}`,
+      sql:
+        id === 1
+          ? "CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+          : `CREATE TABLE t${id} (x INTEGER)`,
+    });
+    let migrations = [m(1)];
+    (await openDb(file, { migrations })).close();
+    for (let id = 2; id <= 8; id++) {
+      migrations = [...migrations, m(id)];
+      await (await openDb(file, { migrations, backupDir: join(tmp, "bk") })).close();
+      await new Promise((r) => setTimeout(r, 15));
+    }
+    expect(readdirSync(join(tmp, "bk")).filter((f) => f.startsWith("pre-migracion-"))).toHaveLength(
+      5,
+    );
   });
 });
 

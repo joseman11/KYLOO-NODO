@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { MIGRATIONS } from "./schema";
 import { SqliteDb } from "./store/sqlite";
@@ -37,6 +37,13 @@ export async function openDb(file: string, options: OpenDbOptions = {}): Promise
         `pre-migracion-${Math.max(...applied)}-a-${Math.max(...pending)}.sqlite`,
       );
       await db.backup(copy);
+      // Se conservan las 5 más recientes: una migración fallida repetida no llena el disco
+      for (const old of readdirSync(options.backupDir)
+        .filter((f) => f.startsWith("pre-migracion-"))
+        .map((f) => ({ f, t: statSync(join(options.backupDir as string, f)).mtimeMs }))
+        .sort((a, b) => b.t - a.t)
+        .slice(5))
+        rmSync(join(options.backupDir, old.f), { force: true });
       options.onPreMigrationBackup?.(copy, pending);
     },
   });

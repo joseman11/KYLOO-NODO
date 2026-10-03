@@ -1,5 +1,10 @@
 import { existsSync } from "node:fs";
-import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
+import Fastify, {
+  LogController,
+  type FastifyInstance,
+  type FastifyReply,
+  type FastifyRequest,
+} from "fastify";
 import fastifyJwt from "@fastify/jwt";
 import fastifyWebsocket from "@fastify/websocket";
 import fastifyStatic from "@fastify/static";
@@ -89,7 +94,7 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
       ? fastifyLoggerOptions(options.logger.stream, options.logger.level)
       : false,
     // Una línea por petición llenaría el disco de un local; solo se registran los errores
-    disableRequestLogging: true,
+    logController: new LogController({ disableRequestLogging: true }),
     bodyLimit: 2 * 1024 * 1024,
   });
   // Un cuerpo JSON vacío (p. ej. DELETE desde un cliente que declara JSON) se acepta como «sin cuerpo»; el JSON mal formado sigue siendo 400

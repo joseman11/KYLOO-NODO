@@ -1,0 +1,30 @@
+<!-- Servicio de Windows de Nodo {{VERSION}} (WinSW: https://github.com/winsw/winsw). install.ps1 ajusta el puerto. -->
+<service>
+  <id>NodoServer</id>
+  <name>Nodo</name>
+  <description>Servidor de Nodo: comandero para restaurantes que funciona en la red local, sin Internet.</description>
+
+  <executable>%BASE%\node.exe</executable>
+  <arguments>--disable-warning=ExperimentalWarning "%BASE%\app\server.mjs"</arguments>
+  <workingdirectory>%BASE%</workingdirectory>
+
+  <!-- Los datos viven fuera del programa: actualizar o desinstalar no los toca -->
+  <env name="NODO_DATA_DIR" value="%ProgramData%\Nodo" />
+  <env name="PORT" value="3003" />
+
+  <startmode>Automatic</startmode>
+
+  <!-- Si el servidor se cae (corte de luz a medio arranque, error grave), vuelve a levantarse solo -->
+  <onfailure action="restart" delay="3 sec" />
+  <onfailure action="restart" delay="10 sec" />
+  <onfailure action="restart" delay="30 sec" />
+  <resetfailure>1 hour</resetfailure>
+  <stoptimeout>15 sec</stoptimeout>
+
+  <!-- El servidor escribe su propio registro en %ProgramData%\Nodo\logs\nodo.log; esto recoge lo que salga por consola -->
+  <logpath>%ProgramData%\Nodo\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>5120</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+</service>

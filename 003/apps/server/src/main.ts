@@ -7,7 +7,7 @@ import { Logger, RotatingLog, errorFields } from "./logging";
 import { startPrintWorker } from "./printing/queue";
 import { tcpTransport } from "./printing/transport";
 import { syncWithHq } from "./routes/cloud";
-import { createBackup } from "./routes/reports";
+import { createBackup, listBackups } from "./routes/reports";
 import { startWebhookWorker } from "./webhooks";
 
 const config = loadConfig();
@@ -64,7 +64,10 @@ const backup = () =>
     (name) => log.info("respaldo automático", { name }),
     (e) => log.error("el respaldo automático falló", errorFields(e)),
   );
-void backup();
+// Al arrancar solo se respalda si el último automático tiene más de 12 h: un servicio que se reinicia en bucle
+// no debe desplazar con copias idénticas las que sí sirven
+const last = listBackups(config.backupDir).find((b) => b.file.startsWith("003-"));
+if (!last || Date.now() - last.created_at > 12 * 60 * 60 * 1000) void backup();
 const backupTimer = setInterval(backup, DAY);
 backupTimer.unref();
 
