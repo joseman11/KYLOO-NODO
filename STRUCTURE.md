@@ -19,6 +19,7 @@ KYLOO-NODO/
 │  │  └─ e2e/           pruebas de navegador (puppeteer-core + Vitest)
 │  ├─ packages/
 │  │  └─ shared/        permisos, máquina de estados de comanda, motor de rutas (lo usan server y web)
+│  ├─ Dockerfile        imagen del servidor HQ (nube); railway.json con su configuración
 │  └─ packaging/        construye el paquete instalable (build.mjs), su prueba de humo (smoke.mjs) y las plantillas de Windows
 └─ landing/             página de venta (Next.js 15), se despliega sola en Railway
    ├─ app/              página y estilos

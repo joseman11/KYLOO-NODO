@@ -1,6 +1,6 @@
 # Plan 04 — Respaldo cifrado en la nube, restauración y HQ en Railway
 
-> **Etapa abierta** (2026-10-03, rama `feature/fundacion`). Continúa a [`PLAN-03`](PLAN-03-LICENCIAS-Y-ACTIVACION.md). Resuelve D3 (etapa 1) de [`PLAN-00`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) y el hallazgo E1 de [`ESTADO-ACTUAL`](ESTADO-ACTUAL.md).
+> **Etapa cerrada** (2026-10-03, rama `feature/fundacion`). Continúa a [`PLAN-03`](PLAN-03-LICENCIAS-Y-ACTIVACION.md). Resuelve D3 (etapa 1) de [`PLAN-00`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) y el hallazgo E1 de [`ESTADO-ACTUAL`](ESTADO-ACTUAL.md).
 >
 > 🤖 Sesión autónoma (el dueño duerme): lo abierto lo decide la sesión y queda en el Registro. **No se despliega nada en Railway**: se deja listo y probado en local (Docker).
 >
@@ -51,14 +51,14 @@ Resumen (decisión D3 ya tomada): **respaldo completo cifrado en el local, con u
 
 ## 4. Orden
 
-- [ ] **F4.1 — Cifrado por bloques** (`backup-crypto.ts`) y pruebas de manipulación.
-- [ ] **F4.2 — Paquete de respaldo** (base + fotos) y su extracción.
-- [ ] **F4.3 — HQ:** migración, subida por flujo, listado, descarga, retención y cuota.
-- [ ] **F4.4 — Local:** clave de recuperación, subida automática con reintentos, rutas y estado.
-- [ ] **F4.5 — Restauración** (CLI) y prueba de recuperación completa de extremo a extremo.
-- [ ] **F4.6 — Pantalla** de respaldo y clave de recuperación.
-- [ ] **F4.7 — HQ en producción:** PostgreSQL por `DATABASE_URL`, `Dockerfile`, `railway.json`, guía y prueba de la imagen.
-- [ ] **F4.8 — Cierre.**
+- [x] **F4.1 — Cifrado por bloques** (`backup-crypto.ts`) y pruebas de manipulación.
+- [x] **F4.2 — Paquete de respaldo** (base + fotos) y su extracción.
+- [x] **F4.3 — HQ:** migración, subida por flujo, listado, descarga, retención y cuota.
+- [x] **F4.4 — Local:** clave de recuperación, subida automática con reintentos, rutas y estado.
+- [x] **F4.5 — Restauración** (CLI) y prueba de recuperación completa de extremo a extremo.
+- [x] **F4.6 — Pantalla** de respaldo y clave de recuperación.
+- [x] **F4.7 — HQ en producción:** PostgreSQL por `DATABASE_URL`, `Dockerfile`, `railway.json`, guía y prueba de la imagen.
+- [x] **F4.8 — Cierre.**
 
 ## 5. Decidido con el dueño
 
@@ -66,4 +66,25 @@ Resumen (decisión D3 ya tomada): **respaldo completo cifrado en el local, con u
 
 ## 6. Registro
 
-*(se rellena al cerrar cada fase)*
+- **2026-10-03 (noche, sesión autónoma)** — Cierre del plan.
+  - **Hecho:** F4.1–F4.2 `89113c0`; F4.3–F4.5 `91d8e46`; F4.6 `be218f5`; F4.7 y F4.8 en el commit de cierre.
+  - **Probado:** 54 pruebas de servidor (cifrado, paquete, HQ, local, recuperación), 5 e2e de la pantalla y una **prueba real de extremo a extremo**: imagen Docker del HQ sobre PostgreSQL 16 (`engine: pg`, healthy), un local empaquetado que activa con código, genera la clave, respalda (688 KB, un archivo cifrado en el volumen), y una segunda carpeta que se restaura con `server.mjs restore` y entra con las mismas credenciales, vinculada y con plan `profesional`.
+  - **Salió por el camino:**
+    - `useLive` recibe `(load, types, deps)`: pasé `deps` como segundo argumento y la tarjeta no se actualizaba al activar (`CLAUDE.md`, trampa 17).
+    - Un flujo de lectura abierto antes de comprobar si se podía restaurar quedaba con `ENOENT` al borrar el temporal: `fileSource` ahora es un generador perezoso.
+    - Retención con la misma hora: se desempata por el nombre (lleva la marca de tiempo).
+    - Añadir el respaldo a la pantalla de Configuración hizo fallar la prueba de «sin scroll» en tamaños chicos: se compactó la tarjeta (el e2e lo detectó, como debe).
+    - 🔴 **Fuga antigua de la suite en PostgreSQL:** cada «base en memoria» es un esquema con su grupo de conexiones y muchas pruebas nunca la cerraban; en el contenedor de pruebas se habían acumulado **1022 esquemas** y la suite empezó a fallar en bloque (76 pruebas) sin relación con el código. Ahora un `setupFiles` cierra y borra al terminar cada archivo las que quedaron abiertas (`closeTempPgDbs`): 0 esquemas tras una corrida completa (439/439). Para limpiar una base con miles de esquemas hay que borrarlos de uno en uno (un solo bloque agota los candados).
+    - Las e2e dependen de la carga de la máquina (Chrome sin cabeza a ~8 cuadros/s): 2 pruebas de «juntar mesas» fallaron mientras la máquina estaba saturada por la limpieza de PostgreSQL y pasaron al repetirlas solas. Anotado; no se tocaron.
+    - `main.ts` arranca el HQ en PostgreSQL con `DATABASE_URL` y **se niega a arrancar sin `HQ_SIGNING_KEY`**.
+  - **Decisiones tomadas por la sesión:** D4.1 a D4.6. Además: el HQ no imprime, no envía webhooks de un local ni se respalda a sí mismo (en PostgreSQL lo hace el proveedor); el servicio de Railway usa `Root Directory = /003`.
+  - **Encontrado de paso, anterior a esta etapa y sin arreglar aquí:** el HQ aún no tiene consola para emitir códigos y ver respaldos (solo API); `api_key` se sigue devolviendo al crear sucursal.
+  - **Estado de la máquina:** el contenedor del HQ de prueba se eliminó; `nodo-pg` sigue.
+
+### Cómo retomarlo
+Plan 04 cerrado. Quedan por planear: resiliencia offline del cliente y red local (D11/D12, E13–E17), cajón de dinero y descubrimiento de impresoras, y la consola del HQ.
+
+### Pendiente
+- 🔴 Primera instalación real en Railway y recorrido completo contra esa URL.
+- 🟠 Copia del volumen de respaldos del HQ.
+- 🟡 Consola del HQ; incrementales para bases grandes.

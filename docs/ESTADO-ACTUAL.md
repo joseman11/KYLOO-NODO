@@ -86,7 +86,7 @@ Es decir, es la base técnica para correr **el mismo código** en el local (SQLi
 
 | Id | Sev. | Qué |
 |---|---|---|
-| E1 | 🟠 | Sin respaldo en nube de los datos (sección 4). Es el hueco principal frente al rumbo. |
+| E1 | ✅ | ✅ Respaldo cifrado de extremo a extremo en el HQ, automático con reintentos y restauración en una PC nueva (plan 04; `docs/deploy/RESPALDOS.md`). Falta desplegar el HQ en Railway. |
 | E2 | 🟠 | Facturación solo de prueba; sin PAC elegido ni definición de dónde corre el timbrado. |
 | E3 | ✅ | ✅ Resuelto en el plan 01 (`7ae9486`, `b5fefca`): eran de entorno (macOS, equipo lento), no de producto. |
 | E4 | ✅ | ✅ Integrada en la rama de sesión (`e6c9057`); falta decidir su paso a `main` (el dueño evalúa la rama). |

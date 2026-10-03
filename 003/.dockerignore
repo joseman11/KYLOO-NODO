@@ -1,0 +1,8 @@
+**/node_modules
+**/dist
+**/data
+**/.cache
+apps/e2e
+docs
+*.sqlite*
+.env*

@@ -147,12 +147,24 @@ export async function openPg(opts: PgOptions): Promise<Db> {
   return db;
 }
 
+const liveTemp = new Set<Db>();
+
+/**
+ * Cierra (y borra el esquema de) las bases desechables que una prueba dejó abiertas. Sin esto, una suite con muchas pruebas
+ * agota las conexiones del servidor de PostgreSQL (100 por defecto) y las últimas fallan sin relación con lo que prueban.
+ */
+export async function closeTempPgDbs() {
+  for (const db of [...liveTemp]) await db.close().catch(() => undefined);
+}
+
 /** Base desechable para pruebas: esquema propio que se borra al cerrar. */
 export async function openPgTemp(connectionString: string): Promise<Db> {
   const schema = `t_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   const db = await openPg({ connectionString, schema });
   const close = db.close.bind(db);
+  liveTemp.add(db);
   db.close = async () => {
+    liveTemp.delete(db);
     await close();
     await dropSchema(connectionString, schema);
   };

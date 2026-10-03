@@ -66,7 +66,7 @@ Opciones:
 
 **Recomendación: A como producto, apoyado en C como base técnica.** Es decir: el local siempre es dueño de sus datos; la nube es una réplica (más HQ, más timbrado). Descarto B porque rompe la prioridad. Por conversar: ¿«venderse como ambas» significa que habrá clientes **solo nube** (sin servidor en su local) además de los locales? Si sí, C deja de ser opcional.
 
-### D3 — Sincronización local → nube ✅ decidida 2026-10-03 por delegación del dueño
+### D3 — Sincronización local → nube ✅ decidida 2026-10-03; etapa 1 construida (`PLAN-04`)
 Hoy se envía un resumen de ventas. Falta decidir **qué** se replica y **cómo**:
 - Respaldo de la base completa cifrado (simple, no sirve para consultar).
 - Replicación por eventos/registro de cambios (sirve para reportes y HQ; más trabajo; exige identificadores globales y resolución de conflictos).

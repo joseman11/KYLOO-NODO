@@ -42,18 +42,31 @@ log.info("arrancando", {
   dataDir: config.dataDir,
 });
 
-const db = await openDb(config.dbFile, {
-  backupDir: config.backupDir,
-  onPreMigrationBackup: (file, pending) =>
-    log.warn("copia de la base antes de migrar", { file, migraciones: pending }),
-});
+const isHq = config.role === "hq";
+// El HQ de producción vive en PostgreSQL (DATABASE_URL); un local siempre usa su archivo SQLite
+const usePg = isHq && !!config.databaseUrl;
+if (isHq && usePg && !process.env.HQ_SIGNING_KEY) {
+  // La clave que firma las licencias no puede vivir en la base de la nube: es un secreto del entorno (plan 03, I3.2)
+  log.error("HQ en producción sin HQ_SIGNING_KEY: no se arranca");
+  process.exit(1);
+}
+const db = usePg
+  ? await (await import("./store/pg-migrate")).openPg({
+      connectionString: config.databaseUrl as string,
+      schema: config.pgSchema,
+      ssl: config.databaseSsl,
+    })
+  : await openDb(config.dbFile, {
+      backupDir: config.backupDir,
+      onPreMigrationBackup: (file, pending) =>
+        log.warn("copia de la base antes de migrar", { file, migraciones: pending }),
+    });
 const licensing = await loadLicensing();
 log.info("licencia", {
   modo: licensing.mode,
   huella: licensing.fingerprint ? `${licensing.fingerprint.slice(0, 8)}…` : null,
 });
 const hub = new Hub();
-const isHq = config.role === "hq";
 const http = (
   url: string,
   init?: { method?: string; headers?: Record<string, string>; body?: string },
@@ -64,14 +77,22 @@ const app = buildApp(db, {
   webDir: config.webDir,
   photosDir: config.photosDir,
   http,
-  hq: isHq ? { adminToken: process.env.HQ_ADMIN_TOKEN } : false,
+  hq: isHq
+    ? {
+        adminToken: process.env.HQ_ADMIN_TOKEN,
+        signingKey: process.env.HQ_SIGNING_KEY,
+        keyId: process.env.HQ_KEY_ID,
+        backupStoreDir: join(config.dataDir, "cloud-backups"),
+      }
+    : false,
   licensing,
   hqUrl: defaultHqUrl(),
   logger: { stream, level: config.logLevel },
   version: config.version,
 });
 
-const stopPrint = startPrintWorker(db, tcpTransport, hub);
+// El HQ no imprime ni envía webhooks de un local
+const stopPrint = isHq ? () => undefined : startPrintWorker(db, tcpTransport, hub);
 // Respaldo cifrado en la nube (solo un local vinculado; el HQ no se respalda a sí mismo)
 const stopCloudBackup = isHq
   ? () => undefined
@@ -81,7 +102,9 @@ const stopCloudBackup = isHq
       workDir: join(config.backupDir, ".trabajo"),
       fingerprint: licensing.fingerprint,
     });
-const stopWebhooks = startWebhookWorker(db, (url, init) => fetch(url, init));
+const stopWebhooks = isHq
+  ? () => undefined
+  : startWebhookWorker(db, (url, init) => fetch(url, init));
 
 // Backup automático cada 24 h (y uno al arrancar); se conservan los últimos 14
 const DAY = 24 * 60 * 60 * 1000;
@@ -93,8 +116,9 @@ const backup = () =>
 // Al arrancar solo se respalda si el último automático tiene más de 12 h: un servicio que se reinicia en bucle
 // no debe desplazar con copias idénticas las que sí sirven
 const last = listBackups(config.backupDir).find((b) => b.file.startsWith("003-"));
-if (!last || Date.now() - last.created_at > 12 * 60 * 60 * 1000) void backup();
-const backupTimer = setInterval(backup, DAY);
+// (En PostgreSQL el respaldo de la base lo hace el proveedor, no este proceso)
+if (!usePg && (!last || Date.now() - last.created_at > 12 * 60 * 60 * 1000)) void backup();
+const backupTimer = setInterval(usePg ? () => undefined : backup, DAY);
 backupTimer.unref();
 
 // Sincronización con la nube cada hora si la sucursal está vinculada; sin Internet simplemente se reintenta después

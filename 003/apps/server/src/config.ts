@@ -17,6 +17,11 @@ export interface Config {
   role: "local" | "hq";
   version: string;
   logLevel: "debug" | "info" | "warn" | "error";
+  /** PostgreSQL del servidor HQ (Railway la inyecta como `DATABASE_URL`). Sin ella, el HQ usa SQLite (desarrollo). */
+  databaseUrl: string | null;
+  databaseSsl: boolean;
+  /** Esquema de PostgreSQL del HQ. */
+  pgSchema: string;
 }
 
 type Env = Record<string, string | undefined>;
@@ -70,6 +75,9 @@ export function loadConfig(env: Env = process.env, cwd = process.cwd()): Config 
     host: env.HOST ?? "0.0.0.0",
     role: env.ROLE === "hq" ? "hq" : "local",
     version: appVersion(env),
+    databaseUrl: env.DATABASE_URL ?? env.NODO_DATABASE_URL ?? null,
+    databaseSsl: env.DATABASE_SSL === "1",
+    pgSchema: env.NODO_PG_SCHEMA ?? "hq",
     logLevel: level === "debug" || level === "info" || level === "error" ? level : "warn",
   };
 }

@@ -30,7 +30,7 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { build } from "esbuild";
+import { bundleServer } from "./bundle.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
@@ -142,18 +142,9 @@ async function main() {
 
   // 2) Servidor en un solo archivo
   log("empaquetando el servidor (esbuild)");
-  await build({
-    entryPoints: [join(ROOT, "apps/server/src/main.ts")],
+  await bundleServer({
     outfile: join(dir, "app/server.mjs"),
-    bundle: true,
-    platform: "node",
-    format: "esm",
-    target: "node24",
-    sourcemap: false,
-    minify: false, // el minificado ahorra poco y empeora los errores de un local; la ofuscación va en el plan de licencias
-    legalComments: "none",
     define: {
-      "process.env.NODO_VERSION": JSON.stringify(version),
       // Producción: modo y claves quedan fijos en el ejecutable; ninguna variable de entorno los cambia
       ...(licenseOpen
         ? {}
@@ -163,11 +154,6 @@ async function main() {
           }),
       ...(hqUrl ? { "process.env.NODO_HQ_URL": JSON.stringify(hqUrl) } : {}),
     },
-    // Algunas dependencias CommonJS usan `require` dentro del paquete ESM
-    banner: {
-      js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);",
-    },
-    logLevel: "warning",
   });
 
   // 3) Node oficial

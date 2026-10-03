@@ -7,5 +7,6 @@ export default defineConfig({
     testTimeout: pg ? 60_000 : 5_000,
     hookTimeout: pg ? 120_000 : 10_000,
     fileParallelism: !pg,
+    setupFiles: ["./test/setup.ts"],
   },
 });
