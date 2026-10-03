@@ -1,5 +1,7 @@
 # 003 — Fase 2
 
+> **Etapa cerrada** (código en `main`). 📍 Plan histórico, anterior al método de trabajo (`PLAN-00`). El estado real está en [`ESTADO-ACTUAL.md`](ESTADO-ACTUAL.md), que gana si discrepan.
+
 Mismo enfoque que la Fase 1: servidor local (Fastify + SQLite) y PWA, sin depender de Internet. Todo lo nuevo se suma sin romper el flujo de comandas: un producto sin receta no toca inventario, una cuenta sin descuento cobra igual.
 
 ## Alcance y decisiones

@@ -7,6 +7,9 @@ Monorepo de **Nodo**, el comandero para restaurantes que funciona en red local, 
 | `003/` | **Nodo** (el software): servidor Fastify + SQLite, app web React (PWA) y pruebas. Ver `003/README.md`. |
 | `landing/` | **Página de venta** en Next.js, con videos `.mp4` renderizados desde HTML. Ver `landing/README.md`. |
 
+## Documentación
+Todo lo persistente vive en [`docs/`](docs/README.md); el contexto de trabajo, en [`CLAUDE.md`](CLAUDE.md) y [`STRUCTURE.md`](STRUCTURE.md).
+
 ## Desplegar solo la landing en Railway
 
 El repositorio contiene todo, pero en Railway solo se despliega `landing/`:

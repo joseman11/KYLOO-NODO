@@ -1,5 +1,7 @@
 # 003 — Fase 3
 
+> **Etapa cerrada** (código en `main`). 📍 Plan histórico, anterior al método de trabajo (`PLAN-00`). El estado real está en [`ESTADO-ACTUAL.md`](ESTADO-ACTUAL.md), que gana si discrepan.
+
 Sigue siendo local-first: cada sucursal opera con su propio servidor aunque no haya Internet. La nube (HQ) solo agrega, distribuye catálogo y licencia; si se cae, las sucursales siguen vendiendo.
 
 ## Decisiones

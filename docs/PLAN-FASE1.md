@@ -1,5 +1,8 @@
 # 003 — Comandero LAN-first (MVP Fase 1)
 
+> **Etapa cerrada** (código en `main`; escrito el 2026-10-01 con el proyecto en su carpeta original `003/`).
+> 📍 Plan histórico, anterior al método de trabajo (`PLAN-00`). Se conserva por sus decisiones y su porqué; el estado real del código está en [`ESTADO-ACTUAL.md`](ESTADO-ACTUAL.md), que gana si discrepan.
+
 ## Context
 Idea 001 describe un POS/comandero para restaurantes. Decisión clave del usuario: debe operar **por red local (Ethernet, WiFi o LAN) sin depender de Internet**. Por eso 003 se diseña *local-first*: un servidor en una PC/mini-PC del local es la fuente de verdad; tablets, pantallas táctiles y caja son clientes web en la misma red; las impresoras térmicas se alcanzan por TCP/IP desde ese servidor. La nube (multi-sucursal, SaaS, facturación) queda para Fase 3 sin cambiar el modelo.
 Directorio actual: vacío salvo `DESIGN (2).md` (referencia visual). Proyecto nuevo, sin git.

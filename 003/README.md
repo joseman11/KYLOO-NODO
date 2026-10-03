@@ -14,7 +14,7 @@ Las tablets abren `http://<ip-del-servidor>:3003`. Variables: `PORT`, `HOST`, `D
 ## Pruebas
 `pnpm test` · `pnpm typecheck`
 
-Plan y decisiones: `docs/PLAN.md`. Sistema visual: `docs/DESIGN.md`.
+Documentación del proyecto (planes, estado, diseño): [`../docs/`](../docs/README.md).
 
 ## Instalar en el equipo del local (Windows)
 Con una IP fija para el equipo, en PowerShell como Administrador:
@@ -24,12 +24,12 @@ powershell -ExecutionPolicy Bypass -File scripts\install-windows-service.ps1
 Crea la tarea `003-comandas` (arranca con Windows y se reinicia sola) y abre el puerto en la red privada.
 
 ## Fase 2 (resumen)
-Inventario y recetas (descuento al enviar la comanda), proveedores y compras, descuentos con autorización y promociones (2x1, happy hour…), clientes, reservaciones, pedidos para llevar y delivery, "listos para entregar" y menú QR por mesa. Detalle y decisiones en `docs/PLAN-FASE2.md`.
+Inventario y recetas (descuento al enviar la comanda), proveedores y compras, descuentos con autorización y promociones (2x1, happy hour…), clientes, reservaciones, pedidos para llevar y delivery, "listos para entregar" y menú QR por mesa. Detalle y decisiones en `../docs/PLAN-FASE2.md`.
 
 Al actualizar, la base se migra sola al arrancar el servidor (migración 3). Conviene hacer un backup antes: Administración → "Backup ahora".
 
 ## Fase 3 (resumen)
-Analítica avanzada, integraciones (pedidos por API + webhooks firmados), sincronización offline por lotes, facturación electrónica con proveedor de timbrado conectable, nube HQ multi-organización y planes con licencia firmada. Decisiones y límites en `docs/PLAN-FASE3.md`.
+Analítica avanzada, integraciones (pedidos por API + webhooks firmados), sincronización offline por lotes, facturación electrónica con proveedor de timbrado conectable, nube HQ multi-organización y planes con licencia firmada. Decisiones y límites en `../docs/PLAN-FASE3.md`.
 
 **Facturación:** sin un proveedor de timbrado (PAC) conectado, las facturas se generan con el proveedor de prueba: CFDI 4.0 sin timbre, marcado "PRUEBA — sin validez fiscal". Para facturar de verdad hay que implementar la interfaz `InvoiceProvider` (`apps/server/src/routes/invoices.ts`) con las credenciales de un PAC y pasarla a `buildApp({ invoiceProvider })`.
 
