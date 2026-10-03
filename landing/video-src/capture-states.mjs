@@ -10,9 +10,7 @@ import { cpSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync } f
 import { join } from "node:path";
 
 const BASE = process.env.BASE ?? "http://localhost:3006";
-const ROOT = new URL(".", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
-const APP_DIST = "C:/Users/Josem/Desktop/AGEN/Restaurantes/003/apps/web/dist/assets";
-const PHOTOS = "C:/Users/Josem/Desktop/AGEN/Restaurantes/003/apps/server/data/landing-photos";
+import { APP_DIST, PHOTOS, ROOT, chromePath } from "./paths.mjs";
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Recursos de la app para las películas (CSS compilado, tipografías y fotos de platillos)
@@ -25,7 +23,7 @@ const css = readdirSync(APP_DIST).find((f) => f.endsWith(".css"));
 { const p = join(ROOT, "film/app/assets", css); writeFileSync(p, readFileSync(p, "utf8").replaceAll("url(/assets/", "url(./")); }
 
 const browser = await puppeteer.launch({
-  executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
+  executablePath: chromePath(),
   headless: "new",
 });
 const VIEW = { width: 1280, height: 800, deviceScaleFactor: 1 };

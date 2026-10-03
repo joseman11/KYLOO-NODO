@@ -29,7 +29,7 @@ npm run render-all    # pedido, cocina, cobro y hero → ../public/videos
 node render.mjs pedido --preview 3,9,18   # PNG de esos segundos para revisar
 ```
 Los guiones están en `video-src/film/scenes.js`; el motor, en `video-src/film/engine.js`.
-Las rutas de `capture-states.mjs` apuntan a este equipo; ajústalas si cambias de carpeta.
+Las rutas se resuelven en `video-src/paths.mjs`: Chrome por `CHROME_PATH` (o el primero que exista), la app compilada por `NODO_APP_DIST` y las fotos de la demo por `NODO_LANDING_PHOTOS`; por defecto, relativas a este repositorio.
 
 ## Estructura
 - `app/` página (`page.tsx`), estilos (`globals.css`) y tipografías locales (Bricolage Grotesque, Inter, IBM Plex Mono).

@@ -1,9 +1,11 @@
 // Capturas fijas de pantallas de Nodo para la landing (demo en BASE, puerto 3006).
 import puppeteer from "puppeteer-core";
+import { fileURLToPath } from "node:url";
+import { chromePath } from "./paths.mjs";
 const BASE = process.env.BASE ?? "http://localhost:3006";
-const OUT = new URL("../public/shots/", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+const OUT = fileURLToPath(new URL("../public/shots/", import.meta.url));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-const browser = await puppeteer.launch({ executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: "new" });
+const browser = await puppeteer.launch({ executablePath: chromePath(), headless: "new" });
 const page = await browser.newPage();
 await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 0.75 });
 await page.goto(BASE);

@@ -9,6 +9,7 @@ import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
+import { chromePath } from "./paths.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const scene = process.argv[2] || "pedido";
@@ -18,7 +19,7 @@ const OUT = join(HERE, "../public/videos");
 mkdirSync(OUT, { recursive: true });
 
 const browser = await puppeteer.launch({
-  executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
+  executablePath: chromePath(),
   headless: "new",
   args: ["--font-render-hinting=none"],
 });
