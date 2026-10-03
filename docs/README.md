@@ -6,6 +6,7 @@ Aquí vive **toda la documentación persistente** de KYLOO-NODO. Lo que no está
 
 | Documento | Qué es | Estado |
 |---|---|---|
+| [`REPORTE-SESION-2026-10-03.md`](REPORTE-SESION-2026-10-03.md) | Resumen de la sesión autónoma: qué se hizo, qué decidí, qué falta de ti | Vivo (léelo primero) |
 | [`PLAN-00-ESTRUCTURA-DE-TRABAJO.md`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) | Cómo trabajamos y qué haremos: la estructura del proyecto, el rumbo y el orden de las etapas | **Abierto** (2026-10-03) |
 | [`ESTADO-ACTUAL.md`](ESTADO-ACTUAL.md) | Qué hay hoy: arquitectura, módulos, medidas, deuda, ramas | Vivo |
 | [`AUDITORIA-SEGURIDAD-2026-10-03.md`](AUDITORIA-SEGURIDAD-2026-10-03.md) | Auditoría de seguridad: hallazgos, arreglos y lo abierto | **Cerrada** (2026-10-03) |
