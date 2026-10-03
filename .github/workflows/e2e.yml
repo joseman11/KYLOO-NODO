@@ -1,0 +1,28 @@
+# Pruebas de navegador (≈5 min, en serie, sin reintentos). Se lanzan a mano o cada noche; no en cada commit.
+name: e2e
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 8 * * *"
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.21.0, package_json_file: 003/package.json }
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: pnpm, cache-dependency-path: 003/pnpm-lock.yaml }
+      - run: pnpm install --frozen-lockfile
+        working-directory: 003
+      - run: pnpm --filter @003/web build
+        working-directory: 003
+      - run: npm ci && npm run build
+        working-directory: landing
+      - run: pnpm --filter @003/e2e test
+        working-directory: 003
+        env:
+          CHROME_PATH: /usr/bin/google-chrome

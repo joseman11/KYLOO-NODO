@@ -1,0 +1,72 @@
+# Verificación de cada PR y de main. Las pruebas de navegador (e2e) van aparte (e2e.yml): son lentas y se corren en lote.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  calidad:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: npm }
+      - run: npm ci
+      - name: Formato y lint (solo errores; los avisos son deuda anotada)
+        run: npx biome check --diagnostic-level=error 003 landing
+      - name: Mensajes de commit
+        if: github.event_name == 'pull_request'
+        run: npx commitlint --from "${{ github.event.pull_request.base.sha }}" --to HEAD
+
+  servidor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.21.0, package_json_file: 003/package.json }
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: pnpm, cache-dependency-path: 003/pnpm-lock.yaml }
+      - run: pnpm install --frozen-lockfile
+        working-directory: 003
+      - run: pnpm typecheck
+        working-directory: 003
+      - run: pnpm --filter @003/shared --filter @003/server test
+        working-directory: 003
+      - run: pnpm --filter @003/web build
+        working-directory: 003
+
+  servidor-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_PASSWORD: nodo, POSTGRES_DB: nodo_test }
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NODO_PG_URL: postgres://postgres:nodo@127.0.0.1:5433/nodo_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.21.0, package_json_file: 003/package.json }
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: pnpm, cache-dependency-path: 003/pnpm-lock.yaml }
+      - run: pnpm install --frozen-lockfile
+        working-directory: 003
+      - run: pnpm --filter @003/server test
+        working-directory: 003
+
+  landing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: npm, cache-dependency-path: landing/package-lock.json }
+      - run: npm ci
+        working-directory: landing
+      - run: npm run build
+        working-directory: landing
