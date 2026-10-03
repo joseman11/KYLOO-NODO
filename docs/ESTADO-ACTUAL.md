@@ -54,29 +54,33 @@ Existe un **servidor HQ** (`ROLE=hq`, `003/apps/server/src/routes/hq.ts`, `cloud
 
 **Facturación:** sin proveedor de timbrado (PAC) las facturas son CFDI 4.0 de prueba, marcadas «PRUEBA — sin validez fiscal». Existe la interfaz `InvoiceProvider` (`routes/invoices.ts`: `stamp`, `cancel`) para conectar uno. Timbrar de verdad exige credenciales del PAC y, por la naturaleza del servicio, conectividad.
 
-## 5. La rama `origin/nube-web` (no integrada)
+## 5. La rama `origin/nube-web` (integrada el 2026-10-03 en la rama de sesión, no en `main`)
 
 Dos commits del 2026-10-01 sobre `main`, 64 archivos (+2965 −2312):
 
 - `f4fb335` — **Capa de datos asíncrona (`Store`)** con motor SQLite: toda la aplicación pasa de la API síncrona de `better-sqlite3` a una interfaz asíncrona (`prepare().get/all/run`, `exec`, `transaction`).
 - `64cce7d` — **Motor PostgreSQL** (`pg`): un **esquema por restaurante** en una base compartida (`search_path` fijo por conexión), dialecto SQL portable y migraciones propias (`store/pg*.ts`). La suite completa pasa en SQLite y en PostgreSQL (`NODO_PG_URL`).
 
-Es decir, es la base técnica para correr **el mismo código** en el local (SQLite) y en una nube multi-restaurante (PostgreSQL). No incluye despliegue, interfaz web de nube ni sincronización de datos; solo la abstracción de datos y el segundo motor. Modifica también las dos pruebas e2e que hoy están rojas en `main`; no se comprobó si las arregla. **Integrarla o descartarla está pendiente de decisión** (`PLAN-00`).
+Es decir, es la base técnica para correr **el mismo código** en el local (SQLite) y en una nube multi-restaurante (PostgreSQL). No incluye despliegue, interfaz web de nube ni sincronización de datos; solo la abstracción de datos y el segundo motor. Integrada en `feature/sesion-autonoma-2026-10-03` (merge `e6c9057`). Verificada: **350 pruebas de servidor en SQLite y 351 en PostgreSQL 16**. Sus cambios a las e2e no eran la causa de los rojos (esos eran de entorno, `CLAUDE.md` trampa 4). Lo que **aún no incluye:** despliegue, sincronización de datos ni interfaz de nube.
 
-## 6. Verificación del 2026-10-03
+## 6. Verificación
+
+**Al 2026-10-03, tras el plan 01** (rama `feature/sesion-autonoma-2026-10-03`):
 
 | Chequeo | Resultado |
 |---|---|
 | `pnpm install` (pnpm 11.21.0) | ✅ |
-| `tsc` en shared, server y web | ✅ |
-| Pruebas de shared y server | ✅ 356/356 (13 s) |
-| Build de la web | ✅ JS 481 kB (135 kB gzip), CSS 27 kB |
-| Build de la landing | ✅ Next 15.5.27, página de 8.4 kB (111 kB con JS compartido) |
-| Servidor con demo de mariscos en `:3005` | ✅ `/` 200, `/api/health` `{"ok":true}` |
-| e2e (92 pruebas, ~5 min) | 🔴 90 pasan, 2 fallan, reproducibles en aislado |
-| `tsc` de `apps/e2e` (y por tanto `pnpm typecheck` en la raíz) | 🔴 falla |
+| `tsc` en shared, server, web y e2e (`pnpm typecheck`) | ✅ |
+| Pruebas de servidor en SQLite | ✅ 350 (+1 de PostgreSQL que se salta sin base) |
+| Pruebas de servidor en PostgreSQL 16 (contenedor) | ✅ 351 |
+| Pruebas de shared | ✅ 6 |
+| e2e (92 pruebas, ~5 min) | ✅ 92/92 |
+| Build de la web | ✅ JS 481 kB (135 kB gzip) |
+| Build de la landing | ✅ Next 15.5.27 |
+| Biome (formato y errores de lint) | ✅ sin errores; avisos de accesibilidad, `any` y dependencias de hooks quedan como deuda |
+| Servidor con demo de mariscos | ✅ 93 MB de RAM en reposo; ~1.5k peticiones/s en un reporte real (p50 5 ms) |
 
-Detalle de los rojos en las trampas 3 y 4 de `CLAUDE.md`. **No se investigó su causa ni se corrigieron**, por decisión del dueño (2026-10-03): primero se define el rumbo.
+*Antes del plan 01 (`main`, 2026-10-03 por la mañana):* 356/356 de servidor y shared, e2e 90/92, typecheck de e2e roto.
 
 ## 7. Deuda y observaciones (sin priorizar; se ordena en `PLAN-00`)
 
@@ -84,12 +88,12 @@ Detalle de los rojos en las trampas 3 y 4 de `CLAUDE.md`. **No se investigó su 
 |---|---|---|
 | E1 | 🟠 | Sin respaldo en nube de los datos (sección 4). Es el hueco principal frente al rumbo. |
 | E2 | 🟠 | Facturación solo de prueba; sin PAC elegido ni definición de dónde corre el timbrado. |
-| E3 | 🟠 | Dos e2e rojas y typecheck de e2e roto en `main`. |
-| E4 | 🟠 | `nube-web` sin integrar; condiciona la decisión de tecnología. |
-| E5 | 🟡 | Sin linter ni formateador; sin CI; sin hooks de commit. |
+| E3 | ✅ | ✅ Resuelto en el plan 01 (`7ae9486`, `b5fefca`): eran de entorno (macOS, equipo lento), no de producto. |
+| E4 | ✅ | ✅ Integrada en la rama de sesión (`e6c9057`); falta decidir su paso a `main` (el dueño evalúa la rama). |
+| E5 | ✅ | ✅ Biome, commitlint, husky y CI (`ab1a3f4`, `b8366b4`, `332f3e7`). Falta activar el repositorio en GitHub Actions. |
 | E6 | 🟡 | Historia de git de 3 commits muy grandes; los futuros deben ser pequeños. |
 | E7 | 🟡 | Despliegue de Nodo en el local solo documentado para Windows (servicio por PowerShell). Sin empaquetado, sin actualizaciones remotas, sin Docker. |
-| E8 | 🟡 | `landing/video-src` con rutas absolutas de Windows; `e2e` sin ruta de Chrome para macOS. |
+| E8 | ✅ | ✅ Rutas portables (`d014f99`, `7ae9486`). |
 | E9 | 🟡 | Los límites de plan solo se aplican si hay licencia instalada («sin licencia no hay límites»). Una instalación sin licencia es ilimitada. Decisión comercial pendiente. |
 | E10 | ⚪ | Nombre de plan «INICIO» (landing) vs `gratis` (código). |
 | E11 | ⚪ | JWT en `localStorage`; sin límite de intentos de PIN comprobado más allá de `attempt()` en `auth.ts` (no auditado). |

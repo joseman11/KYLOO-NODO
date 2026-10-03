@@ -11,6 +11,7 @@
 
 | Documento | Estado | Cuándo consultarlo |
 |---|---|---|
+| [`docs/PLAN-01-LINEA-BASE-Y-CALIDAD.md`](docs/PLAN-01-LINEA-BASE-Y-CALIDAD.md) | **Etapa abierta** (2026-10-03), sesión autónoma | Línea base verde, `nube-web` integrada y herramientas de calidad. |
 | [`docs/PLAN-00-ESTRUCTURA-DE-TRABAJO.md`](docs/PLAN-00-ESTRUCTURA-DE-TRABAJO.md) | **Etapa abierta** (2026-10-03), en conversación con el dueño | **Antes de hacer nada.** Es el plan vivo: léelo entero. No se escribe código de producto hasta que sus decisiones estén cerradas. |
 | [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md) | Vivo | Antes de proponer algo: qué existe, qué mide, qué está roto, qué deuda hay. |
 | [`STRUCTURE.md`](STRUCTURE.md) | Vivo | **Antes de crear un archivo nuevo.** |
@@ -34,18 +35,21 @@
 
 ## Trampas que ya nos han mordido
 
-1. ⚠️ **`pnpm` global del equipo es 9.0.0 y el proyecto exige 11.21.0** (`003/package.json`, `packageManager`). `corepack` no está en el PATH. Atajo que funciona: `npx -y pnpm@11.21.0 <comando>` (en `/Users/ander/.local/opt/node-v24.21.0-darwin-arm64/bin` hay un `pnpm` 9). No da error de versión: simplemente instala distinto.
-2. ⚠️ **Las e2e solo buscan Chrome en rutas de Windows/Linux** (`003/apps/e2e/tests/harness.ts`). En macOS: `CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"`. Sin ello, `launch()` falla al abrir el navegador.
-3. 🔴 **`pnpm typecheck` en la raíz falla en `apps/e2e`** (2026-10-03): a su `tsconfig` le falta `DOM.Iterable` (`TS2488` sobre `NodeListOf`) y `fastify` no es dependencia declarada del paquete (`TS2307`). Los otros tres paquetes pasan. Abierto, ver `ESTADO-ACTUAL.md`.
-4. 🔴 **Dos e2e rojas en `main`** (2026-10-03), reproducibles en aislado: `servicio.test.ts` «cobra en efectivo con cambio…» (`Tiempo agotado esperando: texto «Cambio»`) y `configuracion.test.ts` «la lista muestra a todo el personal…» (`Juan: expected false to be true`). Causa sin investigar. **No atribuirlas a un cambio en curso.** La rama `origin/nube-web` modifica esas dos pruebas.
-5. ⚠️ **`npm install` en `landing/` reescribe `package-lock.json`** (quita 3 líneas; npm 11 vs el que lo generó). No es un cambio real: `git checkout landing/package-lock.json` antes de commitear.
-6. ⚠️ **`landing/video-src/*.mjs` tiene rutas absolutas de Windows** (`C:/Users/Josem/Desktop/AGEN/Restaurantes/003/...` y `C:/Program Files/Google/Chrome/...`). Regenerar los videos en otro equipo falla hasta ajustarlas.
-7. ⚠️ **`landing/` se despliega aparte** (Railway, Root Directory `/landing`); `003/` no tiene Dockerfile ni despliegue en nube en `main`. La landing se construye con `NEXT_PUBLIC_*` leídas **al compilar**: cambiar una variable exige redesplegar.
+1. ⚠️ **`pnpm` global del equipo es 9.0.0 y el proyecto exige 11.21.0** (`003/package.json`, `packageManager`). `corepack` no está en el PATH. Atajo que funciona: `npx -y pnpm@11.21.0 <comando>`. No da error de versión: simplemente instala distinto.
+2. ✅ **Las e2e buscaban Chrome solo en rutas de Windows/Linux.** Arreglado (2026-10-03, `7ae9486`): el arnés prueba también la ruta de macOS; `CHROME_PATH` sigue mandando.
+3. ✅ **`pnpm typecheck` fallaba en `apps/e2e`** (`TS2488` por falta de `DOM.Iterable`, `TS2307` porque `fastify` no era dependencia declarada). Arreglado en `7ae9486`.
+4. ✅ **Dos e2e «rojas» en `main`: eran de entorno, no de producto** (diagnosticado 2026-10-03). (a) «cobra en efectivo…»: `Control+A` en macOS solo mueve el cursor y el texto tecleado se anexaba (`1035.002000`), así que no había cambio; se usa `selectAll()` del arnés, que llama a `.select()` del campo. (b) «la lista muestra…»: Chrome sin cabeza en macOS corre a ~8 cuadros por segundo; con la pantalla sin medir, el paginador calculaba una fila por página y la prueba miraba demasiado pronto. Arreglos: `fit.tsx` no pinta la lista hasta medir el contenedor y el arnés espera con `settle()`. **Regla: en una prueba de navegador nunca se duerme un tiempo fijo; se espera a una condición o a que la pantalla se estabilice.**
+5. ⚠️ **`npm install` en `landing/` puede reescribir `package-lock.json`** (npm 11 frente al que lo generó). No es un cambio real: `git checkout landing/package-lock.json` antes de commitear.
+6. ✅ **`landing/video-src/*.mjs` tenía rutas absolutas de Windows.** Ahora salen de `video-src/paths.mjs` (`CHROME_PATH`, `NODO_APP_DIST`, `NODO_LANDING_PHOTOS`).
+7. ⚠️ **`landing/` se despliega aparte** (Railway, Root Directory `/landing`); la landing se construye con `NEXT_PUBLIC_*` leídas **al compilar**: cambiar una variable exige redesplegar.
 8. ✅ **Cada archivo de e2e levanta su propio servidor con base `:memory:` y la demo de mariscos** (`harness.ts`): no ensucian estado entre archivos ni tocan `data/`. Se corren en serie (`fileParallelism: false`). No cambiarlo.
+9. ⚠️ **El formateador de Biome no es idempotente a la primera** en cadenas de métodos (`reply.code().send()`): tras formatear en masa, repetir `biome format --write` hasta que diga «No fixes applied». El hook `pre-commit` lo detecta.
+10. ⚠️ **Los commits pasan por commitlint** (`.husky/commit-msg`): el tipo debe ser uno de la skill. Un merge usa el mensaje que genera git («Merge branch…»), que commitlint ignora.
+11. ⚠️ **La suite de servidor en PostgreSQL necesita un contenedor** y se salta sola si no hay `NODO_PG_URL` (`pg-smoke.test.ts`; con la variable cada «base en memoria» es un esquema nuevo). Ver «Comandos».
 
 ## Estado
 
-Ver [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md). Resumen al 2026-10-03: `main` compila, 356/356 pruebas de shared y server en verde, e2e 90/92 (dos rojas, trampa 4), tres commits de historia.
+Ver [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md). Resumen al 2026-10-03 (rama `feature/sesion-autonoma-2026-10-03`, sin integrar en `main`): typecheck limpio; 350 pruebas de servidor en SQLite y 351 en PostgreSQL; 92/92 e2e; `nube-web` integrada.
 
 Puertos: servidor de Nodo `3003` (por defecto), HQ `3004`, demo de marisquería `3005`/`3006` (convención de los videos), landing `3000`, e2e de landing `3047`.
 
@@ -55,16 +59,22 @@ Todos desde `003/` salvo que se indique. Con `pnpm` 11 (trampa 1): `p() { npx -y
 
 ```bash
 p install
-p typecheck                              # raíz: hoy falla en e2e (trampa 3)
-p --filter @003/shared --filter @003/server test      # unitarias: ~13 s, 356 pruebas
+p typecheck                              # los cuatro paquetes
+p --filter @003/shared --filter @003/server test      # unitarias en SQLite: ~13 s
 p --filter @003/web build                # obligatorio antes de servir o de las e2e
 p --filter @003/server seed              # datos mínimos (admin / admin1234; PIN 1111, 2222, 3333)
 p --filter @003/server seed:demo         # demo de mariscos (usa DB_FILE y PHOTOS_DIR propios)
 p --filter @003/server start             # http://<ip>:3003
+
+# Suite de servidor en PostgreSQL (en lote; ~2 min):
+docker run -d --name nodo-pg -e POSTGRES_PASSWORD=nodo -e POSTGRES_DB=nodo_test -p 5433:5432 postgres:16-alpine
+NODO_PG_URL=postgres://postgres:nodo@127.0.0.1:5433/nodo_test p --filter @003/server test
 ```
 
 Para verificar a mano contra la demo **sin tocar `data/`** (usa el scratchpad de la sesión):
 `DB_FILE=<dir>/demo.sqlite PHOTOS_DIR=<dir>/photos BACKUP_DIR=<dir>/backups PORT=3005 HOST=127.0.0.1 p --filter @003/server start`.
+
+Formato y lint (desde la raíz del repo): `npm install` (instala Biome, commitlint y husky) · `npm run lint` · `npm run lint:fix` · `npm run format`.
 
 Landing (desde `landing/`): `npm install` · `npm run dev` · `npm run build && npm start`.
 
@@ -81,5 +91,5 @@ Landing (desde `landing/`): `npm install` · `npm run dev` · `npm run build && 
 
 - **Commits:** Conventional Commits en español (tipos y reglas en la sección 11.2 de la skill). Un commit, una razón; un arreglo y su prueba juntos. Se commitea cuando el dueño lo pide; no se hace push sin que toque.
 - **Ramas:** `main` es la base. Una rama por etapa (`feature/<nombre>`, `fix/<nombre>`). `origin/nube-web` es una rama viva con trabajo no integrado (ver `ESTADO-ACTUAL.md`); **integrarla o descartarla es decisión del dueño**.
-- **Formato:** hoy no hay linter ni formateador en el repo. La adopción de uno se decide en `PLAN-00`.
+- **Formato y lint:** Biome (`biome.json`, 2 espacios, ancho 100). En CI solo bloquean los errores; los avisos (accesibilidad, `any`, dependencias de hooks) son deuda para revisar una a una. Hooks de husky: `pre-commit` (Biome sobre lo staged) y `commit-msg` (commitlint).
 - **Cerrar una etapa:** casillas del plan con commit, entrada de registro fechada, fila de la tabla de arriba, trampas nuevas aquí, `STRUCTURE.md` si hay carpetas nuevas, memoria al día.
