@@ -104,7 +104,7 @@ const expectClean = (a: Audit, where: string) => {
   expect(a.pageScroll, `${where}: la página se desplaza`).toBe(false);
   expect(a.mainOver, `${where}: el contenido se desborda`).toBe(false);
   expect(a.scrollers, `${where}: zonas con scroll`).toEqual([]);
-  expect(a.cut, `${where}: controles cortados`).toEqual([]);
+  expect(a.cut, `${where}: controles cortados: ${a.cut.join(" | ")}`).toEqual([]);
 };
 
 for (const vp of VIEWPORTS) {

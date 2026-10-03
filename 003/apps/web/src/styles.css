@@ -18,7 +18,7 @@
   --color-fog: #eceef2;
   --color-mist: #e1e4ea;
   --color-steel: #9aa3b2;
-  --color-pewter: #667085;
+  --color-pewter: #566074;
   --color-graphite: #475467;
   --color-sea: #12a373;
   --color-gold: #f5a50b;
@@ -28,6 +28,17 @@
   --warn-tint: #fff4d9;
   --bad: #d92d20;
   --bad-tint: #fdecea;
+  /* Color con significado fijo (docs/DESIGN.md v2): naranja = «haz esto»; verde = libre/listo; azul = en curso;
+     ámbar = atención pronto; rojo = error o borrar. Cada uno con su tinta de texto de contraste AA. */
+  --action: #cf4500;
+  --action-hover: #b93d00;
+  --ok-ink: #067647;
+  --info: #2563eb;
+  --info-ink: #1e429f;
+  --info-tint: #e8eefc;
+  --warn-ink: #8a4b00;
+  --bad-ink: #b42318;
+  --focus: #1d4ed8;
   --font-inter:
     "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     sans-serif;
@@ -97,7 +108,7 @@ p {
   margin: 0;
 }
 :focus-visible {
-  outline: 3px solid rgba(255, 89, 0, 0.45);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 .muted {
@@ -237,21 +248,58 @@ textarea {
   min-height: var(--touch-primary);
   border: 0;
   color: #fff;
-  background: linear-gradient(180deg, var(--color-ember-2), var(--color-ember));
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.28) inset,
-    0 8px 20px -8px rgba(255, 89, 0, 0.65);
+  background: var(--action);
+  box-shadow: none;
 }
 .btn.primary:hover {
-  background: linear-gradient(180deg, #ff8444, #f25200);
+  background: var(--action-hover);
 }
 .btn.primary:active {
-  filter: brightness(0.94);
+  background: #a33500;
 }
 .btn.primary:disabled {
-  background: var(--color-mist);
+  background: #d0d5dd;
   color: #fff;
+}
+.btn.ok {
+  border: 0;
+  color: #fff;
+  background: var(--ok-ink);
   box-shadow: none;
+}
+.btn.ok:hover {
+  background: #05603b;
+}
+.btn.danger {
+  border: 0;
+  color: #fff;
+  background: var(--bad-ink);
+  box-shadow: none;
+}
+.btn.danger:hover {
+  background: #912018;
+}
+.danger-text {
+  color: var(--bad-ink);
+  gap: 6px;
+}
+.danger-text:hover {
+  background: var(--bad-tint);
+}
+.btn.icon-only {
+  padding: 0;
+  min-width: 32px;
+  width: 32px;
+}
+.btn.sm .status-chip,
+.btn svg {
+  flex: none;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 .btn.ghost {
   border-color: transparent;
@@ -335,13 +383,13 @@ input[type="checkbox"] {
   border-radius: var(--radius-tag);
   background: var(--color-fog);
   color: var(--color-graphite);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 24px;
   white-space: nowrap;
 }
 .tag.ember {
-  background: var(--color-ember);
+  background: var(--action);
   color: #fff;
 }
 .chips {
@@ -403,8 +451,8 @@ input[type="checkbox"] {
 }
 .opt.on {
   background: var(--color-ember-tint);
-  border-color: var(--color-ember);
-  color: var(--color-ember-ink);
+  border-color: var(--action);
+  color: var(--action-hover);
   box-shadow: none;
 }
 .stepper {
@@ -419,7 +467,7 @@ input[type="checkbox"] {
   border-radius: 999px;
 }
 .err {
-  color: var(--bad);
+  color: var(--bad-ink);
   font-weight: 600;
 }
 
@@ -475,7 +523,7 @@ input[type="checkbox"] {
   border: 0;
   background: transparent;
   color: var(--color-pewter);
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   padding: 2px;
@@ -492,9 +540,18 @@ input[type="checkbox"] {
   transform: scale(0.95);
 }
 .rail-btn.active {
-  background: linear-gradient(180deg, var(--color-ember-2), var(--color-ember));
+  background: var(--color-ink);
   color: #fff;
-  box-shadow: 0 10px 20px -8px rgba(255, 89, 0, 0.7);
+}
+.rail-btn.active::after {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 22%;
+  bottom: 22%;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--action);
 }
 .rail-badge {
   position: absolute;
@@ -503,9 +560,9 @@ input[type="checkbox"] {
   min-width: 20px;
   height: 20px;
   border-radius: 10px;
-  background: var(--color-ink);
+  background: var(--action);
   color: #fff;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 20px;
   text-align: center;
@@ -513,7 +570,29 @@ input[type="checkbox"] {
 }
 .rail-btn.active .rail-badge {
   background: #fff;
-  color: var(--color-ember);
+  color: var(--action);
+}
+/* Pantallas bajas (tabletas económicas 1024×600): el menú completo debe caber sin recortes */
+@media (max-height: 700px) {
+  .rail {
+    padding: 6px 8px;
+    gap: 2px;
+  }
+  .rail-brand {
+    height: 40px;
+  }
+  .rail-sep {
+    margin: 2px 14px;
+  }
+  .rail-btn {
+    min-height: 40px;
+    gap: 1px;
+    font-size: 12px;
+  }
+  .rail-btn svg {
+    width: 20px;
+    height: 20px;
+  }
 }
 @media (max-width: 900px) {
   .rail {
@@ -532,9 +611,21 @@ input[type="checkbox"] {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-graphite);
+}
+.status-bar .page-title {
+  color: var(--color-ink);
+  font-size: 26px;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+.rail-sep {
+  flex: none;
+  height: 1px;
+  margin: 4px 14px;
+  background: var(--hair);
 }
 .status-bar strong {
   font-family: var(--font-display);
@@ -547,21 +638,21 @@ input[type="checkbox"] {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  height: 28px;
+  height: 30px;
   padding: 0 12px;
   border-radius: 999px;
   background: var(--color-fog);
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-graphite);
 }
 .pill.ok {
   background: var(--ok-tint);
-  color: var(--ok);
+  color: var(--ok-ink);
 }
 .pill.off {
   background: var(--bad-tint);
-  color: var(--bad);
+  color: var(--bad-ink);
 }
 .dot {
   width: 8px;
@@ -583,7 +674,7 @@ input[type="checkbox"] {
   color: var(--color-ink);
   border-radius: 999px;
   padding: 0 14px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   min-height: 38px;
@@ -613,7 +704,7 @@ input[type="checkbox"] {
   background: var(--color-paper);
   border: 1px solid var(--hair);
   box-shadow: var(--sh-1);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-ink);
 }
@@ -624,7 +715,7 @@ input[type="checkbox"] {
 }
 .user-chip small {
   display: block;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--color-pewter);
   line-height: 1.1;
@@ -1008,16 +1099,19 @@ input[type="checkbox"] {
   object-fit: cover;
 }
 
-/* ───────── Mesas ───────── */
+/* ───────── Mesas ─────────
+   El estado se dice con tres señales a la vez: barra de color a la izquierda, chip con icono y palabra, y el fondo. */
 .table-card {
+  --st: var(--color-mist);
   position: relative;
   width: 100%;
   height: 100%;
   background: #fff;
   border: 1px solid var(--hair);
+  border-left: 7px solid var(--st);
   border-radius: var(--radius-lg);
   box-shadow: var(--sh-1);
-  padding: 10px 14px;
+  padding: 10px 12px 10px 12px;
   text-align: left;
   cursor: pointer;
   display: flex;
@@ -1030,50 +1124,29 @@ input[type="checkbox"] {
     border-color 0.15s;
 }
 .table-card:hover {
-  transform: translateY(-2px);
   box-shadow: var(--sh-2);
 }
 .table-card:active {
   transform: scale(0.98);
 }
-.table-card::before {
-  content: "";
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--color-sea);
-  box-shadow: 0 0 0 4px rgba(18, 163, 115, 0.16);
+.table-card.disponible {
+  --st: var(--ok);
 }
 .table-card.ocupada {
-  background: linear-gradient(180deg, #fff6ef, #fff);
-  border-color: #ffd7bd;
-}
-.table-card.ocupada::before {
-  background: var(--color-ember);
-  box-shadow: 0 0 0 4px rgba(255, 89, 0, 0.16);
+  --st: var(--info);
 }
 .table-card.esperando_pago {
-  background: linear-gradient(180deg, #fff9e6, #fff);
-  border-color: #f7de9c;
-}
-.table-card.esperando_pago::before {
-  background: var(--color-gold);
-  box-shadow: 0 0 0 4px rgba(245, 165, 11, 0.2);
+  --st: var(--color-gold);
+  background: var(--warn-tint);
 }
 .table-card.reservada {
+  --st: #8d93a5;
   background: var(--color-fog);
-  border-color: transparent;
   box-shadow: none;
-}
-.table-card.reservada::before {
-  background: var(--color-steel);
-  box-shadow: 0 0 0 4px rgba(154, 163, 178, 0.2);
 }
 .table-card.bloqueada,
 .table-card.fuera_de_servicio {
+  --st: #8d93a5;
   background: repeating-linear-gradient(
     45deg,
     var(--color-fog),
@@ -1083,10 +1156,8 @@ input[type="checkbox"] {
   );
   box-shadow: none;
 }
-.table-card.bloqueada::before,
-.table-card.fuera_de_servicio::before {
-  background: var(--color-steel);
-  box-shadow: none;
+.table-card.mine {
+  box-shadow: 0 0 0 2px var(--color-ink);
 }
 .table-card .n {
   font-family: var(--font-display);
@@ -1096,17 +1167,97 @@ input[type="checkbox"] {
   letter-spacing: -0.04em;
 }
 .table-card .small {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.25;
+  color: var(--color-graphite);
 }
 .table-card .tag {
   position: relative;
   z-index: 1;
-  margin-right: 20px;
+}
+.table-card .total {
+  font-size: 18px;
+  font-weight: 700;
 }
 .table-card.selected {
-  outline: 3px solid var(--color-ember);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
+}
+
+/* Estado con icono y palabra (nunca solo color) */
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px 0 8px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  background: var(--color-fog);
+  color: var(--color-graphite);
+}
+.status-chip.ok {
+  background: var(--ok-tint);
+  color: var(--ok-ink);
+}
+.status-chip.info {
+  background: var(--info-tint);
+  color: var(--info-ink);
+}
+.status-chip.warn {
+  background: #ffe7a8;
+  color: var(--warn-ink);
+}
+.status-chip.bad {
+  background: var(--bad-tint);
+  color: var(--bad-ink);
+}
+.status-chip.brand {
+  background: var(--color-ember-tint);
+  color: var(--action-hover);
+}
+
+/* Guía de una línea para quien llega nuevo */
+.hint {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 6px 4px 14px;
+  border-radius: var(--radius);
+  background: var(--info-tint);
+  color: var(--info-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+.hint .btn {
+  color: var(--info-ink);
+}
+.clamp2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sheet.confirm {
+  width: min(440px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ───────── Comandero ───────── */
@@ -1180,10 +1331,11 @@ input[type="checkbox"] {
   gap: 10px;
   padding: 0 10px;
   height: 54px;
-  border-bottom: 1px solid #f0f2f5;
   cursor: pointer;
   width: 100%;
   background: transparent;
+  border: 0;
+  border-bottom: 1px solid #f0f2f5;
   border-left: 4px solid transparent;
   text-align: left;
   border-radius: 0;
@@ -1194,7 +1346,7 @@ input[type="checkbox"] {
 }
 .tk.sel {
   background: var(--color-ember-tint);
-  border-left-color: var(--color-ember);
+  border-left-color: var(--action);
 }
 .tk .q {
   width: 30px;
@@ -1247,9 +1399,25 @@ input[type="checkbox"] {
   background: #212a37;
 }
 .kds .btn.primary {
-  background: linear-gradient(180deg, var(--color-ember-2), var(--color-ember));
+  background: var(--action);
   border: 0;
-  box-shadow: 0 8px 20px -8px rgba(255, 89, 0, 0.6);
+}
+.kds .btn.ok {
+  background: var(--ok-ink);
+  border: 0;
+  font-size: 18px;
+}
+.kds .btn.ok:hover {
+  background: #05603b;
+}
+.kds .hint {
+  background: #1a212c;
+  color: #cfd8ff;
+}
+.kds .hint .btn {
+  color: #cfd8ff;
+  background: transparent;
+  border-color: #33405a;
 }
 .kds .btn.active {
   background: #fff;
@@ -1284,10 +1452,10 @@ input[type="checkbox"] {
   background: var(--ok);
 }
 .ticket.late {
-  border-color: rgba(255, 89, 0, 0.55);
+  border-color: rgba(240, 68, 56, 0.6);
 }
 .ticket.late::before {
-  background: var(--color-ember);
+  background: #f04438;
 }
 .ticket .mesa {
   font-family: var(--font-display);
@@ -1297,7 +1465,7 @@ input[type="checkbox"] {
   letter-spacing: -0.04em;
 }
 .ticket .timer.late {
-  color: var(--color-ember-2);
+  color: #ff8a80;
   font-weight: 700;
 }
 

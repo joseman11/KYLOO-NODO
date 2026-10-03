@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   OFFLINE_PREFIX,
   api,
@@ -78,7 +78,11 @@ const fmtSince = (ts: number) => {
 
 function Staff() {
   const [user, setUser] = useState<SessionUser | null>(getUser());
-  const [tab, setTab] = useState<Tab>("mesas");
+  // Cada quien aterriza en su pantalla, también tras recargar con la sesión abierta
+  const [tab, setTab] = useState<Tab>(() => {
+    const u = getUser();
+    return u ? defaultTab(u) : "mesas";
+  });
   const [accountId, setAccountId] = useState<string | null>(null);
   const [pending, setPending] = useState(pendingCount());
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -189,41 +193,113 @@ function Staff() {
       () => clock.reload(),
     );
 
-  const tabs: { id: Tab; label: string; icon: string; show: boolean; badge?: number }[] = [
-    { id: "mesas", label: "Mesas", icon: "mesas", show: can("order.create") },
+  const tabs: {
+    id: Tab;
+    label: string;
+    /** Título completo de la pantalla (el menú lateral usa la etiqueta corta). */
+    title: string;
+    icon: string;
+    show: boolean;
+    badge?: number;
+    group: "servicio" | "gestion";
+  }[] = [
+    {
+      id: "mesas",
+      label: "Mesas",
+      title: "Mesas",
+      group: "servicio",
+      icon: "mesas",
+      show: can("order.create"),
+    },
     {
       id: "pase",
       label: "Pase",
+      title: "Pase",
+      group: "servicio",
       icon: "pase",
       show: can("order.create") || can("item.mark_ready") || can("item.mark_delivered"),
       badge: ready.data?.length,
     },
-    { id: "pedidos", label: "Llevar", icon: "llevar", show: can("order.create") },
-    { id: "reservas", label: "Reservas", icon: "reservas", show: can("reservation.manage") },
+    {
+      id: "pedidos",
+      label: "Llevar",
+      title: "Para llevar",
+      group: "servicio",
+      icon: "llevar",
+      show: can("order.create"),
+    },
+    {
+      id: "reservas",
+      label: "Reservas",
+      title: "Reservas",
+      group: "servicio",
+      icon: "reservas",
+      show: can("reservation.manage"),
+    },
     {
       id: "estacion",
       label: "Cocina",
+      title: "Cocina",
+      group: "servicio",
       icon: "cocina",
       show: can("station.update") || can("item.mark_ready"),
     },
-    { id: "caja", label: "Caja", icon: "caja", show: can("payment.take") || can("cash.open") },
-    { id: "inventario", label: "Inventario", icon: "inventario", show: can("inventory.view") },
-    { id: "recetas", label: "Recetas", icon: "recetas", show: true },
-    { id: "analitica", label: "Analítica", icon: "analitica", show: can("reports.view") },
+    {
+      id: "caja",
+      label: "Caja",
+      title: "Caja",
+      group: "servicio",
+      icon: "caja",
+      show: can("payment.take") || can("cash.open"),
+    },
+    {
+      id: "inventario",
+      label: "Inventario",
+      title: "Inventario",
+      group: "gestion",
+      icon: "inventario",
+      show: can("inventory.view"),
+    },
+    {
+      id: "recetas",
+      label: "Recetas",
+      title: "Recetas",
+      group: "gestion",
+      icon: "recetas",
+      show: true,
+    },
+    {
+      id: "analitica",
+      label: "Analítica",
+      title: "Analítica",
+      group: "gestion",
+      icon: "analitica",
+      show: can("reports.view"),
+    },
     {
       id: "admin",
       label: "Admin",
+      title: "Administración",
+      group: "gestion",
       icon: "admin",
       show: can("reports.view") || can("printer.manage"),
     },
     {
       id: "config",
       label: "Config",
+      title: "Configuración",
+      group: "gestion",
       icon: "config",
       show: can("venue.manage") || can("product.create"),
     },
   ];
-  const current = tabs.find((t) => t.id === tab);
+  const visible = tabs.filter((t) => t.show);
+  // Si la pestaña guardada ya no corresponde a este rol (p. ej. cambió de usuario), se cae a la suya
+  const current =
+    visible.find((t) => t.id === tab) ??
+    visible.find((t) => t.id === defaultTab(user)) ??
+    visible[0];
+  const activeTab = current?.id ?? tab;
 
   return (
     <div className="shell">
@@ -232,13 +308,15 @@ function Staff() {
         <div className="rail-brand">
           <NodoMark size={42} />
         </div>
-        {tabs
-          .filter((t) => t.show)
-          .map((t) => (
+        {visible.map((t, i) => (
+          <Fragment key={t.id}>
+            {t.group === "gestion" && visible[i - 1]?.group === "servicio" && (
+              <div className="rail-sep" role="separator" />
+            )}
             <button
               type="button"
-              key={t.id}
-              className={`rail-btn ${tab === t.id ? "active" : ""}`}
+              className={`rail-btn ${activeTab === t.id ? "active" : ""}`}
+              aria-current={activeTab === t.id ? "page" : undefined}
               onClick={() => {
                 setTab(t.id);
                 setAccountId(null);
@@ -248,12 +326,13 @@ function Staff() {
               <span>{t.label}</span>
               {t.badge ? <span className="rail-badge">{t.badge}</span> : null}
             </button>
-          ))}
+          </Fragment>
+        ))}
       </nav>
 
       <div className="workspace">
         <div className="status-bar">
-          <strong>{current?.label}</strong>
+          <h1 className="page-title">{current?.title}</h1>
           <span className={`pill ${online ? "ok" : "off"}`}>
             <span className="dot" />
             {online ? "Conectado" : "Sin conexión"}
@@ -307,10 +386,10 @@ function Staff() {
             <Order accountId={accountId} onBack={() => setAccountId(null)} />
           ) : (
             <>
-              {tab === "mesas" && <Floor onOpen={setAccountId} />}
-              {tab === "pase" && <Pass />}
-              {tab === "pedidos" && <External onOpen={setAccountId} />}
-              {tab === "reservas" && (
+              {activeTab === "mesas" && <Floor onOpen={setAccountId} />}
+              {activeTab === "pase" && <Pass />}
+              {activeTab === "pedidos" && <External onOpen={setAccountId} />}
+              {activeTab === "reservas" && (
                 <Reservations
                   onSeat={(id) => {
                     setTab("mesas");
@@ -318,17 +397,17 @@ function Staff() {
                   }}
                 />
               )}
-              {tab === "estacion" && <Station />}
-              {tab === "caja" && <Cash />}
-              {tab === "inventario" && <Inventory />}
-              {tab === "recetas" && <RecipeBook />}
-              {tab === "analitica" && <Analytics />}
-              {tab === "admin" && <Admin />}
-              {tab === "config" && <Config />}
+              {activeTab === "estacion" && <Station />}
+              {activeTab === "caja" && <Cash />}
+              {activeTab === "inventario" && <Inventory />}
+              {activeTab === "recetas" && <RecipeBook />}
+              {activeTab === "analitica" && <Analytics />}
+              {activeTab === "admin" && <Admin />}
+              {activeTab === "config" && <Config />}
             </>
           )}
         </main>
-        <div className="toasts">
+        <div className="toasts" role="status" aria-live="polite">
           {toasts.map((t) => (
             <div key={t.id} className={`toast ${t.alert ? "alert" : ""}`}>
               {t.text}

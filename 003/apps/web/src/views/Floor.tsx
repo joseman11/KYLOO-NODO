@@ -13,6 +13,8 @@ import {
 } from "../api";
 import { PagedGrid, PagedRows } from "../fit";
 import { NumPad } from "../numpad";
+import { Icon } from "../icons";
+import { Hint, StatusChip, type Tone } from "../ui";
 import { PaySheet } from "./Cash";
 
 interface FloorAccount {
@@ -48,6 +50,23 @@ const LABEL: Record<string, string> = {
   pagada: "Pagada",
   bloqueada: "Bloqueada",
   fuera_de_servicio: "Fuera de servicio",
+};
+
+/** Estado de la mesa para la tarjeta: tono, icono y palabra (nunca solo color). */
+const CHIP: Record<string, { tone: Tone; icon: string; text: string }> = {
+  disponible: { tone: "ok", icon: "libre", text: "Libre" },
+  ocupada: { tone: "info", icon: "ocupada", text: "Ocupada" },
+  esperando_pago: { tone: "warn", icon: "cuenta", text: "Pide cuenta" },
+  reservada: { tone: "mute", icon: "reservas", text: "Reservada" },
+  pagada: { tone: "ok", icon: "check", text: "Pagada" },
+  bloqueada: { tone: "mute", icon: "candado", text: "Bloqueada" },
+  fuera_de_servicio: { tone: "mute", icon: "candado", text: "Fuera de servicio" },
+};
+
+/** «Cevichería / Cevichería» → «Cevichería»; «Bar / Barra» se queda igual (área y estación distintas). */
+export const stationName = (s: string) => {
+  const [a, b] = s.split(" / ");
+  return b && a !== b ? s : (a ?? s);
 };
 
 const minutes = (ts: number) => Math.max(0, Math.floor((Date.now() - ts) / 60000));
@@ -161,6 +180,10 @@ export function Floor({ onOpen }: { onOpen: (accountId: string) => void }) {
         </div>
         <span className="small">{free} libres</span>
       </div>
+      <Hint id="mesas">
+        Toca una mesa <strong>libre</strong> para abrirla. Toca <strong>tu mesa</strong> para tomar
+        la comanda.
+      </Hint>
       {(error || err) && (
         <p className="err" style={{ flex: "none" }}>
           {err ?? error}
@@ -170,49 +193,59 @@ export function Floor({ onOpen }: { onOpen: (accountId: string) => void }) {
         <PagedGrid
           items={visible}
           minW={150}
-          minH={112}
-          empty={<p className="muted">No hay mesas en esta área</p>}
+          minH={140}
+          empty={
+            <p className="muted">
+              {zone
+                ? "No hay mesas en esta área. Toca «Todas» para ver el resto."
+                : "Todavía no hay mesas. El administrador las crea en Configuración → Salón y mesas."}
+            </p>
+          }
           render={(t) => {
             const a = t.accounts[0];
             const total = t.accounts.reduce((s, x) => s + x.total_cents - x.paid_cents, 0);
+            const mine = !!a && a.waiter_id === me?.id;
+            const chip = t.unsynced
+              ? { tone: "warn" as Tone, icon: "alerta", text: "Sin enviar" }
+              : t.linked_to
+                ? { tone: "mute" as Tone, icon: "mesas", text: `Unida a ${t.linked_to}` }
+                : (CHIP[t.status] ?? { tone: "mute" as Tone, icon: "mesas", text: t.status });
             return (
               <button
                 type="button"
-                className={`table-card ${t.status} ${sel === t.id ? "selected" : ""}`}
+                className={`table-card ${t.status} ${mine ? "mine" : ""} ${sel === t.id ? "selected" : ""}`}
                 onClick={() => select(t)}
               >
-                <div className="row spread">
+                <div className="row spread" style={{ alignItems: "flex-start" }}>
                   <span className="n">{t.number}</span>
-                  <span className="row" style={{ gap: 4 }}>
+                  <span className="col" style={{ gap: 4, alignItems: "flex-end" }}>
+                    <StatusChip tone={chip.tone} icon={chip.icon}>
+                      {chip.text}
+                    </StatusChip>
                     {t.vip ? <span className="tag">VIP</span> : null}
-                    {t.status === "esperando_pago" && <span className="tag ember">Cuenta</span>}
                   </span>
                 </div>
                 <div style={{ minWidth: 0 }}>
-                  <div className="small ellipsis">
-                    {t.linked_to ? `Unida a ${t.linked_to}` : (LABEL[t.status] ?? t.status)}
-                    {t.unsynced ? " · sin sincronizar" : ""}
-                    {a ? ` · ${ago(a.opened_at)}` : ` · ${t.capacity} pers.`}
-                  </div>
+                  {a ? (
+                    <>
+                      <div className="small ellipsis" style={{ color: "var(--color-ink)" }}>
+                        <strong>{mine ? "Tu mesa" : a.waiter}</strong> · {a.guests} pers.
+                      </div>
+                      <div className="small ellipsis row" style={{ gap: 4 }} title="Tiempo abierta">
+                        <Icon name="reloj" size={14} />
+                        {ago(a.opened_at)}
+                      </div>
+                      <div className="small ellipsis">
+                        {a.last_order_at ? `Comanda: ${ago(a.last_order_at)}` : "Sin comandas"}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="small ellipsis">Para {t.capacity} personas</div>
+                  )}
                   {t.joined.length > 0 && (
                     <div className="small ellipsis">+ {t.joined.join(", ")}</div>
                   )}
-                  {a && (
-                    <div className="small ellipsis">
-                      {a.waiter}
-                      {a.waiter_id === me?.id ? " (tú)" : ""} · {a.guests} pers.
-                    </div>
-                  )}
-                  {a && (
-                    <div className="small ellipsis">
-                      {a.last_order_at ? `última comanda ${ago(a.last_order_at)}` : "sin comandas"}
-                    </div>
-                  )}
-                  {total > 0 && !t.linked_to && (
-                    <div className="num ellipsis" style={{ fontWeight: 600 }}>
-                      {money(total)}
-                    </div>
-                  )}
+                  {total > 0 && !t.linked_to && <div className="num total">{money(total)}</div>}
                 </div>
               </button>
             );
@@ -235,26 +268,27 @@ export function Floor({ onOpen }: { onOpen: (accountId: string) => void }) {
           ) : (
             <>
               <h3>Listos para entregar</h3>
+              <p className="small">Lo que cocina y barra ya terminó.</p>
               <PagedRows
                 items={ready.data ?? []}
-                rowH={64}
+                rowH={72}
                 fixed
                 empty={<p className="muted small">Nada pendiente de entregar</p>}
                 row={(r) => (
                   <td style={{ padding: 0 }}>
-                    <div className="row spread" style={{ height: 64, gap: 8, minWidth: 0 }}>
-                      <div className="ellipsis" style={{ minWidth: 0, flex: "1 1 0" }}>
-                        <strong>{r.table_number}</strong>
-                        <div className="small ellipsis">
-                          {r.station}
-                          {r.waiter_id === me?.id ? " · tuyo" : ` · ${r.waiter}`}
+                    <div className="row spread" style={{ height: 72, gap: 8, minWidth: 0 }}>
+                      <div style={{ minWidth: 0, flex: "1 1 0" }}>
+                        <strong style={{ fontSize: 18 }}>Mesa {r.table_number}</strong>
+                        <div className="small">
+                          {stationName(r.station)}
+                          {r.waiter_id === me?.id ? " · es tuya" : ` · de ${r.waiter}`}
                         </div>
                       </div>
                       {can("item.mark_delivered") && (
                         <button
                           type="button"
-                          className="btn primary"
-                          style={{ minHeight: 44, flex: "none", padding: "0 12px" }}
+                          className="btn ok"
+                          style={{ minHeight: 48, flex: "none", padding: "0 14px" }}
                           onClick={() =>
                             api(`/api/tickets/${r.id}/status`, {
                               body: { status: "entregado" },
@@ -321,8 +355,8 @@ function TableDetail({
             {LABEL[table.status]} · capacidad {table.capacity}
           </div>
         </div>
-        <button type="button" className="btn ghost sm" onClick={onClose}>
-          ✕
+        <button aria-label="Cerrar" type="button" className="btn ghost sm" onClick={onClose}>
+          <Icon name="cerrar" size={18} />
         </button>
       </div>
       {free ? (

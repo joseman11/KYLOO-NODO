@@ -1,3 +1,4 @@
+import { Hint } from "../ui";
 import { useEffect, useMemo, useState } from "react";
 import { backdrop } from "../sheet";
 import {
@@ -157,6 +158,9 @@ function shadowAccount(id: string): Account {
  * con asientos y envío; a la derecha buscador, favoritos, categorías y productos con foto; abajo la barra de funciones.
  * Todo cabe en pantalla, sin desplazamiento.
  */
+/** Funciones de la cuenta que se usan casi siempre (van grandes); el resto queda bajo «Más». */
+const MAIN_FN = ["Mandar tiempo", "Cuenta", "Dividir", "Descuento"];
+
 export function Order({ accountId, onBack }: { accountId: string; onBack: () => void }) {
   const catalog = useLive(
     () =>
@@ -484,6 +488,10 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
         </button>
       </div>
 
+      <Hint id="cuenta">
+        Toca los productos para agregarlos y luego <strong>Enviar comanda</strong>. Para cobrar,
+        pide la <strong>Cuenta</strong>.
+      </Hint>
       <div className="split">
         {/* Cuenta */}
         <section
@@ -551,7 +559,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
                       aria-label="Quitar separador"
                       onClick={() => setCart((c) => c.filter((x) => x.key !== r.s.key))}
                     >
-                      ✕
+                      <Icon name="cerrar" size={18} />
                     </button>
                   </div>
                 )}
@@ -599,7 +607,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
                           }).then(() => account.reload())
                         }
                       >
-                        ✕
+                        <Icon name="cerrar" size={18} />
                       </button>
                     )}
                   </div>
@@ -614,13 +622,14 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
                         type="button"
                         className="btn ghost sm"
                         title="Dispensar el cargo por servicio"
+                        aria-label="Dispensar el cargo por servicio"
                         onClick={() =>
                           api(`/api/accounts/${accountId}/service-charge`, {
                             body: { waive: true },
                           }).then(() => account.reload())
                         }
                       >
-                        ✕
+                        <Icon name="cerrar" size={18} />
                       </button>
                     )}
                   </div>
@@ -674,7 +683,9 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
                 )}
               </>
             )}
-            {!selRow && <span className="small">Toca un renglón para editarlo</span>}
+            {!selRow && (
+              <span className="small">Toca un renglón para cambiar la cantidad o quitarlo</span>
+            )}
           </div>
 
           {msg && (
@@ -709,7 +720,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
         <section className="pane grow" style={{ gap: 6 }}>
           {/* Cantidad y asiento */}
           <div className="row" style={{ flex: "none", gap: 4, flexWrap: "wrap" }}>
-            <span className="small">Cant.</span>
+            <span className="small">Cantidad por toque</span>
             {[1, 2, 3, 4, 5].map((n) => (
               <button
                 type="button"
@@ -730,7 +741,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
               {mult > 5 ? `×${mult}` : "…"}
             </button>
             <span className="small" style={{ marginLeft: 8 }}>
-              Asiento
+              Para el asiento
             </span>
             <button
               type="button"
@@ -857,19 +868,38 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
             />
           </div>
 
-          <div className="row" style={{ flex: "none", flexWrap: "wrap", gap: 6 }}>
+          {/* Lo que se hace casi siempre va grande; lo demás, agrupado y más discreto */}
+          <div className="row" style={{ flex: "none", gap: 8 }}>
             {fn
-              .filter((f) => f.show)
+              .filter((f) => f.show && MAIN_FN.includes(f.label.replace(/ ✓| \(\d+\)/g, "")))
               .map((f) => (
                 <button
                   type="button"
                   key={f.label}
                   className={`btn ${f.ember ? "primary" : ""}`}
+                  style={{ minHeight: 52, flex: "1 1 0", whiteSpace: "nowrap", padding: "6px 8px" }}
+                  disabled={f.off}
+                  onClick={f.run}
+                >
+                  {f.label}
+                </button>
+              ))}
+          </div>
+          <div className="row" style={{ flex: "none", flexWrap: "wrap", gap: 6 }}>
+            <span className="small" style={{ flex: "none" }}>
+              Más:
+            </span>
+            {fn
+              .filter((f) => f.show && !MAIN_FN.includes(f.label.replace(/ ✓| \(\d+\)/g, "")))
+              .map((f) => (
+                <button
+                  type="button"
+                  key={f.label}
+                  className="btn sm ghost"
                   style={{
-                    minHeight: 46,
-                    flex: "1 1 88px",
+                    flex: "none",
                     whiteSpace: "nowrap",
-                    padding: "6px 4px",
+                    border: "1px solid var(--color-mist)",
                   }}
                   disabled={f.off}
                   onClick={f.run}

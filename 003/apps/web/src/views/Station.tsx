@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api, can, useLive } from "../api";
 import { PagedColumns } from "../fit";
+import { backdrop } from "../sheet";
+import { Hint, StatusChip } from "../ui";
 
 interface StationRow {
   id: string;
@@ -66,6 +68,13 @@ export function Station() {
     return () => clearInterval(t);
   }, []);
 
+  // Sin estación elegida (o si la guardada ya no existe) se entra a la primera: nadie debe empezar con una pantalla vacía
+  useEffect(() => {
+    const list = stations.data;
+    if (list?.length && !list.some((s) => s.id === stationId)) choose(list[0]!.id);
+    // biome-ignore lint/correctness/useExhaustiveDependencies: solo al cargar la lista de estaciones
+  }, [stations.data]);
+
   const choose = (id: string) => {
     setStationId(id);
     try {
@@ -84,26 +93,16 @@ export function Station() {
     );
   };
 
-  const soldOut = async () => {
-    const products =
-      await api<{ id: string; name: string; availability: string }[]>("/api/products");
-    const name = prompt(
-      "Producto a marcar agotado:\n" +
-        products
-          .filter((p) => p.availability === "disponible")
-          .map((p) => p.name)
-          .join(", "),
-    );
-    const p = products.find((x) => x.name.toLowerCase() === name?.trim().toLowerCase());
-    if (p) await api(`/api/products/${p.id}/availability`, { body: { availability: "agotado" } });
-  };
+  const [soldOutOpen, setSoldOutOpen] = useState(false);
 
   return (
     <div className="kds">
       <div className="row wrap" style={{ flex: "none" }}>
         <h2 className="grow">
-          {stations.data?.find((s) => s.id === stationId)?.name ?? "Elige estación"}{" "}
-          <span className="small">{queue.data?.length ?? 0} comandas</span>
+          {stations.data?.find((s) => s.id === stationId)?.name ?? "Elige tu estación"}{" "}
+          <span className="small">
+            {queue.data?.length ?? 0} {queue.data?.length === 1 ? "comanda" : "comandas"}
+          </span>
         </h2>
         {stations.data?.map((s) => (
           <button
@@ -116,12 +115,17 @@ export function Station() {
           </button>
         ))}
         {can("station.update") && stationId && (
-          <button type="button" className="btn" onClick={soldOut}>
-            Agotar producto
+          <button type="button" className="btn" onClick={() => setSoldOutOpen(true)}>
+            Agotados
           </button>
         )}
       </div>
+      <Hint id="cocina">
+        Toca <strong>Preparar</strong> al empezar y <strong>Listo</strong> al terminar: el mesero lo
+        ve al instante. Las comandas con más de {LATE_MIN} min se marcan en rojo.
+      </Hint>
       {err && <p className="err">{err}</p>}
+      {soldOutOpen && <SoldOutSheet onClose={() => setSoldOutOpen(false)} />}
       <PagedColumns
         items={queue.data ?? []}
         colMinW={270}
@@ -149,7 +153,14 @@ export function Station() {
               </div>
               <div className="row spread small">
                 <span>{t.waiter}</span>
-                <span className={`timer ${late ? "late" : ""}`}>{min} min</span>
+                <span className="row" style={{ gap: 6 }}>
+                  {late && (
+                    <StatusChip tone="bad" icon="alerta">
+                      Retrasada
+                    </StatusChip>
+                  )}
+                  <span className={`timer ${late ? "late" : ""}`}>{min} min</span>
+                </span>
               </div>
               {t.lines.map((l, i) => (
                 <div
@@ -186,7 +197,7 @@ export function Station() {
               {n && (
                 <button
                   type="button"
-                  className={`btn ${t.status === "preparando" ? "primary" : ""}`}
+                  className={`btn ${t.status === "preparando" ? "ok" : ""}`}
                   style={{ minHeight: 52 }}
                   onClick={() => advance(t)}
                 >
@@ -197,6 +208,81 @@ export function Station() {
           );
         }}
       />
+    </div>
+  );
+}
+
+interface Product {
+  id: string;
+  name: string;
+  availability: string;
+}
+
+/** Marcar qué se acabó (y volverlo a poner disponible), con búsqueda y sin teclear nombres exactos. */
+function SoldOutSheet({ onClose }: { onClose: () => void }) {
+  const products = useLive(() => api<Product[]>("/api/products"), ["product.updated"]);
+  const [q, setQ] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const set = (p: Product, availability: string) =>
+    api(`/api/products/${p.id}/availability`, { body: { availability } }).then(
+      () => products.reload(),
+      (e) => setErr((e as Error).message),
+    );
+  const all = (products.data ?? []).filter((p) =>
+    p.name.toLowerCase().includes(q.trim().toLowerCase()),
+  );
+  const out = all.filter((p) => p.availability === "agotado");
+  const available = all.filter((p) => p.availability === "disponible").slice(0, 24);
+  return (
+    <div className="sheet-bg" {...backdrop(onClose)}>
+      <div
+        className="sheet center"
+        role="dialog"
+        aria-modal="true"
+        style={{ width: "min(640px, 100%)" }}
+      >
+        <div className="row spread">
+          <h3>Productos agotados</h3>
+          <button type="button" className="btn" onClick={onClose}>
+            Cerrar
+          </button>
+        </div>
+        {/* biome-ignore lint/a11y/noAutofocus: la búsqueda es lo primero que se usa */}
+        <input
+          autoFocus
+          placeholder="Buscar producto…"
+          aria-label="Buscar producto"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        {err && <p className="err">{err}</p>}
+        {out.length > 0 && (
+          <>
+            <strong>Agotados ahora</strong>
+            <div className="chips">
+              {out.map((p) => (
+                <button
+                  type="button"
+                  key={p.id}
+                  className="chip on"
+                  onClick={() => set(p, "disponible")}
+                >
+                  {p.name} · volver a poner
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        <strong>Toca el que se acabó</strong>
+        <div className="chips">
+          {available.map((p) => (
+            <button type="button" key={p.id} className="chip" onClick={() => set(p, "agotado")}>
+              {p.name}
+            </button>
+          ))}
+          {available.length === 0 && <span className="muted">No hay coincidencias</span>}
+        </div>
+      </div>
     </div>
   );
 }

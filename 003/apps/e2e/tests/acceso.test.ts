@@ -33,6 +33,13 @@ const railLabels = (page: Awaited<ReturnType<typeof newPage>>["page"]) =>
       .filter(Boolean),
   );
 
+/** El menú lateral usa etiquetas cortas; el título de la pantalla va completo. */
+const FULL_TITLE: Record<string, string> = {
+  Llevar: "Para llevar",
+  Admin: "Administración",
+  Config: "Configuración",
+};
+
 describe("pantalla de acceso", () => {
   it("muestra el nombre del negocio, saludo, reloj, animación y todo el personal con su rol", async () => {
     const { page, problems, ctx } = await newPage(browser, nodo.url);
@@ -102,9 +109,9 @@ describe("pantalla de acceso", () => {
     const { page, problems, ctx } = await newPage(browser, nodo.url);
     await loginWithPin(page, "Juan", "1111");
     await waitText(page, "Mesas");
-    expect(
-      await page.evaluate(() => document.querySelector(".status-bar strong")?.textContent),
-    ).toBe("Mesas");
+    expect(await page.evaluate(() => document.querySelector(".page-title")?.textContent)).toBe(
+      "Mesas",
+    );
     expect(await hasText(page, "Juan")).toBe(true);
     expect(await hasText(page, "Mesero")).toBe(true);
     expect(await hasText(page, "Conectado")).toBe(true);
@@ -200,9 +207,9 @@ describe("módulos visibles por rol", () => {
         await tap(page, l, ".rail-btn");
         await sleep(350);
         expect(
-          await page.evaluate(() => document.querySelector(".status-bar strong")?.textContent),
+          await page.evaluate(() => document.querySelector(".page-title")?.textContent),
           l,
-        ).toBe(l);
+        ).toBe(FULL_TITLE[l] ?? l);
       }
       expect(problems, problems.join(" | ")).toEqual([]);
       await ctx.close();

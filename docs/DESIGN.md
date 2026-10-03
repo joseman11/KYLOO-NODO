@@ -1,80 +1,62 @@
-# 003 — Style Reference
-> Papel blanco, una sola brasa — un instrumento de servicio donde un único naranja marca la siguiente acción.
+# Nodo — Sistema de diseño v2
+> Papel claro, un solo naranja para «haz esto», y colores con significado fijo para saber de un vistazo cómo está el servicio.
 
-**Theme:** light (KDS de cocina: dark)
-**Base:** adaptación de `DESIGN-reference-brex.md` para tablets, pantallas táctiles y caja en red local.
+**Vigente desde el 2026-10-03 (plan 08).** Sustituye a la v1 («sin segundo acento»): en un restaurante hay que leer el estado de 15 mesas a un brazo de distancia y con prisa; el color con significado fijo, **siempre acompañado de icono y palabra**, lo hace más rápido y más seguro que la escala de grises. Referencia externa histórica: [`DESIGN-reference-brex.md`](DESIGN-reference-brex.md).
 
-## Tokens — Colors
+**Tema:** claro; la pantalla de cocina (KDS) es oscura.
 
-| Name | Value | Token | Role |
-|------|-------|-------|------|
-| Ember | `#ff5900` | `--color-ember` | Única acción primaria por región (Enviar, Cobrar) y estados "requiere acción" |
-| Abyss | `#000710` | `--color-abyss` | Fondo KDS, pantallas de estación |
-| Carbon | `#15191e` | `--color-carbon` | Tarjetas de comanda en KDS, barra de estado del dispositivo |
-| Ink | `#000000` | `--color-ink` | Títulos, cifras, texto principal |
-| Paper | `#ffffff` | `--color-paper` | Lienzo y tarjetas |
-| Fog | `#f3f3f7` | `--color-fog` | Fondos de sección, inputs, mesas disponibles |
-| Mist | `#b9bbc6` | `--color-mist` | Bordes 1px, deshabilitado |
-| Steel | `#8b8d98` | `--color-steel` | Iconos, placeholders |
-| Pewter | `#6f737b` | `--color-pewter` | Texto auxiliar |
-| Graphite | `#60646c` | `--color-graphite` | Texto secundario |
+## 1. Reglas de oro (se revisan en cada pantalla nueva)
+1. **Una sola acción principal por región**, en naranja sólido (`.btn.primary`). Lo repetido (p. ej. «Entregar» ×9) no es principal.
+2. **El estado nunca se dice solo con color**: color + icono + palabra (`StatusChip`).
+3. **Reconocer antes que recordar:** etiquetas completas, sin siglas; los iconos acompañan al texto, no lo sustituyen.
+4. **Nada destructivo sin confirmar**, diciendo qué se borra (`DeleteButton`); la opción segura toma el foco.
+5. **Cada rol entra a su pantalla** y ve solo lo suyo.
+6. **Guía una línea** donde se llega nuevo (`Hint`): aparece las primeras veces y se cierra para siempre.
+7. **Nunca silencio:** conexión, impresión y errores siempre visibles y con qué hacer.
+8. **Tocar, no apuntar:** objetivos grandes, sin hover como única señal, sin gestos ocultos.
 
-Sin segundo acento. Los estados de mesa y comanda se distinguen por **icono + etiqueta + escala de grises**; Ember solo en lo que exige acción inmediata (cuenta solicitada, comanda retrasada, impresora caída).
+## 2. Color con significado fijo
 
-## Tokens — Typography
-- **Inter** 400/500/600, tracking negativo: -0.01em ≤24px, -0.02em 36px, -0.03em 72px. `calt` y `liga` desactivados.
-- Base táctil: **16px** mínimo en cualquier control. Cifras de cuenta y totales: 24–36px / 600 con `font-variant-numeric: tabular-nums`.
-- Display (Flecha o sustituto) solo en pantallas de inicio/login, nunca en operación.
+| Significado | Token | Uso | Texto sobre tinta |
+|---|---|---|---|
+| **Acción** (haz esto) | `--action` `#cf4500` | Botón principal, insignia de pendientes, selección | blanco (4,7:1) |
+| **Libre / listo / bien** | `--ok-ink` `#067647` · `--ok-tint` | Mesa libre, plato listo, «Entregar», activo | 5,1:1 |
+| **En curso / ocupada** | `--info` `#2563eb` · `--info-ink` `#1e429f` · `--info-tint` | Mesa ocupada, preparando, ayuda en pantalla | 7,7:1 |
+| **Atención pronto** | `--color-gold`, `--warn-ink` `#8a4b00` · `--warn-tint` | Pide cuenta, inventario bajo, sin enviar | 6,2:1 |
+| **Error / retrasado / borrar** | `--bad-ink` `#b42318` · `--bad-tint` | Sin conexión, retrasada, borrar | 5,8:1 |
+| **No disponible** | `--color-steel`, rayado gris | Reservada, bloqueada | — |
 
-| Role | Size | Line | Weight |
-|------|------|------|--------|
-| caption | 12 | 1.5 | 500 |
-| body-sm | 14 | 1.43 | 400 |
-| body | 16 | 1.5 | 400 |
-| subheading | 20 | 1.4 | 600 |
-| heading-sm | 24 | 1.33 | 600 |
-| heading | 36 | 1.21 | 600 |
+Neutros: `--color-ink` (texto), `--color-graphite` (secundario, 6,6:1 sobre gris), `--color-pewter` (auxiliar, ≥ 4,5:1), `--color-mist` (bordes), `--color-fog`/`--color-cream` (fondos). KDS: `--color-abyss` y `--color-carbon`.
 
-## Spacing, Shapes & Touch
-- Unidad 8px; escala 8 / 16 / 24 / 32 / 48 / 72.
-- Radios: botones, inputs, tarjetas **12px**; tags 6px. Nunca 8 o 10px.
-- **Objetivo táctil mínimo 48×48px**; botones de operación del mesero (productos, enviar, mesas) **56px+**; separación entre objetivos ≥ 8px.
-- Padding de tarjeta 24px (16px en listas densas de comanda). Máx. ancho de página 1200px en admin; la operación usa todo el viewport.
-- Sin sombras (solo modales/toasts). Profundidad = Paper sobre Fog + borde Mist.
+## 3. Tipografía
+- **Inter** (texto) y **Bricolage Grotesque** (números de mesa, títulos). Tracking negativo en títulos.
+- **Mínimos:** lectura 16 px; secundario 14 px; metadatos 13 px; **nada de 11 px**. Cifras de cuenta en tabulares (`.num`).
+- Título de pantalla `h1.page-title` 26 px; solo uno por pantalla, **completo** (sin abreviar), el menú lateral usa la etiqueta corta.
 
-## Components
-- **Botón primario:** Ember, texto blanco, 12px, alto 56px (operación) / 40px (admin), Inter 600. Uno por región.
-- **Botón secundario:** borde Mist 1px, texto Ink. **Ghost:** solo texto.
-- **Tarjeta de mesa (mapa):** Paper, borde Mist; muestra número, mesero, tiempo de ocupación. Disponible = Fog; ocupada = borde Ink 2px; esperando pago = punto Ember + etiqueta; bloqueada = rayado gris.
-- **Línea de comanda:** cantidad · nombre · modificadores en Graphite · nota en Pewter itálica; stepper ± de 48px.
-- **Chip de modificador:** 6px radius, 40px alto, seleccionado = fondo Ink + texto Paper.
-- **Ticket de estación (KDS):** fondo Carbon sobre Abyss, mesa en 36px/600, cronómetro (se vuelve Ember al exceder el tiempo objetivo), botón "Listo" Ember de ancho completo.
-- **Barra de estado del dispositivo:** Carbon 32px; punto de conexión (conectado/offline), impresoras con error, usuario activo.
-- **Teclado PIN:** cuadrícula 3×4 de botones 72px, Fog, radio 12px.
-- **Toast/modal de autorización:** Paper, sombra única, pide PIN de gerente.
+## 4. Espacio, forma y toque
+- Unidad 8 px. Radios: controles 14 px, tarjetas 20 px, píldoras 999 px.
+- **Objetivo táctil:** ≥ 48 px de alto en operación (56 px el principal). Excepción documentada: el botón de papelera en tablas de administración (32 px de ancho, 40 de alto) para que quepa en pantallas de 1024 px; es intencionalmente pequeño y **siempre pide confirmación**.
+- Separación entre objetivos ≥ 8 px.
+- Elevación mínima (`--sh-1`/`--sh-2`); **sin resplandores de color**. La profundidad la da el papel blanco sobre el lienzo gris.
 
-## Do's and Don'ts
-**Do**
-- Un solo Ember por región; el flujo principal es *mesa → productos → modificadores → Enviar*.
-- Mostrar siempre el estado de conexión y de impresión; el error nunca es silencioso.
-- Texto izquierda, cifras alineadas a la derecha en tabulares.
-- Respuesta visual inmediata (optimista) al tocar; confirmar contra el servidor después.
+## 5. Componentes
+- **Botón:** primario naranja sólido; `ok` verde (confirmaciones repetidas como «Entregar»); `danger` rojo (solo dentro de una confirmación); secundario blanco con borde; `ghost` solo texto.
+- **Tarjeta de mesa:** barra de color a la izquierda + `StatusChip` (Libre / Ocupada / Pide cuenta / Reservada / Bloqueada) + dato en 14 px. «Tu mesa» lleva borde de tinta.
+- **StatusChip:** icono + palabra, tono según §2. Es la única forma de mostrar un estado.
+- **Hint:** una línea azul con «Entendido»; máximo 3 apariciones por pantalla.
+- **Confirmación de borrado:** título «¿Eliminar la categoría «X»?», qué pasa, **Cancelar** con el foco y **Eliminar** en rojo.
+- **Menú lateral:** icono + etiqueta de 13 px; activo en tinta con marca naranja; separador entre *servicio* y *gestión*; en pantallas bajas (< 700 px) se compacta para que quepan los 11 módulos.
+- **KDS:** tickets sobre carbón; «Preparar» neutro y «Listo» verde; retrasada (> 15 min) en rojo con la palabra «Retrasada».
+- **Ventanas (`.sheet`):** cierran con clic en el fondo o Escape (`backdrop()`); `role="dialog"`.
 
-**Don't**
-- No añadir verde/rojo/azul para estados; usar iconos, etiquetas y Ember.
-- No sombras de elevación, no radios mixtos, no objetivos < 48px.
-- No hover como única señal (la pantalla es táctil); no gestos ocultos para acciones destructivas.
-- No usar el tema oscuro fuera del KDS.
+## 6. Accesibilidad (se mide)
+- `axe-core` en `e2e/tests/accesibilidad.test.ts` revisa WCAG 2.1 AA en acceso, mesas, pase, caja, cocina, inventario, configuración, administración y comandero: **cero hallazgos serios**.
+- Foco visible azul (`--focus`) en todo; nombres accesibles en botones de icono; `prefers-reduced-motion` respetado.
+- Contraste de texto ≥ 4,5:1 (3:1 en texto grande).
 
-## Tailwind v4 / CSS
-```css
-:root {
-  --color-ember:#ff5900; --color-abyss:#000710; --color-carbon:#15191e;
-  --color-ink:#000; --color-paper:#fff; --color-fog:#f3f3f7;
-  --color-mist:#b9bbc6; --color-steel:#8b8d98; --color-pewter:#6f737b; --color-graphite:#60646c;
-  --font-inter:'Inter',ui-sans-serif,system-ui,sans-serif;
-  --radius-card:12px; --radius-tag:6px;
-  --touch-min:48px; --touch-primary:56px;
-}
-body { font-family:var(--font-inter); font-feature-settings:"calt" 0,"liga" 0; letter-spacing:-0.01em; }
-```
+## 7. Lo que NO se hace
+- No usar naranja para estados, bordes o decoración.
+- No mostrar un estado solo con color, ni solo con icono.
+- No borrar al primer toque; no usar `prompt()`, `confirm()` ni `alert()` del navegador.
+- No abreviar títulos de pantalla ni textos de botones.
+- No textos de menos de 13 px; no recortar con «…» datos que decidan una acción (mesa, importe, estado).

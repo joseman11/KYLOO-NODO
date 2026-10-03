@@ -74,13 +74,21 @@ export function Login({ onLogin }: { onLogin: (u: SessionUser) => void }) {
 
   return (
     <div className="login-wrap">
-      <div className="login-hero" aria-hidden="true">
-        <WaveCanvas />
-        <a className="by-kyloo" href="https://kyloo.com.mx/" target="_blank" rel="noreferrer">
+      <div className="login-hero">
+        <div aria-hidden="true" style={{ display: "contents" }}>
+          <WaveCanvas />
+        </div>
+        <a
+          className="by-kyloo"
+          href="https://kyloo.com.mx/"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Hecho por Kyloo"
+        >
           <span>by</span>
           <KylooLogo width={74} />
         </a>
-        <div className="mark">
+        <div className="mark" aria-hidden="true">
           <NodoLogo size="clamp(220px, 32vw, 440px)" color="#f4f2ec" />
         </div>
       </div>

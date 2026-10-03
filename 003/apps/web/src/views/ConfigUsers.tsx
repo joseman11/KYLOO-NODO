@@ -1,3 +1,4 @@
+import { StatusChip } from "../ui";
 import { useState } from "react";
 import { backdrop } from "../sheet";
 import { api, photoSrc, useLive } from "../api";
@@ -137,7 +138,9 @@ export function Users() {
             <td>{u.username ? `Usuario ${u.username}` : u.has_pin ? "PIN" : "—"}</td>
             <td>
               {u.active ? (
-                <span className="tag">Activo</span>
+                <StatusChip tone="ok" icon="check">
+                  Activo
+                </StatusChip>
               ) : (
                 <span className="small">Dado de baja</span>
               )}

@@ -1,3 +1,4 @@
+import { DeleteButton } from "../ui";
 import { useState } from "react";
 import { backdrop } from "../sheet";
 import { api, useLive } from "../api";
@@ -325,19 +326,15 @@ export function AreasSheet({
                       aria-label={`Nombre del área ${a.name}`}
                       onBlur={(e) => rename(`/api/inventory/areas/${a.id}`, a.name, e.target.value)}
                     />
-                    <button
-                      type="button"
-                      className="btn ghost sm"
-                      aria-label={`Borrar ${a.name}`}
-                      onClick={() =>
+                    <DeleteButton
+                      what={`el área «${a.name}»`}
+                      onConfirm={() =>
                         run(
                           api(`/api/inventory/areas/${a.id}`, { method: "DELETE" }),
                           () => sel === a.id && setSel(null),
                         )
                       }
-                    >
-                      ✕
-                    </button>
+                    />
                   </div>
                 </td>
               )}
@@ -385,16 +382,12 @@ export function AreasSheet({
                         rename(`/api/inventory/categories/${c.id}`, c.name, e.target.value)
                       }
                     />
-                    <button
-                      type="button"
-                      className="btn ghost sm"
-                      aria-label={`Borrar ${c.name}`}
-                      onClick={() =>
+                    <DeleteButton
+                      what={`la categoría «${c.name}»`}
+                      onConfirm={() =>
                         run(api(`/api/inventory/categories/${c.id}`, { method: "DELETE" }))
                       }
-                    >
-                      ✕
-                    </button>
+                    />
                   </div>
                 </td>
               )}

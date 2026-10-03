@@ -1,3 +1,4 @@
+import { Hint, StatusChip } from "../ui";
 import { useState } from "react";
 import { backdrop } from "../sheet";
 import { ApiError, api, can, money, useLive } from "../api";
@@ -145,7 +146,9 @@ export function Cash() {
   return (
     <div className="view">
       <div className="row spread" style={{ flex: "none" }}>
-        <h2>Caja</h2>
+        <Hint id="caja">
+          Toca una cuenta para cobrarla. Las que pidieron la cuenta van primero.
+        </Hint>
         <div className="row">
           {drawerButton}
           <button type="button" className="btn" onClick={() => setGift(true)}>
@@ -190,13 +193,21 @@ export function Cash() {
             disabled={!can("payment.take")}
             onClick={() => setPaying({ id: a.id, table: a.table })}
           >
-            <span className="n">{a.table}</span>
+            <div className="row spread" style={{ alignItems: "flex-start" }}>
+              <span className="n">{a.table}</span>
+              {a.status === "pago_solicitado" ? (
+                <StatusChip tone="warn" icon="cuenta">
+                  Pide cuenta
+                </StatusChip>
+              ) : (
+                <StatusChip tone="info" icon="ocupada">
+                  Abierta
+                </StatusChip>
+              )}
+            </div>
             <div>
-              <div className="small ellipsis">
-                {a.waiter}
-                {a.status === "pago_solicitado" ? " · pide cuenta" : ""}
-              </div>
-              <div className="num" style={{ fontWeight: 600 }}>
+              <div className="small ellipsis">{a.waiter}</div>
+              <div className="num total">
                 {money(a.total_cents - a.paid_cents)}
                 {a.paid_cents > 0 && <span className="small"> pendiente</span>}
               </div>

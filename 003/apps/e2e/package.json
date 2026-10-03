@@ -10,6 +10,7 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/qrcode": "^1.5.6",
+    "axe-core": "^4.13.0",
     "fastify": "^5.0.0",
     "puppeteer-core": "^24.0.0",
     "qrcode": "^1.5.4",

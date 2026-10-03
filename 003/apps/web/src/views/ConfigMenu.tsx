@@ -1,3 +1,4 @@
+import { DeleteButton } from "../ui";
 import { useState } from "react";
 import { backdrop } from "../sheet";
 import { api, money, photoSrc, useLive } from "../api";
@@ -235,20 +236,16 @@ export function Areas() {
                     · {countFor(s.id)}
                   </span>
                 </button>
-                <button
-                  type="button"
-                  className="btn ghost sm"
-                  aria-label="Eliminar estación"
-                  onClick={() =>
+                <DeleteButton
+                  what={`la estación «${s.name}»`}
+                  onConfirm={() =>
                     api(`/api/stations/${s.id}`, { method: "DELETE" }).then(() => {
                       setStationId(null);
                       venue.reload();
                       setErr(null);
                     }, fail)
                   }
-                >
-                  ✕
-                </button>
+                />
               </div>
             </td>
           )}
@@ -410,18 +407,16 @@ export function Categories() {
                   <button type="button" className="btn ghost sm" onClick={() => setEditing(c)}>
                     Editar
                   </button>
-                  <button
-                    type="button"
-                    className="btn ghost sm"
-                    onClick={() =>
+                  <DeleteButton
+                    what={`la categoría «${c.name}»`}
+                    detail="Los productos de esta categoría se quedan sin categoría."
+                    onConfirm={() =>
                       api(`/api/categories/${c.id}`, { method: "DELETE" }).then(() => {
                         setErr(null);
                         reload();
                       }, fail)
                     }
-                  >
-                    ✕
-                  </button>
+                  />
                 </div>
               </td>
             </>
@@ -775,10 +770,10 @@ export function Products() {
                   >
                     Editar
                   </button>
-                  <button
-                    type="button"
-                    className="btn ghost sm"
-                    onClick={() =>
+                  <DeleteButton
+                    what={`el producto «${p.name}»`}
+                    detail="El producto deja de aparecer en el menú. Las cuentas ya cobradas no cambian."
+                    onConfirm={() =>
                       api(`/api/products/${p.id}`, { method: "DELETE" }).then(
                         () => {
                           setErr(null);
@@ -787,9 +782,7 @@ export function Products() {
                         (e) => setErr((e as Error).message),
                       )
                     }
-                  >
-                    ✕
-                  </button>
+                  />
                 </div>
               </td>
             </>

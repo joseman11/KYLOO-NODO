@@ -1,3 +1,4 @@
+import { Icon } from "../icons";
 import { useState } from "react";
 import { backdrop } from "../sheet";
 import { api, can, serverBase, useLive } from "../api";
@@ -305,7 +306,7 @@ function ListSheet({ id, items, onClose }: { id: string; items: Item[]; onClose:
                       run(api(`/api/shopping-lists/${id}/items/${l.id}`, { method: "DELETE" }))
                     }
                   >
-                    ✕
+                    <Icon name="cerrar" size={18} />
                   </button>
                 )}
               </td>

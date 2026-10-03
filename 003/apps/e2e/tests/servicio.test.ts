@@ -204,14 +204,20 @@ describe("2 · la cocina lo recibe y lo marca", () => {
     const clicked = await until(async () => {
       const r = await p.evaluate(() => {
         const row = [...document.querySelectorAll("aside.pane tr")].find((x) =>
-          (x as HTMLElement).innerText.trim().startsWith("T3"),
+          (x as HTMLElement).innerText.trim().startsWith("Mesa T3"),
         );
         const b =
           row &&
           [...row.querySelectorAll("button")].find(
             (x) => (x as HTMLElement).innerText.trim() === "Entregar",
           );
-        if (!b) return null;
+        if (!b) {
+          // la fila puede estar en otra página del panel: se pasa a la siguiente
+          (
+            document.querySelector("aside.pane .pager button:last-child") as HTMLElement | null
+          )?.click();
+          return null;
+        }
         const rc = b.getBoundingClientRect();
         return { x: rc.x + rc.width / 2, y: rc.y + rc.height / 2 };
       });

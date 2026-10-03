@@ -1,3 +1,4 @@
+import { DeleteButton } from "../ui";
 import { useState } from "react";
 import { backdrop } from "../sheet";
 import { api, can, money, photoSrc, serverUrl, useLive } from "../api";
@@ -698,7 +699,7 @@ function RecipeEditor({
                       aria-label="Quitar ingrediente"
                       onClick={() => setRows(rows.filter((_, k) => k !== i))}
                     >
-                      ✕
+                      <Icon name="cerrar" size={18} />
                     </button>
                   </div>
                 </td>
@@ -825,14 +826,10 @@ function CategoriesSheet({ cats, onClose }: { cats: RCat[]; onClose: () => void 
                       );
                   }}
                 />
-                <button
-                  type="button"
-                  className="btn ghost sm"
-                  aria-label={`Borrar ${k.name}`}
-                  onClick={() => run(api(`/api/recipe-categories/${k.id}`, { method: "DELETE" }))}
-                >
-                  ✕
-                </button>
+                <DeleteButton
+                  what={`la categoría «${k.name}»`}
+                  onConfirm={() => run(api(`/api/recipe-categories/${k.id}`, { method: "DELETE" }))}
+                />
               </div>
             </td>
           )}

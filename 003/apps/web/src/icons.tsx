@@ -98,6 +98,45 @@ const PATHS: Record<string, ReactNode> = {
       <path d="M3.5 13h17M12 9v11M12 9c-2-4-6-3-5 0 .5 1.5 3 1 5 0zM12 9c2-4 6-3 5 0-.5 1.5-3 1-5 0z" />
     </>
   ),
+  check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
+  alerta: (
+    <>
+      <path d="M12 4l9 16H3L12 4z" />
+      <path d="M12 10v4.5M12 17.5v.01" />
+    </>
+  ),
+  libre: <circle cx="12" cy="12" r="7.5" />,
+  ocupada: (
+    <>
+      <circle cx="12" cy="12" r="7.5" />
+      <path d="M12 7.5V12l3 2" />
+    </>
+  ),
+  cuenta: (
+    <>
+      <path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2v-17z" />
+      <path d="M9 8.5h6M9 12h6" />
+    </>
+  ),
+  candado: (
+    <>
+      <rect x="5" y="10.5" width="14" height="9.5" rx="2.5" />
+      <path d="M8.5 10.5V8a3.5 3.5 0 017 0v2.5" />
+    </>
+  ),
+  basura: (
+    <>
+      <path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" />
+    </>
+  ),
+  cerrar: <path d="M6 6l12 12M18 6L6 18" />,
+  ayuda: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M9.6 9.6a2.5 2.5 0 114 2c-.9.6-1.6 1.1-1.6 2.2M12 16.8v.01" />
+    </>
+  ),
+  bolsa: <path d="M6 8h12l-1 12H7L6 8z" />,
   personas: (
     <>
       <circle cx="9" cy="8.5" r="3" />

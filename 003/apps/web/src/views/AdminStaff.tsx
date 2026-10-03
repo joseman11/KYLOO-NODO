@@ -1,3 +1,4 @@
+import { StatusChip } from "../ui";
 import { useState } from "react";
 import { api, can, money, useLive } from "../api";
 import { PagedRows, SubTabs } from "../fit";
@@ -90,8 +91,10 @@ export function StaffPanel() {
                 <td>
                   {r.name}
                   {r.on_shift && (
-                    <span className="tag ember" style={{ marginLeft: 6 }}>
-                      en turno
+                    <span style={{ marginLeft: 6 }}>
+                      <StatusChip tone="ok" icon="check">
+                        En turno
+                      </StatusChip>
                     </span>
                   )}
                 </td>

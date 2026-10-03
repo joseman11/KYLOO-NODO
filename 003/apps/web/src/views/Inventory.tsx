@@ -1,3 +1,4 @@
+import { StatusChip } from "../ui";
 import { useState } from "react";
 import { backdrop } from "../sheet";
 import { api, can, money, useLive } from "../api";
@@ -179,9 +180,17 @@ function Stock({ items }: { items: { data: Item[] | null; reload: () => void } }
               </td>
               <td>
                 {alertOf(i.id) ? (
-                  <span className="tag ember">{alertOf(i.id)}</span>
+                  <StatusChip tone={alertOf(i.id) === "bajo" ? "warn" : "bad"} icon="alerta">
+                    {alertOf(i.id) === "bajo"
+                      ? "Bajo"
+                      : alertOf(i.id) === "agotado"
+                        ? "Agotado"
+                        : alertOf(i.id)}
+                  </StatusChip>
                 ) : (
-                  <span className="tag">ok</span>
+                  <StatusChip tone="ok" icon="check">
+                    Normal
+                  </StatusChip>
                 )}
               </td>
               <td className="r">
@@ -281,7 +290,9 @@ function ReorderTab({ rows, onList }: { rows: Reorder[]; onList: (id: string) =>
             <>
               <td className="ellipsis" style={{ maxWidth: 220 }}>
                 <strong>{r.name}</strong>{" "}
-                <span className={`tag ${r.level === "agotado" ? "ember" : ""}`}>{r.level}</span>
+                <StatusChip tone={r.level === "agotado" ? "bad" : "warn"} icon="alerta">
+                  {r.level === "agotado" ? "Agotado" : "Bajo"}
+                </StatusChip>
               </td>
               <td className="small ellipsis" style={{ maxWidth: 190 }}>
                 {[r.area, r.category].filter(Boolean).join(" › ") || "—"}
