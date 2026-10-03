@@ -98,10 +98,10 @@ Es decir, es la base técnica para correr **el mismo código** en el local (SQLi
 | E10 | ⚪ | Nombre de plan «INICIO» (landing) vs `gratis` (código). |
 | E11 | ⚪ | JWT en `localStorage`; sin límite de intentos de PIN comprobado más allá de `attempt()` en `auth.ts` (no auditado). |
 | E13 | 🟠 | **Sin HTTPS ni contexto seguro en la LAN** (verificado: no hay TLS en `app.ts`/`main.ts`). El service worker (`sw.js`) solo se registra con `isSecureContext` (`main.tsx:13`), así que sobre `http://<ip>:3003` no se registra: la app no se instala y, si la tablet recarga sin red, queda en blanco. |
-| E14 | 🟠 | **Cola offline del cliente parcial** (`api.ts:172-235`): solo encola `order` y `request_bill`, no `open_table` (el servidor sí lo soporta en `/api/sync`); guarda en `localStorage` (cuota ~5 MB, menos durable que IndexedDB); el menú y las mesas no se cachean (`sw.js` nunca cachea `/api`). Una tablet que pierde el WiFi con la app abierta puede seguir pidiendo en mesas ya abiertas; si recarga, no. |
+| E14 | 🟡 | 🟡 Parcial: Cola con apertura de mesa en sombra, orden garantizado, menú precargado y recarga con lo pendiente (plan 05, `docs/deploy/RED-LOCAL.md`). Falta IndexedDB para colas muy largas. |
 | E15 | 🟠 | **El servidor del local es punto único de falla.** Hay reinicio automático (tarea programada, 999 reintentos cada minuto) pero no hay servidor de reserva, ni restauración guiada, ni aviso a los dispositivos de «servidor caído» más allá de la reconexión del WebSocket. |
-| E16 | 🟠 | **Impresión: decidido que todas serán de red (2026-10-03), así que USB no es requisito** (`PLAN-FASE1` lo prometía; no existe y no se construye). **Falta apertura de cajón** (pulso ESC/POS por la impresora), descubrimiento de impresoras en la red (escaneo del puerto 9100 y asignación de IP fija) y estado visible por impresora. **Sin evidencia de prueba con impresora física en este repo** (las pruebas usan `FakeTransport`). |
-| E17 | 🟡 | **Sin descubrimiento del servidor** (mDNS `nodo.local`, QR de acceso): `PLAN-FASE1` lo prometía; hoy se teclea la IP, que debe ser fija. |
+| E16 | 🟡 | 🟡 Parcial: Cajón de dinero, búsqueda de impresoras y prueba desde la pantalla (plan 05). Falta probar con impresora y cajón físicos. |
+| E17 | ✅ | ✅ mDNS `nodo.local` y pantalla Conectar con QR (plan 05). |
 | E18 | ✅ | ✅ Registros en archivo con rotación (`logging.ts`), URL sin parámetros, solo 5xx y ciclo de vida (plan 02, `0b9aafe`). |
 | E19 | 🟡 | 🟡 Parcial: hay paquete instalable, instalador `.exe` y servicio (plan 02); falta probarlo en Windows, firmarlo y la actualización remota desde la nube. |
 | E20 | ✅ | ✅ Sin claves de fábrica: asistente de primer arranque, el seed quedó solo para desarrollo (plan 02, `0cde153`). |

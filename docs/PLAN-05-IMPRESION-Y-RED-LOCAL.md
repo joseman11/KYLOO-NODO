@@ -1,6 +1,6 @@
 # Plan 05 — Impresión (cajón y descubrimiento), conexión de tablets y cliente sin conexión
 
-> **Etapa abierta** (2026-10-03, rama `feature/fundacion`). Continúa a [`PLAN-04`](PLAN-04-RESPALDO-EN-NUBE.md). Resuelve E13 a E17 de [`ESTADO-ACTUAL`](ESTADO-ACTUAL.md) y las decisiones D11 y D12 de [`PLAN-00`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) en lo que se puede construir y probar sin tablets físicas.
+> **Etapa cerrada** (2026-10-03, rama `feature/fundacion`). Continúa a [`PLAN-04`](PLAN-04-RESPALDO-EN-NUBE.md). Resuelve E13 a E17 de [`ESTADO-ACTUAL`](ESTADO-ACTUAL.md) y las decisiones D11 y D12 de [`PLAN-00`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) en lo que se puede construir y probar sin tablets físicas.
 >
 > 🤖 Sesión autónoma (el dueño duerme): lo abierto lo decide la sesión y queda en el Registro.
 >
@@ -47,12 +47,12 @@ Resumen: que la impresión de red sea completa (cajón de dinero, encontrar impr
 
 ## 4. Orden
 
-- [ ] **F5.1 — Cajón de dinero:** columna, pulso, apertura automática en cobros en efectivo, ruta manual, pruebas.
-- [ ] **F5.2 — Descubrimiento de impresoras** (escaneo) y estado enriquecido.
-- [ ] **F5.3 — Pantalla de impresoras:** buscar en la red, usar una encontrada, cajón y «abrir cajón».
-- [ ] **F5.4 — Conexión de tablets:** mDNS, direcciones del servidor y QR en pantalla.
-- [ ] **F5.5 — Cliente sin conexión:** IndexedDB, cola completa, referencias, indicador, conflictos.
-- [ ] **F5.6 — Documentación y cierre** (incluye lo pendiente de D11 y el HTTPS local).
+- [x] **F5.1 — Cajón de dinero:** columna, pulso, apertura automática en cobros en efectivo, ruta manual, pruebas.
+- [x] **F5.2 — Descubrimiento de impresoras** (escaneo) y estado enriquecido.
+- [x] **F5.3 — Pantalla de impresoras:** buscar en la red, usar una encontrada, cajón y «abrir cajón».
+- [x] **F5.4 — Conexión de tablets:** mDNS, direcciones del servidor y QR en pantalla.
+- [x] **F5.5 — Cliente sin conexión:** IndexedDB, cola completa, referencias, indicador, conflictos.
+- [x] **F5.6 — Documentación y cierre** (incluye lo pendiente de D11 y el HTTPS local).
 
 ## 5. Decidido con el dueño
 
@@ -60,4 +60,25 @@ Resumen: que la impresión de red sea completa (cajón de dinero, encontrar impr
 
 ## 6. Registro
 
-*(se rellena al cerrar cada fase)*
+- **2026-10-03 (noche, sesión autónoma)** — Cierre del plan.
+  - **Hecho:** F5.1 `57a618a`; F5.2–F5.3 `ce69702`; F5.4 `69f9fcc`; F5.5 y F5.6 en el commit de cierre.
+  - **Probado:** 22 pruebas de servidor nuevas (cajón: pulso, cobros en efectivo/tarjeta, pin, cola con impresora caída, ruta manual y permisos; búsqueda de impresoras con escucha real en un puerto; mDNS), también en PostgreSQL; 7 e2e nuevas (prueba de impresión, cajón de punta a punta, búsqueda y alta, pantalla Conectar con QR, **mesa y comanda sin conexión**, recarga con lo pendiente, reconexión y conflicto de mesa ocupada). `ping nodo.local` y `dns-sd` ven el servicio en macOS.
+  - **Medido:** suite completa tras el plan: 460 (SQLite) y 461 (PostgreSQL) de servidor, 110/110 e2e.
+  - **Salió por el camino:**
+    - Se detectó una promesa rechazada sin atender al abrir una mesa sin red (`useLive.reload`): se endureció para que ningún `reload` sin red deje un error sin atender.
+    - Una tablet que nunca abrió el comandero no tenía el menú en caché: ahora se precarga al entrar y al reconectar (`prefetchReference`, `loadCatalog` compartido para no duplicar el contrato).
+    - El orden importa: si hay operaciones esperando, una nueva va detrás y se vacía la cola; antes podía adelantarse una comanda a la apertura de su mesa.
+    - La limpieza de la cola solo quita lo enviado (antes `writeQueue([])` podía borrar una operación que entró mientras se esperaba la respuesta).
+    - La prueba de «sin scroll» recorrió sola la pestaña nueva *Conectar* y las nuevas barras de Impresoras: lo que debe hacer.
+  - **Decisiones tomadas por la sesión:** D5.1 a D5.5. **No se construyó** el HTTPS local ni el cliente con IndexedDB: HTTPS depende de D11 (decidir con una tablet real) y `localStorage` alcanza para una noche de comandas; ambos quedan escritos en «Pendiente».
+  - **Encontrado de paso, anterior a esta etapa y sin arreglar aquí:** el escaneo de impresoras recorre solo /24; las impresoras no muestran su estado en vivo en pantalla más allá de «Probar».
+  - **Estado de la máquina:** `nodo-pg` sigue arriba; servidores de demo detenidos (se reinician al final de la sesión).
+
+### Cómo retomarlo
+Plan 05 cerrado. Quedan por planear: D11 (HTTPS local o envoltorio nativo, con una tablet real), D12(c) servidor de reserva, consola del HQ, auditoría de seguridad (D9) y piloto (D10).
+
+### Pendiente
+- 🔴 Probar con impresora, cajón y tablet físicos.
+- 🔴 Recargar la página sin red (HTTPS local o envoltorio nativo, D11).
+- 🟠 Servidor de reserva y aviso de «servidor caído» (D12c).
+- 🟡 IndexedDB para colas largas; pin 5 y copias por impresora en pantalla; estado de impresoras en vivo.

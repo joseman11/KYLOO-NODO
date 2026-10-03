@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ApiError,
+  type QueuedItemView,
   api,
+  isOfflineId,
+  loadCatalog,
+  queuedItemsFor,
+  resolveAccountId,
+  shadowFor,
+  useOfflineTick,
   can,
   money,
   photoSrc,
@@ -119,6 +126,31 @@ type Menu =
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const FAV = "__fav__";
 
+/** Cuenta provisional de una mesa abierta sin conexión (solo lo que se sabe en este dispositivo). */
+function shadowAccount(id: string): Account {
+  const sh = shadowFor(id);
+  return {
+    id,
+    table_id: sh?.tableId ?? null,
+    table_number: sh?.tableNumber ?? "?",
+    waiter: sh?.waiter ?? "",
+    status: "abierta",
+    kind: "mesa",
+    guests: sh?.guests ?? 1,
+    opened_at: sh?.openedAt ?? Date.now(),
+    items: [],
+    discounts: [],
+    subtotal_cents: 0,
+    discount_cents: 0,
+    delivery_fee_cents: 0,
+    service_charge_cents: 0,
+    service_waived: 0,
+    total_cents: 0,
+    paid_cents: 0,
+    balance_cents: 0,
+  };
+}
+
 /**
  * Comandero: encabezado con mesa, mesero y comensales; a la izquierda la cuenta (cantidad, descripción, importe)
  * con asientos y envío; a la derecha buscador, favoritos, categorías y productos con foto; abajo la barra de funciones.
@@ -126,24 +158,37 @@ const FAV = "__fav__";
  */
 export function Order({ accountId, onBack }: { accountId: string; onBack: () => void }) {
   const catalog = useLive(
-    async () => {
-      const [products, categories, groups] = await Promise.all([
-        api<Product[]>("/api/products"),
-        api<Category[]>("/api/categories"),
-        api<Group[]>("/api/modifier-groups"),
-      ]);
-      return { products, categories, groups };
-    },
+    () =>
+      loadCatalog() as Promise<{ products: Product[]; categories: Category[]; groups: Group[] }>,
     ["product.updated"],
     [],
     "catalog",
   );
+  // Una mesa abierta sin conexión es una cuenta «sombra» local hasta que el servidor la abre de verdad
+  useOfflineTick();
   const account = useLive(
-    () => api<Account>(`/api/accounts/${accountId}`),
-    ["order.created", "order.updated", "table.updated", "ticket.updated"],
+    async () => {
+      const id = resolveAccountId(accountId);
+      return isOfflineId(id) ? shadowAccount(id) : api<Account>(`/api/accounts/${id}`);
+    },
+    ["order.created", "order.updated", "table.updated", "ticket.updated", "offline.changed"],
     [accountId],
     `account.${accountId}`,
   );
+  // Comandas guardadas sin conexión que todavía no llegan al servidor: se ven en la cuenta marcadas como pendientes
+  const queuedItems: Item[] = queuedItemsFor(accountId).map((v, n) => ({
+    id: `pendiente-${n}`,
+    name: `${v.name} · sin sincronizar`,
+    quantity: v.quantity,
+    unit_price_cents: v.unit_price_cents,
+    modifiers: v.modifiers,
+    note: v.note,
+    course: v.course,
+    seat: v.seat,
+    held: v.held,
+    status: "activo",
+  }));
+  const queuedTotal = queuedItems.reduce((s, i) => s + i.unit_price_cents * i.quantity, 0);
   const favs = useLive(
     () => api<{ product_id: string; uses: number; pinned: number }[]>("/api/favorites"),
     ["order.created"],
@@ -242,6 +287,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
   const rows: Row[] = [
     ...cart.map((e): Row => (isSep(e) ? { t: "sep", s: e } : { t: "cart", l: e })),
     ...(a?.items.filter((i) => i.status === "activo").map((i): Row => ({ t: "sent", i })) ?? []),
+    ...queuedItems.map((i): Row => ({ t: "sent", i })),
     ...(a?.discounts.map((d): Row => ({ t: "disc", d })) ?? []),
     ...(a && a.service_charge_cents > 0
       ? [{ t: "fee", label: "Cargo por servicio", cents: a.service_charge_cents } as Row]
@@ -298,6 +344,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
       // Cada producto lleva el nombre del último separador anterior a él (su "tiempo") y si ese tiempo queda retenido
       let course: string | undefined;
       let hold = false;
+      const view: QueuedItemView[] = [];
       const items: {
         productId: string;
         quantity: number;
@@ -311,7 +358,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
         if (isSep(e)) {
           course = e.sep;
           hold = e.hold;
-        } else
+        } else {
           items.push({
             productId: e.product.id,
             quantity: e.quantity,
@@ -321,8 +368,19 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
             seat: e.seat ?? undefined,
             hold: hold || undefined,
           });
+          view.push({
+            name: e.product.name,
+            quantity: e.quantity,
+            unit_price_cents: e.unit,
+            modifiers: e.modLabels,
+            note: e.note || null,
+            course: course ?? null,
+            seat: e.seat,
+            held: hold ? 1 : 0,
+          });
+        }
       }
-      const r = await sendOrder(accountId, items);
+      const r = await sendOrder(accountId, items, view);
       setCart([]);
       setMsg(
         r.queued
@@ -624,7 +682,7 @@ export function Order({ accountId, onBack }: { accountId: string; onBack: () => 
                   : "Total"}
             </span>
             <strong className="num" style={{ fontSize: 28 }}>
-              {a ? money(a.total_cents + cartTotal) : ""}
+              {a ? money(a.total_cents + queuedTotal + cartTotal) : ""}
             </strong>
           </div>
           <button

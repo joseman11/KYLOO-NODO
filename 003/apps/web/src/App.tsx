@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import {
+  OFFLINE_PREFIX,
   api,
   can,
   flushPending,
   getUser,
+  isOfflineId,
   onEvent,
   pendingCount,
+  prefetchReference,
   setSession,
   startRealtime,
   stopRealtime,
@@ -77,6 +80,7 @@ function Staff() {
   useEffect(() => {
     if (!user) return;
     startRealtime();
+    void prefetchReference(); // el menú queda en el dispositivo por si se cae la red
     return () => stopRealtime();
   }, [user]);
 
@@ -90,14 +94,23 @@ function Staff() {
     };
     return onEvent(async (e) => {
       if (e.type === "connection.restored") {
+        void prefetchReference();
         if (pendingCount()) {
-          const { sent, conflicts } = await flushPending();
+          const { sent, conflicts, mapped, failedRefs } = await flushPending();
           if (sent) push(`${sent} operación(es) sin conexión sincronizadas`);
           for (const c of conflicts)
             push(
-              `No se pudo aplicar ${c.type === "order" ? "una comanda" : "una operación"}: ${c.message ?? c.code ?? "conflicto"}`,
+              c.type === "open_table"
+                ? `No se pudo abrir la mesa${c.table ? ` ${c.table}` : ""} que abriste sin conexión: ${c.message ?? c.code ?? "conflicto"}`
+                : `No se pudo aplicar ${c.type === "order" ? "una comanda" : "una operación"}: ${c.message ?? c.code ?? "conflicto"}`,
               true,
             );
+          // Si se estaba viendo una mesa abierta sin conexión: pasa a la cuenta real, o vuelve al mapa si no pudo abrirse
+          setAccountId((cur) => {
+            if (!cur || !isOfflineId(cur)) return cur;
+            const ref = cur.slice(OFFLINE_PREFIX.length);
+            return mapped[ref] ?? (failedRefs.includes(ref) ? null : cur);
+          });
         }
         setPending(pendingCount());
       } else if (e.type === "waiter.called" && can("order.create")) {

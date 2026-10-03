@@ -1,6 +1,16 @@
 import { MergeSheet } from "./Order";
 import { useEffect, useState } from "react";
-import { api, can, getUser, money, useLive } from "../api";
+import {
+  OFFLINE_PREFIX,
+  api,
+  can,
+  getUser,
+  money,
+  openTable as openTableApi,
+  pendingOpens,
+  useLive,
+  useOfflineTick,
+} from "../api";
 import { PagedGrid, PagedRows } from "../fit";
 import { NumPad } from "../numpad";
 import { PaySheet } from "./Cash";
@@ -26,6 +36,8 @@ interface FloorTable {
   linked_to: string | null;
   joined: string[];
   accounts: FloorAccount[];
+  /** Abierta sin conexión: todavía no existe en el servidor. */
+  unsynced?: boolean;
 }
 
 const LABEL: Record<string, string> = {
@@ -49,12 +61,38 @@ const ago = (ts: number) => {
  * (mesero, comensales, tiempo, última comanda, consumo promedio) y sus acciones.
  */
 export function Floor({ onOpen }: { onOpen: (accountId: string) => void }) {
-  const { data: tables, error } = useLive(
+  const { data: serverTables, error } = useLive(
     () => api<FloorTable[]>("/api/floor"),
     ["table.updated", "order.created", "order.updated"],
     [],
     "floor",
   );
+  // Mesas abiertas sin conexión: se ven ocupadas de inmediato aunque el servidor aún no lo sepa
+  useOfflineTick();
+  const opens = pendingOpens();
+  const tables = serverTables?.map((t): FloorTable => {
+    const sh = opens.find((o) => o.tableId === t.id);
+    return sh && t.status === "disponible"
+      ? {
+          ...t,
+          status: "ocupada",
+          unsynced: true,
+          accounts: [
+            {
+              id: `${OFFLINE_PREFIX}${sh.ref}`,
+              status: "abierta",
+              opened_at: sh.openedAt,
+              waiter: sh.waiter,
+              waiter_id: sh.waiterId,
+              guests: sh.guests,
+              total_cents: 0,
+              paid_cents: 0,
+              last_order_at: null,
+            },
+          ],
+        }
+      : t;
+  });
   const zones = useLive(() => api<{ id: string; name: string }[]>("/api/zones"), []);
   const ready = useLive(
     () =>
@@ -91,9 +129,8 @@ export function Floor({ onOpen }: { onOpen: (accountId: string) => void }) {
 
   const openTable = async (t: FloorTable) => {
     try {
-      const r = await api<{ id: string }>(`/api/tables/${t.id}/open`, {
-        body: { guests: Math.max(1, Number(guests) || 1) },
-      });
+      // Sin red la mesa se abre «en sombra» y se sincroniza al reconectar
+      const r = await openTableApi(t, Math.max(1, Number(guests) || 1));
       onOpen(r.id);
     } catch (e) {
       setErr((e as Error).message); // p. ej. otra tablet abrió la mesa primero
@@ -148,6 +185,7 @@ export function Floor({ onOpen }: { onOpen: (accountId: string) => void }) {
                 <div style={{ minWidth: 0 }}>
                   <div className="small ellipsis">
                     {t.linked_to ? `Unida a ${t.linked_to}` : (LABEL[t.status] ?? t.status)}
+                    {t.unsynced ? " · sin sincronizar" : ""}
                     {a ? ` · ${ago(a.opened_at)}` : ` · ${t.capacity} pers.`}
                   </div>
                   {t.joined.length > 0 && (

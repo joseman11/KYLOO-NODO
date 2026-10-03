@@ -50,6 +50,13 @@ export async function api<T = any>(
   path: string,
   opts: { method?: string; body?: unknown } = {},
 ): Promise<T> {
+  // Una mesa abierta sin conexión aún no existe en el servidor: lo que no es pedir o pedir la cuenta espera a reconectar
+  if (path.includes(`/accounts/${OFFLINE_PREFIX}`))
+    throw new ApiError(
+      409,
+      "mesa_sin_sincronizar",
+      "Esta mesa se abrió sin conexión: esa función estará disponible al reconectar",
+    );
   let res: Response;
   try {
     res = await fetch(path, {
@@ -177,7 +184,8 @@ export function useLive<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
-  return { data, error, reload: () => loadRef.current().then(setData) };
+  // `reload` lo llaman botones y efectos sin atender el error: sin red no debe convertirse en una promesa rechazada sin atender
+  return { data, error, reload: () => loadRef.current().then(setData, () => undefined) };
 }
 
 export function onEvent(fn: Listener) {
@@ -188,30 +196,123 @@ export function onEvent(fn: Listener) {
 // ---------- Operaciones sin conexión (offline avanzado) ----------
 // Lo que se hace sin red se guarda con un id y se envía por lotes a /api/sync al reconectar.
 // El servidor devuelve un resultado por operación (ok, duplicada, conflicto, error): reenviar nunca duplica.
+// Abrir una mesa sin red crea una «cuenta sombra» local (`offline:<id>`): la comanda se arma y se guarda contra ella, y al
+// reconectar se abre la mesa de verdad y las comandas se aplican a la cuenta real (el servidor las enlaza por `accountRef`).
 const QUEUE_KEY = "003.pending-ops";
-export type PendingOp =
-  | { id: string; type: "order"; accountId: string; items: unknown[] }
-  | { id: string; type: "request_bill"; accountId: string };
+const SHADOW_KEY = "003.offline-accounts";
+const MAP_KEY = "003.offline-map";
+export const OFFLINE_PREFIX = "offline:";
+export const isOfflineId = (id: string) => id.startsWith(OFFLINE_PREFIX);
 
-const readQueue = (): PendingOp[] => {
+/** Lo que se muestra de una línea enviada sin conexión (solo para la pantalla; el servidor calcula lo real). */
+export interface QueuedItemView {
+  name: string;
+  quantity: number;
+  unit_price_cents: number;
+  modifiers: string[];
+  note: string | null;
+  course: string | null;
+  seat: number | null;
+  held: number;
+}
+export type PendingOp =
+  | { id: string; type: "open_table"; tableId: string; guests: number }
+  | {
+      id: string;
+      type: "order";
+      accountId?: string;
+      accountRef?: string;
+      items: unknown[];
+      view?: QueuedItemView[];
+    }
+  | { id: string; type: "request_bill"; accountId?: string; accountRef?: string };
+
+/** Mesa abierta sin conexión que todavía no existe en el servidor. */
+export interface Shadow {
+  ref: string;
+  tableId: string;
+  tableNumber: string;
+  waiter: string;
+  waiterId: string;
+  guests: number;
+  openedAt: number;
+}
+
+const readJson = <T>(key: string, fallback: T): T => {
   try {
-    return JSON.parse(localStorage.getItem(QUEUE_KEY) ?? "[]");
+    return JSON.parse(localStorage.getItem(key) ?? "") as T;
   } catch {
-    return [];
+    return fallback;
   }
 };
+const writeJson = (key: string, value: unknown) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* sin almacenamiento disponible */
+  }
+};
+const readQueue = (): PendingOp[] => readJson<PendingOp[]>(QUEUE_KEY, []);
 const writeQueue = (q: PendingOp[]) => {
-  try {
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
-  } catch {
-    /* ignorar */
-  }
+  writeJson(QUEUE_KEY, q);
+  emitLocal({ type: "offline.changed" });
 };
+const readShadows = () => readJson<Shadow[]>(SHADOW_KEY, []);
+const readMap = () => readJson<Record<string, string>>(MAP_KEY, {});
+
+/** Avisa a las pantallas de que cambió lo pendiente (para que repinten sin pedir nada al servidor). */
+export function emitLocal(e: { type: string; [k: string]: unknown }) {
+  listeners.forEach((fn) => fn(e));
+}
+
+/** Se incrementa cada vez que cambia la cola o las cuentas sin conexión: hace que una pantalla se repinte. */
+export function useOfflineTick() {
+  const [n, setN] = useState(0);
+  useEffect(() => onEvent((e) => e.type === "offline.changed" && setN((x) => x + 1)), []);
+  return n;
+}
 
 export const pendingCount = () => readQueue().length;
 
-/** Ejecuta una operación en línea; si no hay red la guarda para sincronizar después. */
+/** La cuenta sombra de un id `offline:…` mientras la mesa no se haya abierto en el servidor. */
+export const shadowFor = (accountId: string) =>
+  readShadows().find((x) => `${OFFLINE_PREFIX}${x.ref}` === accountId) ?? null;
+/** Mesas abiertas sin conexión pendientes de sincronizar. */
+export const pendingOpens = () => readShadows().filter((x) => !readMap()[x.ref]);
+/** Comandas guardadas sin conexión que aún no llegan al servidor, para mostrarlas en su cuenta. */
+export function queuedItemsFor(accountId: string): QueuedItemView[] {
+  const ref = isOfflineId(accountId) ? accountId.slice(OFFLINE_PREFIX.length) : null;
+  const real = ref ? readMap()[ref] : accountId;
+  return readQueue().flatMap((o) =>
+    o.type === "order" && ((ref && o.accountRef === ref) || (real && o.accountId === real))
+      ? (o.view ?? [])
+      : [],
+  );
+}
+
+/** A qué cuenta del servidor se refiere un id (real, sombra ya abierta en el servidor, o sombra pendiente). */
+function target(accountId: string): { accountId?: string; accountRef?: string } {
+  if (!isOfflineId(accountId)) return { accountId };
+  const ref = accountId.slice(OFFLINE_PREFIX.length);
+  const real = readMap()[ref];
+  return real ? { accountId: real } : { accountRef: ref };
+}
+/** Id con el que la pantalla debe seguir hablando de la cuenta (la real, si la sombra ya se abrió). */
+export const resolveAccountId = (accountId: string) =>
+  isOfflineId(accountId)
+    ? (readMap()[accountId.slice(OFFLINE_PREFIX.length)] ?? accountId)
+    : accountId;
+
+/**
+ * Ejecuta una operación en línea; si no hay red la guarda para sincronizar después. Si ya hay operaciones esperando, esta
+ * va detrás de ellas (el orden importa: la mesa se abre antes que su comanda) y se intenta vaciar la cola enseguida.
+ */
 async function run(op: PendingOp, online: () => Promise<unknown>): Promise<{ queued: boolean }> {
+  if (readQueue().length > 0) {
+    writeQueue([...readQueue(), op]);
+    await flushPending().catch(() => undefined);
+    return { queued: readQueue().some((o) => o.id === op.id) };
+  }
   try {
     await online();
     return { queued: false };
@@ -222,17 +323,59 @@ async function run(op: PendingOp, online: () => Promise<unknown>): Promise<{ que
   }
 }
 
-export function sendOrder(accountId: string, items: unknown[]) {
+/** Abre una mesa. Sin red, la abre «en sombra»: se puede pedir ya y se sincroniza al reconectar. */
+export async function openTable(
+  table: { id: string; number: string },
+  guests: number,
+): Promise<{ id: string; queued: boolean }> {
   const id = crypto.randomUUID();
-  return run({ id, type: "order", accountId, items }, () =>
-    api(`/api/accounts/${accountId}/orders`, { body: { clientId: id, items } }),
+  const me = getUser();
+  if (readQueue().length === 0) {
+    try {
+      const r = await api<{ id: string }>(`/api/tables/${table.id}/open`, {
+        body: { guests, clientId: id },
+      });
+      return { id: r.id, queued: false };
+    } catch (e) {
+      if (!(e instanceof NetworkError)) throw e;
+    }
+  }
+  const shadow: Shadow = {
+    ref: id,
+    tableId: table.id,
+    tableNumber: table.number,
+    waiter: me?.name ?? "",
+    waiterId: me?.id ?? "",
+    guests,
+    openedAt: Date.now(),
+  };
+  writeJson(SHADOW_KEY, [...readShadows(), shadow]);
+  writeQueue([...readQueue(), { id, type: "open_table", tableId: table.id, guests }]);
+  return { id: `${OFFLINE_PREFIX}${id}`, queued: true };
+}
+
+export function sendOrder(accountId: string, items: unknown[], view?: QueuedItemView[]) {
+  const id = crypto.randomUUID();
+  const t = target(accountId);
+  if (t.accountRef) {
+    // La mesa todavía no existe en el servidor: la comanda solo puede ir a la cola
+    writeQueue([...readQueue(), { id, type: "order", accountRef: t.accountRef, items, view }]);
+    return Promise.resolve({ queued: true });
+  }
+  return run({ id, type: "order", accountId: t.accountId, items, view }, () =>
+    api(`/api/accounts/${t.accountId}/orders`, { body: { clientId: id, items } }),
   );
 }
 
 export function requestBillOffline(accountId: string) {
   const id = crypto.randomUUID();
-  return run({ id, type: "request_bill", accountId }, () =>
-    api(`/api/accounts/${accountId}/request-bill`, { method: "POST", body: {} }),
+  const t = target(accountId);
+  if (t.accountRef) {
+    writeQueue([...readQueue(), { id, type: "request_bill", accountRef: t.accountRef }]);
+    return Promise.resolve({ queued: true });
+  }
+  return run({ id, type: "request_bill", accountId: t.accountId }, () =>
+    api(`/api/accounts/${t.accountId}/request-bill`, { method: "POST", body: {} }),
   );
 }
 
@@ -241,27 +384,90 @@ export interface SyncConflict {
   code?: string;
   message?: string;
   status: string;
+  /** Mesa a la que se refería (cuando se sabe). */
+  table?: string;
 }
 
-/** Envía el lote pendiente. Devuelve cuántas se aplicaron y las que hubo que rechazar (p. ej. producto agotado). */
-export async function flushPending(): Promise<{ sent: number; conflicts: SyncConflict[] }> {
+/**
+ * Envía el lote pendiente. Devuelve cuántas se aplicaron, las que hubo que rechazar (p. ej. producto agotado o mesa
+ * ocupada por otra tablet), y para cada mesa abierta sin conexión su cuenta real (`mapped`) o que falló (`failedRefs`).
+ */
+export async function flushPending(): Promise<{
+  sent: number;
+  conflicts: SyncConflict[];
+  mapped: Record<string, string>;
+  failedRefs: string[];
+}> {
   const ops = readQueue();
-  if (ops.length === 0) return { sent: 0, conflicts: [] };
+  const empty = { sent: 0, conflicts: [], mapped: {}, failedRefs: [] };
+  if (ops.length === 0) return empty;
   try {
     const { results } = await api<{
-      results: { id: string; status: string; code?: string; message?: string }[];
+      results: {
+        id: string;
+        status: string;
+        code?: string;
+        message?: string;
+        data?: { id?: string };
+      }[];
     }>("/api/sync", { body: { ops } });
     const conflicts: SyncConflict[] = [];
+    const mapped: Record<string, string> = {};
+    const failedRefs: string[] = [];
+    const shadows = readShadows();
     let sent = 0;
     for (const r of results) {
-      if (r.status === "ok" || r.status === "duplicate") sent++;
-      else conflicts.push({ type: ops.find((o) => o.id === r.id)?.type ?? "?", ...r });
+      const op = ops.find((o) => o.id === r.id);
+      const ok = r.status === "ok" || r.status === "duplicate";
+      if (ok) sent++;
+      else
+        conflicts.push({
+          type: op?.type ?? "?",
+          table:
+            op?.type === "open_table"
+              ? shadows.find((x) => x.ref === op.id)?.tableNumber
+              : undefined,
+          ...r,
+        });
+      if (op?.type === "open_table") {
+        if (ok && r.data?.id) mapped[op.id] = r.data.id;
+        else failedRefs.push(op.id);
+      }
     }
-    writeQueue([]); // todas tuvieron resultado definitivo
-    return { sent, conflicts };
+    // Resultado definitivo para todas: se vacía la cola y se actualizan las cuentas sombra
+    writeJson(MAP_KEY, { ...readMap(), ...mapped });
+    writeJson(
+      SHADOW_KEY,
+      readShadows().filter((x) => !failedRefs.includes(x.ref)),
+    );
+    // Solo se quitan las enviadas: pudo entrar alguna operación mientras se esperaba la respuesta
+    writeQueue(readQueue().filter((o) => !ops.some((x) => x.id === o.id)));
+    return { sent, conflicts, mapped, failedRefs };
   } catch (e) {
-    if (e instanceof NetworkError) return { sent: 0, conflicts: [] }; // seguimos sin red
+    if (e instanceof NetworkError) return empty; // seguimos sin red
     throw e;
+  }
+}
+
+/**
+ * Datos de referencia que la tablet necesita para tomar una comanda sin red: el menú. Se piden al entrar y cada vez que
+ * vuelve la conexión, para que una tablet que perdió el WiFi antes de abrir el comandero ya los tenga. Usa la misma clave de
+ * caché y la misma forma que el comandero (`useLive(…, "catalog")`).
+ */
+export async function loadCatalog() {
+  const [products, categories, groups] = await Promise.all([
+    api<unknown[]>("/api/products"),
+    api<unknown[]>("/api/categories"),
+    api<unknown[]>("/api/modifier-groups"),
+  ]);
+  return { products, categories, groups };
+}
+export async function prefetchReference() {
+  try {
+    writeJson("003.cache.catalog", await loadCatalog());
+    writeJson("003.cache.favorites", await api<unknown[]>("/api/favorites"));
+  } catch {
+    /* sin red: se conserva lo que ya hubiera */
   }
 }
 

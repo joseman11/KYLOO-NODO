@@ -12,9 +12,11 @@ Aquí vive **toda la documentación persistente** de KYLOO-NODO. Lo que no está
 | [`PLAN-02-EMPAQUETADO-E-INSTALACION.md`](PLAN-02-EMPAQUETADO-E-INSTALACION.md) | Empaquetado, instalación y primer arranque | **Cerrado** (2026-10-03) |
 | [`PLAN-03-LICENCIAS-Y-ACTIVACION.md`](PLAN-03-LICENCIAS-Y-ACTIVACION.md) | Licencias atadas al equipo y activación por código | **Cerrado** (2026-10-03) |
 | [`PLAN-04-RESPALDO-EN-NUBE.md`](PLAN-04-RESPALDO-EN-NUBE.md) | Respaldo cifrado en la nube, restauración y HQ en Railway | **Cerrado** (2026-10-03) |
+| [`PLAN-05-IMPRESION-Y-RED-LOCAL.md`](PLAN-05-IMPRESION-Y-RED-LOCAL.md) | Impresión (cajón, descubrimiento), conexión de tablets y cliente sin conexión | **Cerrado** (2026-10-03) |
 | [`deploy/INSTALACION.md`](deploy/INSTALACION.md) | Cómo se instala, actualiza y desinstala Nodo en un local | Vivo |
 | [`deploy/LICENCIAS.md`](deploy/LICENCIAS.md) | Cómo se emiten, activan y protegen las licencias | Vivo |
 | [`deploy/RESPALDOS.md`](deploy/RESPALDOS.md) | Respaldos cifrados en la nube y recuperación de un local | Vivo |
+| [`deploy/RED-LOCAL.md`](deploy/RED-LOCAL.md) | Red del local, impresoras, cajón y qué pasa sin conexión | Vivo |
 | [`deploy/HQ-RAILWAY.md`](deploy/HQ-RAILWAY.md) | Cómo crear y operar el servidor de Nodo (HQ) en Railway | Vivo |
 | [`DESIGN.md`](DESIGN.md) | Sistema visual de Nodo | Vigente |
 | [`DESIGN-reference-brex.md`](DESIGN-reference-brex.md) | Referencia visual externa de la que parte `DESIGN.md` | Referencia |

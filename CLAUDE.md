@@ -13,6 +13,7 @@
 |---|---|---|
 | [`docs/PLAN-02-EMPAQUETADO-E-INSTALACION.md`](docs/PLAN-02-EMPAQUETADO-E-INSTALACION.md) | **Etapa abierta** (2026-10-03), sesión autónoma | Antes de tocar el arranque del servidor, la base local o el instalador. |
 | [`docs/deploy/INSTALACION.md`](docs/deploy/INSTALACION.md) | Vivo | Cómo se instala, actualiza y desinstala Nodo; cómo construir el paquete. |
+| [`docs/PLAN-05-IMPRESION-Y-RED-LOCAL.md`](docs/PLAN-05-IMPRESION-Y-RED-LOCAL.md) · [`docs/deploy/RED-LOCAL.md`](docs/deploy/RED-LOCAL.md) | **Cerrado** (2026-10-03) | Antes de tocar impresión, cajón, el cliente sin conexión o cómo se conectan las tablets. |
 | [`docs/PLAN-04-RESPALDO-EN-NUBE.md`](docs/PLAN-04-RESPALDO-EN-NUBE.md) · [`docs/deploy/RESPALDOS.md`](docs/deploy/RESPALDOS.md) · [`docs/deploy/HQ-RAILWAY.md`](docs/deploy/HQ-RAILWAY.md) | **Cerrado** (2026-10-03) | Antes de tocar respaldos, restauración o el despliegue del HQ. |
 | [`docs/PLAN-03-LICENCIAS-Y-ACTIVACION.md`](docs/PLAN-03-LICENCIAS-Y-ACTIVACION.md) · [`docs/deploy/LICENCIAS.md`](docs/deploy/LICENCIAS.md) | **Etapa abierta** (2026-10-03) | Antes de tocar licencias, activación o el HQ. |
 | [`docs/PLAN-01-LINEA-BASE-Y-CALIDAD.md`](docs/PLAN-01-LINEA-BASE-Y-CALIDAD.md) | **Cerrado** (2026-10-03) | Para saber por qué `nube-web` está integrada y cómo se diagnosticaron los rojos de e2e. |
@@ -57,10 +58,12 @@
 16. 🔴 **La clave de recuperación de los respaldos nunca va al HQ ni a registros** (plan 04, I4.1/I4.5): el HQ solo guarda texto cifrado. Si se pierde la clave y el equipo, no hay recuperación; no «arreglar» esto guardando la clave en la nube.
 17. ⚠️ **`useLive(load, types, deps)`: el segundo argumento son tipos de evento, los `deps` van tercero** (`web/src/api.ts`). Pasar deps como segundo no da error de tipos con `[]`/`string[]` y la carga no se repite al cambiar.
 18. ⚠️ **Las bases desechables en PostgreSQL se cierran solas al final de cada archivo de pruebas** (`test/setup.ts`, `closeTempPgDbs`). Antes se filtraban esquemas y conexiones hasta hacer fallar la suite en bloque; si ves cientos de esquemas `t_…` en el contenedor, bórralos uno por uno (no en un bloque).
+19. 🔴 **Una mesa abierta sin conexión es una cuenta «sombra» `offline:<id>`** (`web/src/api.ts`): la comanda se enlaza por `accountRef` al reconectar. Cualquier función nueva sobre una cuenta que llame a `/accounts/offline:…` falla con `mesa_sin_sincronizar` a propósito (`api()` lo corta antes de pedir). No «arreglar» creando la cuenta antes: abrir la mesa sin red es exactamente lo que se quiere permitir.
+20. ⚠️ **El cajón de dinero es una orden dentro del trabajo de impresión** (`DRAWER_PIN2/5` en `printing/markup.ts`, pulso `ESC p` en `escpos.ts`): viaja por la cola, así que hereda reintento y respaldo. No abrirlo con una conexión aparte.
 
 ## Estado
 
-Ver [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md). Resumen al 2026-10-03 (rama `feature/fundacion`, sin integrar en `main`): typecheck limpio; 438 pruebas de servidor en SQLite y 439 en PostgreSQL; 102 e2e; `nube-web` integrada; planes 01 a 04 cerrados.
+Ver [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md). Resumen al 2026-10-03 (rama `feature/fundacion`, sin integrar en `main`): typecheck limpio; 460 pruebas de servidor en SQLite y 461 en PostgreSQL; 110 e2e; `nube-web` integrada; planes 01 a 05 cerrados.
 
 Puertos: servidor de Nodo `3003` (por defecto), HQ `3004`, demo de marisquería `3005`/`3006` (convención de los videos), landing `3000`, e2e de landing `3047`.
 
