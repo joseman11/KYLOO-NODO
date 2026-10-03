@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, useLive } from "../api";
 import { PagedRows } from "../fit";
 
@@ -245,6 +245,99 @@ export function Integrations() {
   );
 }
 
+interface BackupStatus {
+  keyCreated: boolean;
+  keyConfirmed: boolean;
+  lastOk: number | null;
+  lastSize: number | null;
+  lastError: { code: string; message: string } | null;
+  failures: number;
+}
+
+const mb = (b: number | null) => (b === null ? "" : `${(b / 1024 / 1024).toFixed(1)} MB`);
+
+/**
+ * Clave de recuperación: sin ella un respaldo cifrado NO se puede abrir (ni Nodo puede ayudar), por eso se muestra hasta
+ * que la persona confirma haberla guardado, y después solo con su contraseña.
+ */
+function RecoveryKeySheet({
+  confirmed,
+  onClose,
+}: {
+  confirmed: boolean;
+  onClose: (changed: boolean) => void;
+}) {
+  const [key, setKey] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    if (confirmed) return;
+    api<{ key: string }>("/api/cloud/backup/key", { method: "POST", body: {} }).then(
+      (r) => setKey(r.key),
+      (e) => setErr((e as Error).message),
+    );
+  }, [confirmed]);
+  const show = () =>
+    api<{ key: string }>("/api/cloud/backup/key/show", { body: { password } }).then(
+      (r) => setKey(r.key),
+      (e) => setErr((e as Error).message),
+    );
+  return (
+    <div className="sheet-bg" onClick={() => onClose(false)}>
+      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+        <h3>Clave de recuperación</h3>
+        {key ? (
+          <>
+            <p className="small">
+              Escríbela en papel y guárdala fuera de este equipo. Sin ella no se puede recuperar el
+              respaldo si se pierde la computadora, y Nodo no puede ayudarte a recuperarla.
+            </p>
+            <input
+              readOnly
+              value={key}
+              onFocus={(e) => e.currentTarget.select()}
+              style={{ fontFamily: "ui-monospace, monospace", fontSize: 13 }}
+            />
+            {confirmed ? (
+              <button className="btn primary" onClick={() => onClose(false)}>
+                Cerrar
+              </button>
+            ) : (
+              <button
+                className="btn primary"
+                onClick={() =>
+                  api("/api/cloud/backup/key/confirm", { method: "POST", body: {} }).then(
+                    () => onClose(true),
+                    (e) => setErr((e as Error).message),
+                  )
+                }
+              >
+                Ya la guardé
+              </button>
+            )}
+          </>
+        ) : confirmed ? (
+          <>
+            <p className="small">Para volver a verla, escribe tu contraseña de administrador.</p>
+            <input
+              type="password"
+              placeholder="Contraseña"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <button className="btn primary" disabled={!password} onClick={show}>
+              Mostrar
+            </button>
+          </>
+        ) : (
+          <p className="small">Creando la clave…</p>
+        )}
+        {err && <p className="err">{err}</p>}
+      </div>
+    </div>
+  );
+}
+
 const REASONS: Record<string, string> = {
   sin_licencia:
     "Este equipo todavía no está activado. Mientras tanto funciona con el plan gratuito; el servicio nunca se detiene.",
@@ -264,10 +357,18 @@ export function Cloud() {
   const [form, setForm] = useState({ url: "", key: "" });
   const [code, setCode] = useState("");
   const [manual, setManual] = useState(false);
+  const [keySheet, setKeySheet] = useState(false);
+  const [backing, setBacking] = useState(false);
   const [report, setReport] = useState<SyncReport | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const s = status.data;
+  const backup = useLive(
+    () => (s?.linked ? api<BackupStatus>("/api/cloud/backup/status") : Promise.resolve(null)),
+    [],
+    [String(!!s?.linked)],
+  );
+  const bk = backup.data;
   const fail = (e: unknown) => setErr((e as Error).message);
   const lim = (n: number | null) => (n === null ? "sin límite" : String(n));
 
@@ -316,6 +417,37 @@ export function Cloud() {
                 Desvincular
               </button>
             </div>
+            {bk && (
+              <div className="small">
+                <strong>Respaldo en la nube</strong> ·{" "}
+                {bk.lastOk
+                  ? `último: ${fmtDate(bk.lastOk)} (${mb(bk.lastSize)})`
+                  : "todavía no se ha respaldado"}
+                {bk.lastError && <span className="err"> · {bk.lastError.message}</span>}
+                {!bk.keyConfirmed && (
+                  <span className="err"> · falta guardar la clave de recuperación</span>
+                )}
+                <div className="row" style={{ marginTop: 6 }}>
+                  <button
+                    className="btn sm"
+                    disabled={backing}
+                    onClick={() => {
+                      setBacking(true);
+                      api("/api/cloud/backup/now", { method: "POST", body: {} })
+                        .then(() => backup.reload(), fail)
+                        .finally(() => setBacking(false));
+                    }}
+                  >
+                    {backing ? "Respaldando…" : "Respaldar ahora"}
+                  </button>
+                  <button className="btn sm ghost" onClick={() => setKeySheet(true)}>
+                    {bk.keyConfirmed
+                      ? "Ver clave de recuperación"
+                      : "Guardar clave de recuperación"}
+                  </button>
+                </div>
+              </div>
+            )}
             {report && (
               <div className="small">
                 <div>
@@ -448,6 +580,15 @@ export function Cloud() {
           </p>
         )}
       </section>
+      {keySheet && bk && (
+        <RecoveryKeySheet
+          confirmed={bk.keyConfirmed}
+          onClose={(changed) => {
+            setKeySheet(false);
+            if (changed) backup.reload();
+          }}
+        />
+      )}
     </div>
   );
 }

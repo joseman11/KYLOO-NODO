@@ -1,3 +1,6 @@
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildApp } from "../../server/src/app";
 import { openDb } from "../../server/src/db";
@@ -33,7 +36,11 @@ const FP = fingerprintOf("equipo-de-la-prueba");
 beforeAll(async () => {
   hq = buildApp(await openDb(":memory:"), {
     hub: new Hub(),
-    hq: { adminToken: "plataforma", signingKey: keys.privateKey },
+    hq: {
+      adminToken: "plataforma",
+      signingKey: keys.privateKey,
+      backupStoreDir: mkdtempSync(join(tmpdir(), "nodo-hq-store-")),
+    },
   });
   await hq.listen({ port: 0, host: "127.0.0.1" });
   const addr = hq.server.address();
@@ -121,6 +128,30 @@ describe("activar con un código", () => {
       | { value: string }
       | undefined;
     expect(lic?.value).toBeTruthy();
+    await ctx.ctx.close();
+  });
+
+  it("guarda la clave de recuperación y respalda en la nube desde la pantalla", async () => {
+    const ctx = await newPage(browser, nodo.url);
+    await adminSession(ctx.page, nodo.url);
+    await tap(ctx.page, "Config", ".rail-btn");
+    await tap(ctx.page, "Nube", ".view > .row.wrap > .chip");
+    await waitText(ctx.page, "Respaldo en la nube");
+    expect(await hasText(ctx.page, "falta guardar la clave de recuperación")).toBe(true);
+    await tap(ctx.page, "Guardar clave de recuperación", "button");
+    await waitText(ctx.page, "Escríbela en papel");
+    const key = await ctx.page.evaluate(
+      () => (document.querySelector(".sheet input") as HTMLInputElement).value,
+    );
+    expect(key).toMatch(/^([A-Z2-7]{5}-){10}[A-Z2-7]{5}$/);
+    await tap(ctx.page, "Ya la guardé", "button");
+    await until(
+      async () => !(await hasText(ctx.page, "falta guardar la clave de recuperación")) || null,
+      "clave confirmada",
+    );
+    await tap(ctx.page, "Respaldar ahora", "button");
+    await until(async () => (await hasText(ctx.page, "último:")) || null, "respaldo hecho", 20_000);
+    expect(ctx.problems.filter((x) => !/40[0-9]/.test(x))).toEqual([]);
     await ctx.ctx.close();
   });
 

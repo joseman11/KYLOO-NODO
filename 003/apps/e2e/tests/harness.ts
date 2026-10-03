@@ -64,6 +64,8 @@ export async function startNodo(
   const app = buildApp(db, {
     webDir: WEB_DIST,
     photosDir,
+    // Los respaldos y el trabajo temporal viven con las fotos de la prueba, no en el directorio de trabajo
+    backupDir: join(photosDir, "backups"),
     hub,
     transport,
     licensing: options.licensing,
