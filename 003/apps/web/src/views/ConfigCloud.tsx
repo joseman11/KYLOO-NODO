@@ -17,6 +17,10 @@ interface Webhook {
   pending: number;
 }
 interface CloudStatus {
+  /** `open` = desarrollo (sin licencia no hay límites); `enforced` = instalación de producción. */
+  mode: "open" | "enforced";
+  /** Identificador corto de este equipo, para atender un cambio de equipo. */
+  fingerprint: string | null;
   linked: boolean;
   url: string | null;
   last_sync: number | null;
@@ -24,6 +28,8 @@ interface CloudStatus {
     plan: string;
     expires_at: number;
     expired: boolean;
+    restricted: boolean;
+    reason: string | null;
     features: string[];
     limits: { users: number | null; printers: number | null };
   } | null;
@@ -239,12 +245,25 @@ export function Integrations() {
   );
 }
 
+const REASONS: Record<string, string> = {
+  sin_licencia:
+    "Este equipo todavía no está activado. Mientras tanto funciona con el plan gratuito; el servicio nunca se detiene.",
+  firma_invalida: "La licencia instalada no es válida. Activa de nuevo con un código.",
+  sin_huella: "La licencia no está ligada a este equipo. Activa de nuevo con un código.",
+  otro_equipo:
+    "Esta licencia pertenece a otro equipo. Pide un código nuevo para activar este (ver el identificador de abajo).",
+  vencida:
+    "La licencia venció hace más de 7 días. Conecta este equipo a Internet para renovarla; mientras tanto rige el plan gratuito.",
+};
+
 const fmtDate = (ts: number | null) =>
   ts ? new Date(ts).toLocaleString("es-MX", { hour12: false }) : "nunca";
 
 export function Cloud() {
   const status = useLive(() => api<CloudStatus>("/api/cloud/status"), []);
   const [form, setForm] = useState({ url: "", key: "" });
+  const [code, setCode] = useState("");
+  const [manual, setManual] = useState(false);
   const [report, setReport] = useState<SyncReport | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -257,8 +276,8 @@ export function Cloud() {
       <section className="card fillcard">
         <h3>Nube (multi-sucursal y plan)</h3>
         <p className="small">
-          La sucursal opera siempre en la red local. La nube solo recibe las ventas del día, entrega
-          el catálogo maestro y renueva la licencia; si no hay Internet, nada se detiene.
+          La sucursal opera siempre en la red local. El código de activación se usa una sola vez
+          (necesita Internet); después, sin conexión, nada se detiene.
         </p>
         {err && <p className="err">{err}</p>}
         {s?.linked ? (
@@ -323,37 +342,77 @@ export function Cloud() {
         ) : (
           <div className="col">
             <input
-              placeholder="Dirección del HQ (https://…)"
-              value={form.url}
-              onChange={(e) => setForm({ ...form, url: e.target.value })}
-            />
-            <input
-              placeholder="Llave de la sucursal (bk_…)"
-              value={form.key}
-              onChange={(e) => setForm({ ...form, key: e.target.value })}
+              placeholder="Código de activación (NODO-XXXX-XXXX-XXXX)"
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              autoCapitalize="characters"
+              autoCorrect="off"
+              style={{ fontFamily: "ui-monospace, monospace", letterSpacing: 1 }}
             />
             <button
               className="btn primary"
-              disabled={!form.url || !form.key}
-              onClick={() =>
-                api("/api/cloud/link", { body: form }).then(() => status.reload(), fail)
-              }
+              disabled={busy || code.replace(/[^A-Za-z0-9]/g, "").length < 12}
+              onClick={() => {
+                setBusy(true);
+                setErr(null);
+                api("/api/license/activate", { body: { code } })
+                  .then(() => {
+                    setCode("");
+                    status.reload();
+                  }, fail)
+                  .finally(() => setBusy(false));
+              }}
             >
-              Vincular sucursal
+              {busy ? "Activando…" : "Activar este equipo"}
             </button>
+            {s?.mode !== "enforced" && (
+              <button className="btn ghost sm" onClick={() => setManual(!manual)}>
+                {manual ? "Ocultar vinculación manual" : "Vinculación manual (desarrollo)"}
+              </button>
+            )}
+            {manual && (
+              <>
+                <input
+                  placeholder="Dirección del HQ (https://…)"
+                  value={form.url}
+                  onChange={(e) => setForm({ ...form, url: e.target.value })}
+                />
+                <input
+                  placeholder="Llave de la sucursal (bk_…)"
+                  value={form.key}
+                  onChange={(e) => setForm({ ...form, key: e.target.value })}
+                />
+                <button
+                  className="btn"
+                  disabled={!form.url || !form.key}
+                  onClick={() =>
+                    api("/api/cloud/link", { body: form }).then(() => status.reload(), fail)
+                  }
+                >
+                  Vincular sucursal
+                </button>
+              </>
+            )}
           </div>
         )}
       </section>
 
       <section className="card fillcard">
         <h3>Plan y licencia</h3>
+        {s?.license?.restricted && (
+          <p className="err">{REASONS[s.license.reason ?? ""] ?? "Licencia restringida."}</p>
+        )}
         {s?.license ? (
           <>
             <p>
               <span className="tag ember">{s.license.plan}</span>{" "}
-              {s.license.expired && <span className="err">vencida: renueva la conexión</span>}
+              {s.license.expired && !s.license.restricted && (
+                <span className="err">vencida: renueva la conexión</span>
+              )}
             </p>
-            <p className="small">Vence: {fmtDate(s.license.expires_at)}</p>
+            {!s.license.restricted && (
+              <p className="small">Vence: {fmtDate(s.license.expires_at)}</p>
+            )}
             <table>
               <tbody>
                 <tr style={{ height: 40 }}>
@@ -377,8 +436,15 @@ export function Cloud() {
           </>
         ) : (
           <p className="muted">
-            Sin licencia instalada: instalación propia, sin límites de usuarios, impresoras ni
+            Modo de desarrollo: sin licencia instalada no hay límites de usuarios, impresoras ni
             funciones.
+          </p>
+        )}
+        {s?.fingerprint && (
+          <p className="small">
+            Identificador de este equipo: <strong className="num">{s.fingerprint}</strong>
+            <br />
+            Dáselo a Nodo si cambias de computadora.
           </p>
         )}
       </section>
