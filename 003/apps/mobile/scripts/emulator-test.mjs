@@ -60,6 +60,21 @@ await until(
 );
 ok("la app pide el servidor la primera vez");
 
+// la cámara del escaneo de QR abre (el permiso de cámara se concede antes: `adb shell pm grant mx.com.kyloo.nodo android.permission.CAMERA`)
+if (await clickText("button", "Escanear")) {
+  await until(
+    () =>
+      page
+        .evaluate(() => (document.querySelector("video")?.videoWidth ?? 0) > 0)
+        .catch(() => false),
+    "la cámara del lector de QR",
+    20000,
+  );
+  ok("el lector de QR abre la cámara");
+  await clickText("button", "Cancelar");
+  await until(async () => !(await page.$("video")), "cierre del lector");
+}
+
 await page.type("input", server, { delay: 20 });
 await clickText("button", "Conectar");
 await until(async () => (await text()).includes("Toca tu nombre"), "acceso del servidor");

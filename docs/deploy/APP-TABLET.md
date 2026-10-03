@@ -12,6 +12,7 @@ La web que sirve el propio servidor (`http://<ip>:3003`) sigue funcionando igual
 
 1. Copia `nodo-<versión>-debug.apk` a la tablet (o `adb install -r …`) y ábrelo (permitir «orígenes desconocidos» si lo pide). *El APK de entrega firmado queda pendiente de la llave de firma; ver «Qué falta».*
 2. La primera vez pide **la dirección del servidor**: la que se ve en el equipo del local en *Configuración → Conectar* (por ejemplo `192.168.1.20`). La app comprueba que ahí hay un Nodo y que habla su mismo contrato.
+   Si prefieres no teclear: **«Escanear código QR»** abre la cámara y lee el QR de *Configuración → Conectar* (permiso de cámara; no necesita servicios de Google: el lector es propio).
 3. Entrar por PIN como siempre. **Cambiar servidor** está en la pantalla de acceso.
 
 ## Construir el APK (equipo de desarrollo)
@@ -62,6 +63,6 @@ En el emulador **«7in WSVGA (Tablet)»** (1024×600, 2 núcleos y 2 GB de RAM; 
 
 - 🔴 **Probar en una tableta física económica** (táctil real, WiFi del local, rendimiento).
 - ✅ **APK firmado** y **icono y pantalla de inicio** propios (2026-10-03). Falta, si se quiere, publicar en Play Store.
-- 🟡 **Escaneo del QR** de *Conectar* desde la app (hoy se escribe la dirección). Requiere el servicio de Google en la tablet o una biblioteca propia.
+- ✅ **Escaneo del QR** desde la app (2026-10-03): la cámara abre en el emulador y el lector decodifica los QR de «Conectar» (pruebas con imágenes generadas). **Sin probar con un QR real frente a una cámara física.**
 - 🟡 **iOS:** necesita Xcode y cuenta de Apple Developer; se hace cuando un cliente lo pida.
 - 🟡 **Modo quiosco** (que la tablet no salga de la app): se configura con el «anclaje de pantalla» de Android o un gestor de dispositivos; no lo hace la app.

@@ -1,56 +1,75 @@
-import { API_CONTRACT } from "@003/shared";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { decodeQr } from "../qr";
+import { normalizeServer, probeServer } from "../server-address";
 import { setServerBase } from "../api";
 import { KylooLogo, NodoLogo, NodoMark } from "../Logo";
 import { WaveCanvas } from "../WaveCanvas";
 
-/** «192.168.1.20» → `http://192.168.1.20:3003` (puerto por defecto de Nodo; admite esquema y puerto escritos). */
-export function normalizeServer(input: string): string | null {
-  const t = input.trim().replace(/\/+$/, "");
-  if (!t) return null;
-  try {
-    const u = new URL(/^[a-z]+:\/\//i.test(t) ? t : `http://${t}`);
-    if (!u.hostname) return null;
-    return `${u.protocol}//${u.hostname}:${u.port || "3003"}`;
-  } catch {
-    return null;
-  }
-}
-
-export type ProbeResult = { ok: true; name: string | null } | { ok: false; message: string };
-
-/** Comprueba que en esa dirección hay un servidor de Nodo y que habla el mismo contrato que esta interfaz. */
-export async function probeServer(
-  base: string,
-  fetchFn: typeof fetch = fetch,
-): Promise<ProbeResult> {
-  const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 5000);
-  try {
-    const r = await fetchFn(`${base}/api/health`, { signal: ctl.signal });
-    const h = (await r.json().catch(() => null)) as { ok?: boolean; contract?: number } | null;
-    if (!r.ok || !h?.ok)
-      return { ok: false, message: "Esa dirección no responde como un servidor de Nodo" };
-    if (h.contract !== API_CONTRACT)
-      return {
-        ok: false,
-        message:
-          "Este servidor es de otra versión que la app: actualiza la app o el servidor para que coincidan",
-      };
-    const info = await fetchFn(`${base}/api/auth/info`).then(
-      (x) => x.json() as Promise<{ name: string | null }>,
-      () => null,
-    );
-    return { ok: true, name: info?.name ?? null };
-  } catch {
-    return {
-      ok: false,
-      message:
-        "No se pudo conectar. Revisa que la tablet esté en la misma red que el servidor y que la dirección sea correcta",
+/**
+ * Cámara que busca el código QR de *Configuración → Conectar*. Cada ~150 ms se lee un cuadro y se prueba con el lector;
+ * al encontrar una dirección, la entrega y se detiene. La cámara se libera siempre al cerrar.
+ */
+function QrScanner({ onFound, onClose }: { onFound: (text: string) => void; onClose: () => void }) {
+  const video = useRef<HTMLVideoElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let stream: MediaStream | null = null;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    let alive = true;
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" },
+          audio: false,
+        });
+        if (!alive) return stream.getTracks().forEach((t) => t.stop());
+        const v = video.current;
+        if (!v) return;
+        v.srcObject = stream;
+        await v.play();
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        timer = setInterval(() => {
+          if (!ctx || v.videoWidth === 0) return;
+          canvas.width = v.videoWidth;
+          canvas.height = v.videoHeight;
+          ctx.drawImage(v, 0, 0);
+          const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const text = decodeQr(img.data, img.width, img.height);
+          if (text) onFound(text);
+        }, 150);
+      } catch {
+        setError("No se pudo usar la cámara. Revisa el permiso de la app o escribe la dirección.");
+      }
+    })();
+    return () => {
+      alive = false;
+      if (timer) clearInterval(timer);
+      stream?.getTracks().forEach((t) => t.stop());
     };
-  } finally {
-    clearTimeout(timer);
-  }
+  }, [onFound]);
+  return (
+    <div className="sheet-bg" onClick={onClose}>
+      <div className="sheet center" onClick={(e) => e.stopPropagation()}>
+        <h3>Escanea el código QR</h3>
+        <p className="small">Apunta a la pantalla del servidor: Configuración → Conectar.</p>
+        {error ? (
+          <p className="err">{error}</p>
+        ) : (
+          // biome-ignore lint/a11y/useMediaCaption: es la vista de la cámara, sin audio
+          <video
+            ref={video}
+            playsInline
+            muted
+            style={{ width: "100%", maxHeight: 320, borderRadius: 12, background: "#000" }}
+          />
+        )}
+        <button type="button" className="btn" onClick={onClose}>
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -61,10 +80,11 @@ export function ServerSetup({ onDone }: { onDone: () => void }) {
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
-  const connect = async () => {
+  const connect = async (text = value) => {
     setError(null);
-    const base = normalizeServer(value);
+    const base = normalizeServer(text);
     if (!base) return setError("Escribe la dirección del servidor, por ejemplo 192.168.1.20");
     setBusy(true);
     const r = await probeServer(base);
@@ -122,8 +142,23 @@ export function ServerSetup({ onDone }: { onDone: () => void }) {
           <button className="btn primary" type="submit" disabled={busy || !value.trim()}>
             {busy ? "Conectando…" : "Conectar"}
           </button>
+          {typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia && (
+            <button type="button" className="btn" onClick={() => setScanning(true)} disabled={busy}>
+              Escanear código QR
+            </button>
+          )}
         </form>
       </div>
+      {scanning && (
+        <QrScanner
+          onClose={() => setScanning(false)}
+          onFound={(text) => {
+            setScanning(false);
+            setValue(text);
+            void connect(text);
+          }}
+        />
+      )}
     </div>
   );
 }
