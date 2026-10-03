@@ -1,6 +1,8 @@
 import { mkdirSync } from "node:fs";
 import { buildApp } from "./app";
 import { loadConfig } from "./config";
+import { noteClock } from "./license";
+import { defaultHqUrl, loadLicensing } from "./licensing";
 import { openDb } from "./db";
 import { Hub } from "./hub";
 import { Logger, RotatingLog, errorFields } from "./logging";
@@ -37,6 +39,11 @@ const db = await openDb(config.dbFile, {
   onPreMigrationBackup: (file, pending) =>
     log.warn("copia de la base antes de migrar", { file, migraciones: pending }),
 });
+const licensing = await loadLicensing();
+log.info("licencia", {
+  modo: licensing.mode,
+  huella: licensing.fingerprint ? `${licensing.fingerprint.slice(0, 8)}…` : null,
+});
 const hub = new Hub();
 const isHq = config.role === "hq";
 const http = (
@@ -50,6 +57,8 @@ const app = buildApp(db, {
   photosDir: config.photosDir,
   http,
   hq: isHq ? { adminToken: process.env.HQ_ADMIN_TOKEN } : false,
+  licensing,
+  hqUrl: defaultHqUrl(),
   logger: { stream, level: config.logLevel },
   version: config.version,
 });
@@ -74,9 +83,15 @@ backupTimer.unref();
 // Sincronización con la nube cada hora si la sucursal está vinculada; sin Internet simplemente se reintenta después
 const timers: NodeJS.Timeout[] = [backupTimer];
 if (!isHq) {
-  const sync = () => syncWithHq(db, http).catch(() => undefined);
+  const sync = () => syncWithHq(db, http, licensing).catch(() => undefined);
   timers.push(setTimeout(sync, 30_000).unref(), setInterval(sync, 60 * 60 * 1000).unref());
 }
+
+// Marca de la hora más alta vista: retrasar el reloj no alarga una licencia (plan 03, D3.6)
+const clockTimer = setInterval(() => void noteClock(db).catch(() => undefined), 10 * 60 * 1000);
+clockTimer.unref();
+timers.push(clockTimer);
+void noteClock(db).catch(() => undefined);
 
 await app.listen({ port: config.port, host: config.host });
 log.info("escuchando", { port: config.port, host: config.host });

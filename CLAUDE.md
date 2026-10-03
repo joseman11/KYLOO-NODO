@@ -54,7 +54,7 @@
 
 ## Estado
 
-Ver [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md). Resumen al 2026-10-03 (rama `feature/sesion-autonoma-2026-10-03`, sin integrar en `main`): typecheck limpio; 350 pruebas de servidor en SQLite y 351 en PostgreSQL; 92/92 e2e; `nube-web` integrada.
+Ver [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md). Resumen al 2026-10-03 (rama `feature/fundacion`, sin integrar en `main`): typecheck limpio; 350 pruebas de servidor en SQLite y 351 en PostgreSQL; 92/92 e2e; `nube-web` integrada.
 
 Puertos: servidor de Nodo `3003` (por defecto), HQ `3004`, demo de marisquería `3005`/`3006` (convención de los videos), landing `3000`, e2e de landing `3047`.
 

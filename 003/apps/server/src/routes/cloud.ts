@@ -2,7 +2,16 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { audit, newId, type Db } from "../db";
 import { HttpError } from "../domain";
-import { getLicense, usage, verifyLicense } from "../license";
+import { hostname } from "node:os";
+import { machineFingerprint, shortFingerprint } from "../fingerprint";
+import {
+  type LicensingContext,
+  OPEN_LICENSING,
+  getLicense,
+  noteClock,
+  usage,
+  verifyLicenseAny,
+} from "../license";
 
 /** Cliente HTTP mínimo (inyectable para pruebas y para correr sin Internet). */
 export type HttpLike = (
@@ -162,12 +171,21 @@ export interface SyncReport {
 }
 
 /** Sincroniza con la nube. Cada paso es independiente: si falla uno (sin Internet), los demás siguen y la sucursal sigue operando. */
-export async function syncWithHq(db: Db, http: HttpLike): Promise<SyncReport> {
+export async function syncWithHq(
+  db: Db,
+  http: HttpLike,
+  licensing: LicensingContext = OPEN_LICENSING,
+): Promise<SyncReport> {
   const url = await setting(db, "hq_url");
   const key = await setting(db, "hq_key");
   if (!url || !key)
     throw new HttpError(409, "sin_vincular", "Esta sucursal no está vinculada a la nube");
-  const headers = { "content-type": "application/json", "x-branch-key": key };
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    "x-branch-key": key,
+  };
+  // El HQ solo entrega licencia al equipo con el que se activó la sucursal
+  if (licensing.fingerprint) headers["x-device-fp"] = licensing.fingerprint;
   const call = async (path: string, body?: unknown) => {
     const r = await http(`${url}${path}`, {
       method: body ? "POST" : "GET",
@@ -194,10 +212,12 @@ export async function syncWithHq(db: Db, http: HttpLike): Promise<SyncReport> {
 
   try {
     const lic = (await call("/api/hq/license")) as { token: string; plan: string };
+    // En producción solo valen las claves incrustadas en el programa; la que guardó el HQ al vincular es de desarrollo
     const pub = await setting(db, "hq_public_key");
-    if (!pub || !verifyLicense(pub, lic.token))
-      throw new Error("La firma de la licencia no es válida");
+    const keys = licensing.mode === "enforced" ? licensing.publicKeys : pub ? [pub] : [];
+    if (!verifyLicenseAny(keys, lic.token)) throw new Error("La firma de la licencia no es válida");
     await put(db, "license", lic.token);
+    await noteClock(db);
     report.license = { ok: true, plan: lic.plan };
   } catch (e) {
     report.license = { ok: false, error: msg(e) };
@@ -242,7 +262,7 @@ export async function cloudRoutes(app: FastifyInstance, opts: { http: HttpLike }
   });
 
   app.post("/api/cloud/sync", { preHandler: app.authorize("user.manage") }, async (req) => {
-    const report = await syncWithHq(db, opts.http);
+    const report = await syncWithHq(db, opts.http, app.licensing);
     await audit(db, req.user.sub, "sincronizar_nube", "sistema", undefined, {
       sales: report.sales.ok,
       license: report.license.ok,
@@ -258,10 +278,82 @@ export async function cloudRoutes(app: FastifyInstance, opts: { http: HttpLike }
     return { ok: true };
   });
 
+  /**
+   * Activación con un código de un solo uso (plan 03). Necesita Internet esta vez: el HQ registra la huella de este
+   * equipo, entrega una llave nueva y la licencia firmada, y desde ahí el local opera sin red.
+   */
+  app.post("/api/license/activate", { preHandler: app.authorize("user.manage") }, async (req) => {
+    const b = z
+      .object({ code: z.string().min(8).max(40), hqUrl: z.string().url().optional() })
+      .parse(req.body);
+    const base = (b.hqUrl ?? app.hqUrl ?? "").replace(/\/$/, "");
+    if (!base)
+      throw new HttpError(409, "sin_hq", "Falta la dirección del servidor de Nodo (hqUrl)");
+    const fingerprint = app.licensing.fingerprint ?? (await machineFingerprint());
+    if (!fingerprint)
+      throw new HttpError(409, "sin_huella", "No se pudo identificar este equipo para activarlo");
+    const r = await opts
+      .http(`${base}/api/hq/activate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ code: b.code, fingerprint, device: hostname().slice(0, 80) }),
+      })
+      .catch(() => null);
+    if (!r)
+      throw new HttpError(
+        502,
+        "hq_inalcanzable",
+        "No se pudo contactar al servidor de Nodo: la activación necesita Internet",
+      );
+    const body = (await r.json().catch(() => ({}))) as {
+      api_key?: string;
+      token?: string;
+      plan?: string;
+      org?: string;
+      branch?: string;
+      error?: string;
+      message?: string;
+    };
+    if (!r.ok || !body.api_key || !body.token)
+      throw new HttpError(
+        r.status === 404 ? 404 : r.status === 429 ? 429 : 502,
+        body.error ?? "activacion_fallida",
+        body.message ?? "No se pudo activar",
+      );
+    let pub: string | undefined;
+    if (app.licensing.mode === "enforced") {
+      if (!verifyLicenseAny(app.licensing.publicKeys, body.token))
+        throw new HttpError(
+          502,
+          "licencia_invalida",
+          "El servidor devolvió una licencia que no es de Nodo",
+        );
+    } else {
+      // Modo de desarrollo: confianza en el primer uso de la clave del HQ, como al vincular
+      const k = await opts.http(`${base}/api/hq/public-key`).catch(() => null);
+      pub = k?.ok ? ((await k.json()) as { public_key: string }).public_key : undefined;
+      if (!pub || !verifyLicenseAny([pub], body.token))
+        throw new HttpError(502, "licencia_invalida", "La licencia recibida no tiene firma válida");
+    }
+    await put(db, "hq_url", base);
+    await put(db, "hq_key", body.api_key);
+    if (pub) await put(db, "hq_public_key", pub);
+    await put(db, "license", body.token);
+    await noteClock(db);
+    await audit(db, req.user.sub, "activar_licencia", "sistema", undefined, {
+      url: base,
+      plan: body.plan,
+    });
+    return { ok: true, plan: body.plan, org: body.org, branch: body.branch };
+  });
+
   app.get("/api/cloud/status", { preHandler: app.authorize() }, async () => {
-    const lic = await getLicense(db);
+    const lic = await getLicense(db, Date.now(), app.licensing);
     const u = await usage(db);
+    const fp = app.licensing.fingerprint ?? (await machineFingerprint());
     return {
+      mode: app.licensing.mode,
+      fingerprint: fp ? shortFingerprint(fp) : null,
       linked: !!(await setting(db, "hq_url")),
       url: (await setting(db, "hq_url")) ?? null,
       last_sync: (await setting(db, "hq_last_sync"))
@@ -272,6 +364,8 @@ export async function cloudRoutes(app: FastifyInstance, opts: { http: HttpLike }
             plan: lic.plan,
             expires_at: lic.exp,
             expired: lic.expired,
+            restricted: lic.restricted ?? false,
+            reason: lic.reason ?? null,
             features: lic.features,
             limits: lic.limits,
           }

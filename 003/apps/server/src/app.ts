@@ -41,7 +41,13 @@ import { invoiceRoutes, sandboxProvider, type InvoiceProvider } from "./routes/i
 import { cloudRoutes, type HttpLike } from "./routes/cloud";
 import { hqRoutes, type HqOptions } from "./routes/hq";
 import { connectWebhooks } from "./webhooks";
-import { FEATURE_ROUTES, getLicense, usage } from "./license";
+import {
+  FEATURE_ROUTES,
+  type LicensingContext,
+  OPEN_LICENSING,
+  getLicense,
+  usage,
+} from "./license";
 import { appVersion } from "./config";
 import { type LogLevel, fastifyLoggerOptions } from "./logging";
 
@@ -62,6 +68,10 @@ declare module "fastify" {
   interface FastifyInstance {
     db: Db;
     hub: Hub;
+    /** Cómo se aplica la licencia en este arranque. */
+    licensing: LicensingContext;
+    /** Dirección del HQ de Nodo (para activar con un código), si se conoce. */
+    hqUrl: string | null;
     /** preHandler: exige sesión válida y el permiso indicado (RN-015). Sin permiso, solo sesión. */
     authorize(permission?: Permission): (req: FastifyRequest, reply: FastifyReply) => Promise<void>;
   }
@@ -83,6 +93,10 @@ export interface AppOptions {
   photosDir?: string;
   /** Registro de la aplicación (archivo con rotación). Sin él no se registra nada, como en las pruebas. */
   logger?: { stream: { write(s: string): void }; level: LogLevel };
+  /** Cómo se aplica la licencia (por defecto `open`: sin licencia no hay límites; solo el paquete de producción usa `enforced`). */
+  licensing?: LicensingContext;
+  /** Dirección del HQ de Nodo para activar la licencia con un código. */
+  hqUrl?: string | null;
   /** Versión que publica `/api/health` (por defecto, la del paquete). */
   version?: string;
 }
@@ -114,6 +128,9 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
 
   app.decorate("db", db);
   app.decorate("hub", hub);
+  const licensing = options.licensing ?? OPEN_LICENSING;
+  app.decorate("licensing", licensing);
+  app.decorate("hqUrl", options.hqUrl ?? null);
   app.register(fastifyJwt, { secret: jwtSecret(db), sign: { expiresIn: "12h" } });
   app.register(fastifyWebsocket);
 
@@ -240,9 +257,10 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
   // Webhooks salientes: cada evento en tiempo real también se encola para los endpoints suscritos
   connectWebhooks(db, hub);
 
-  // Plan SaaS: con licencia instalada se aplican funciones y límites; sin licencia (instalación propia) no hay límites
+  // Plan SaaS: con licencia instalada se aplican funciones y límites. Sin licencia: en modo `open` (desarrollo) no hay
+  // límites; en modo `enforced` (paquete de producción) rige el plan gratis, sin detener nunca la venta
   app.addHook("onRequest", async (req, reply) => {
-    const lic = await getLicense(db);
+    const lic = await getLicense(db, Date.now(), licensing);
     if (!lic) return;
     const path = req.url.split("?")[0]!;
     for (const [re, feature] of FEATURE_ROUTES) {

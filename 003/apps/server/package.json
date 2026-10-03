@@ -9,7 +9,8 @@
     "seed": "tsx src/seed-cli.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json",
-    "seed:demo": "tsx src/seed-demo-cli.ts --reset"
+    "seed:demo": "tsx src/seed-demo-cli.ts --reset",
+    "keygen": "tsx src/license-keygen-cli.ts"
   },
   "dependencies": {
     "@003/shared": "workspace:*",

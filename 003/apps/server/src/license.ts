@@ -39,7 +39,26 @@ export interface LicensePayload {
   features: readonly Feature[];
   iat: number;
   exp: number;
+  /** Huella del equipo al que está atada (ver `fingerprint.ts`); sin ella solo vale en modo `open`. */
+  fp?: string | null;
+  /** Identificador de la clave que firmó (para poder rotar claves). */
+  kid?: string;
 }
+
+/**
+ * Cómo se aplica la licencia:
+ *  - `open`: desarrollo, pruebas y demos. Sin licencia no hay límites (comportamiento original).
+ *  - `enforced`: paquete de producción. Solo vale una licencia firmada con una clave incrustada en el programa y atada a
+ *    este equipo; sin ella, plan `gratis`. **Nunca detiene la venta** (I3).
+ */
+export interface LicensingContext {
+  mode: "open" | "enforced";
+  /** Claves públicas aceptadas (PEM). En `enforced` son las incrustadas en el programa. */
+  publicKeys: string[];
+  /** Huella de este equipo (`null` si no se pudo leer). */
+  fingerprint: string | null;
+}
+export const OPEN_LICENSING: LicensingContext = { mode: "open", publicKeys: [], fingerprint: null };
 
 /** Días tras el vencimiento en que la sucursal sigue operando con el plan contratado (nunca se detiene la venta). */
 export const GRACE_DAYS = 7;
@@ -71,6 +90,15 @@ export function verifyLicense(publicPem: string, token: string): LicensePayload 
   }
 }
 
+/** Verifica contra varias claves (rotación): vale la primera que firmó. */
+export function verifyLicenseAny(publicPems: string[], token: string): LicensePayload | null {
+  for (const pem of publicPems) {
+    const p = verifyLicense(pem, token);
+    if (p) return p;
+  }
+  return null;
+}
+
 const setting = async (db: Db, key: string) =>
   (
     (await db.prepare("SELECT value FROM settings WHERE key=?").get(key)) as
@@ -78,33 +106,71 @@ const setting = async (db: Db, key: string) =>
       | undefined
   )?.value;
 
+/** Por qué una sucursal está en el plan restringido. */
+export type RestrictedReason =
+  | "sin_licencia"
+  | "firma_invalida"
+  | "sin_huella"
+  | "otro_equipo"
+  | "vencida";
+
 export interface ActiveLicense extends LicensePayload {
   expired: boolean;
+  /** `true` si se aplican los límites del plan gratis por falta de una licencia válida. */
+  restricted?: boolean;
+  reason?: RestrictedReason;
 }
 
-let cache: { token: string; pub: string; value: ActiveLicense | null; at: number } | null = null;
+let cache: { key: string; value: LicensePayload | null } | null = null;
 
 /**
- * Licencia vigente de esta sucursal. Sin licencia instalada devuelve null: instalación propia, sin límites.
- * Con licencia vencida más allá de la gracia se aplican los límites del plan gratis.
+ * Licencia vigente de esta sucursal.
+ *  - Modo `open` (por defecto): sin licencia instalada devuelve null (instalación propia, sin límites).
+ *  - Modo `enforced`: sin licencia válida para este equipo devuelve el plan gratis con el motivo.
+ * Con licencia vencida más allá de la gracia se aplican los límites del plan gratis. El reloj no se puede retroceder para
+ * alargar una licencia: el vencimiento se evalúa con la hora más alta vista (`license_clock_hwm`).
  */
-export async function getLicense(db: Db, now = Date.now()): Promise<ActiveLicense | null> {
+export async function getLicense(
+  db: Db,
+  now = Date.now(),
+  ctx: LicensingContext = OPEN_LICENSING,
+): Promise<ActiveLicense | null> {
+  const enforced = ctx.mode === "enforced";
   const token = await setting(db, "license");
-  const pub = await setting(db, "hq_public_key");
-  if (!token || !pub) return null;
-  if (!cache || cache.token !== token || cache.pub !== pub) {
-    const payload = verifyLicense(pub, token);
-    cache = { token, pub, value: payload ? { ...payload, expired: false } : null, at: now };
-  }
+  const keys = enforced
+    ? ctx.publicKeys
+    : [await setting(db, "hq_public_key")].filter((k): k is string => !!k);
+  if (!token || keys.length === 0) return enforced ? restricted("sin_licencia") : null;
+
+  const cacheKey = `${token}|${keys.join("|")}`;
+  if (!cache || cache.key !== cacheKey)
+    cache = { key: cacheKey, value: verifyLicenseAny(keys, token) };
   const lic = cache.value;
-  if (!lic) return fallbackFree();
-  const expired = now > lic.exp;
-  if (expired && now > lic.exp + GRACE_DAYS * 86_400_000) return fallbackFree();
+  if (!lic) return restricted("firma_invalida");
+  if (enforced) {
+    if (!lic.fp) return restricted("sin_huella");
+    if (lic.fp !== ctx.fingerprint) return restricted("otro_equipo");
+  }
+  const seen = Number(await setting(db, "license_clock_hwm")) || 0;
+  const t = Math.max(now, seen);
+  const expired = t > lic.exp;
+  if (expired && t > lic.exp + GRACE_DAYS * 86_400_000) return restricted("vencida");
   return { ...lic, expired };
 }
 
-/** Licencia presente pero inválida o vencida: plan gratis (sigue pudiendo vender, sin funciones extra). */
-function fallbackFree(): ActiveLicense {
+/** Anota la hora actual como la más alta vista: así retrasar el reloj del equipo no alarga una licencia. */
+export async function noteClock(db: Db, now = Date.now()) {
+  const seen = Number(await setting(db, "license_clock_hwm")) || 0;
+  if (now <= seen) return;
+  await db
+    .prepare(
+      "INSERT INTO settings (key,value) VALUES ('license_clock_hwm',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+    )
+    .run(String(now));
+}
+
+/** Plan gratis (sigue pudiendo vender, sin funciones extra) por falta de una licencia válida. */
+function restricted(reason: RestrictedReason): ActiveLicense {
   const p = PLANS.gratis!;
   return {
     org: "",
@@ -115,6 +181,8 @@ function fallbackFree(): ActiveLicense {
     iat: 0,
     exp: 0,
     expired: true,
+    restricted: true,
+    reason,
   };
 }
 

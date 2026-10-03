@@ -1,6 +1,6 @@
 # Plan 03 — Licencias atadas al equipo y activación por código
 
-> **Etapa abierta** (2026-10-03, rama `feature/sesion-autonoma-2026-10-03`). Continúa a [`PLAN-02`](PLAN-02-EMPAQUETADO-E-INSTALACION.md). Resuelve D13 de [`PLAN-00`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) y el hallazgo E22 de [`ESTADO-ACTUAL`](ESTADO-ACTUAL.md).
+> **Etapa abierta** (2026-10-03, rama `feature/fundacion`). Continúa a [`PLAN-02`](PLAN-02-EMPAQUETADO-E-INSTALACION.md). Resuelve D13 de [`PLAN-00`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) y el hallazgo E22 de [`ESTADO-ACTUAL`](ESTADO-ACTUAL.md).
 >
 > 🤖 Sesión autónoma (el dueño duerme): lo abierto lo decide la sesión y queda en el Registro.
 >

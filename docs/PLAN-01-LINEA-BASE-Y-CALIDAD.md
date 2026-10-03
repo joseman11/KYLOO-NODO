@@ -1,6 +1,6 @@
 # Plan 01 — Línea base verde, `nube-web` integrada y herramientas de calidad
 
-> **Etapa cerrada** (2026-10-03, rama `feature/sesion-autonoma-2026-10-03`). Continúa a [`PLAN-00`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) (fases F2 y F3, decisiones D6 y D8).
+> **Etapa cerrada** (2026-10-03, rama `feature/fundacion`). Continúa a [`PLAN-00`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) (fases F2 y F3, decisiones D6 y D8).
 >
 > 🤖 **Sesión autónoma:** el dueño duerme. Lo que el plan dejaba abierto lo decide la sesión con las recomendaciones del Plan 00 y lo anota en el Registro. Todo en local, sin push ni despliegue, en commits pequeños y separables.
 >

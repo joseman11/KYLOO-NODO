@@ -1,9 +1,17 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  createPrivateKey,
+  createPublicKey,
+  randomBytes,
+  randomInt,
+  timingSafeEqual,
+} from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { newId, type Db } from "../db";
 import { hashSecret, verifySecret } from "../crypto";
 import { HttpError } from "../domain";
+import { shortFingerprint } from "../fingerprint";
 import { PLANS, generateSigningKeys, signLicense, type LicensePayload } from "../license";
 
 const hashKey = (k: string) => createHash("sha256").update(k).digest("hex");
@@ -13,9 +21,43 @@ const LICENSE_DAYS = 30;
 export interface HqOptions {
   /** Token de la plataforma (quien opera el SaaS) para crear organizaciones y cambiar planes. */
   adminToken?: string;
+  /**
+   * Clave privada (PEM) con la que se firman las licencias. En producción viene de un secreto del entorno
+   * (`HQ_SIGNING_KEY`); sin ella se genera una en la base, solo para desarrollo.
+   */
+  signingKey?: string;
+  /** Identificador de la clave de firma (para rotarla). */
+  keyId?: string;
 }
 
-async function signingKeys(db: Db) {
+// Sin caracteres que se confundan al dictarlos (0/O, 1/I): 32 símbolos = 5 bits cada uno, 12 símbolos = 60 bits
+const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const CODE_DAYS = 7;
+const newCode = () => {
+  const raw = Array.from({ length: 12 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join(
+    "",
+  );
+  return `NODO-${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8)}`;
+};
+/** Mayúsculas y sin separadores: se tolera que lo tecleen con o sin guiones. */
+const normalizeCode = (c: string) =>
+  c
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .replace(/^NODO/, "");
+const hashCode = (c: string) =>
+  createHash("sha256")
+    .update(`nodo-activacion:${normalizeCode(c)}`)
+    .digest("hex");
+
+async function signingKeys(db: Db, opts: HqOptions) {
+  if (opts.signingKey) {
+    const priv = opts.signingKey.replace(/\\n/g, "\n");
+    const pub = createPublicKey(createPrivateKey(priv))
+      .export({ type: "spki", format: "pem" })
+      .toString();
+    return { priv, pub };
+  }
   const get = async (k: string) =>
     (
       (await db.prepare("SELECT value FROM settings WHERE key=?").get(k)) as
@@ -45,7 +87,16 @@ async function signingKeys(db: Db) {
 /** Nube / HQ (Fase 3): organizaciones aisladas, sucursales, ventas consolidadas, catálogo maestro y licencias por plan. */
 export async function hqRoutes(app: FastifyInstance, opts: HqOptions) {
   const { db } = app;
-  const keys = await signingKeys(db);
+  const keys = await signingKeys(db, opts);
+  // Intentos de activación por IP (ventana de 10 min): con 60 bits de código no es una amenaza real, pero no cuesta limitar
+  const attempts = new Map<string, number[]>();
+  const tooMany = (ip: string) => {
+    const now = Date.now();
+    const recent = (attempts.get(ip) ?? []).filter((t) => now - t < 10 * 60_000);
+    recent.push(now);
+    attempts.set(ip, recent);
+    return recent.length > 10;
+  };
 
   const isPlatformAdmin = (req: FastifyRequest) => {
     const given = Buffer.from(String(req.headers["x-hq-admin"] ?? ""));
@@ -90,6 +141,41 @@ export async function hqRoutes(app: FastifyInstance, opts: HqOptions) {
     if (!b) throw new HttpError(401, "llave_invalida");
     await db.prepare("UPDATE hq_branches SET last_seen=? WHERE id=?").run(Date.now(), b.id);
     return b;
+  };
+
+  /** Emite un código de activación nuevo para la sucursal; los anteriores sin usar dejan de valer. */
+  const issueCode = async (branchId: string) => {
+    const code = newCode();
+    const expires = Date.now() + CODE_DAYS * 86_400_000;
+    await db.transaction(async () => {
+      await db
+        .prepare("DELETE FROM hq_activation_codes WHERE branch_id=? AND used_at IS NULL")
+        .run(branchId);
+      await db
+        .prepare(
+          "INSERT INTO hq_activation_codes (id,branch_id,code_hash,expires_at,created_at) VALUES (?,?,?,?,?)",
+        )
+        .run(newId(), branchId, hashCode(code), expires, Date.now());
+    })();
+    return { code, expires_at: expires };
+  };
+
+  /** Licencia firmada de una sucursal, atada a la huella de su equipo. */
+  const licenseFor = (b: { id: string; org_id: string; plan: string }, fp: string | null) => {
+    const plan = PLANS[b.plan] ?? PLANS.gratis!;
+    const now = Date.now();
+    const payload: LicensePayload = {
+      org: b.org_id,
+      branch: b.id,
+      plan: b.plan,
+      limits: { users: plan.users, printers: plan.printers },
+      features: plan.features,
+      iat: now,
+      exp: now + LICENSE_DAYS * 86_400_000,
+      fp,
+      kid: opts.keyId,
+    };
+    return signLicense(keys.priv, payload);
   };
 
   app.get("/api/hq/public-key", async () => ({ public_key: keys.pub }));
@@ -186,17 +272,30 @@ export async function hqRoutes(app: FastifyInstance, opts: HqOptions) {
     await db
       .prepare("INSERT INTO hq_branches (id,org_id,name,key_hash,created_at) VALUES (?,?,?,?,?)")
       .run(id, s.org, name, hashKey(key), Date.now());
-    // La llave se muestra una sola vez
-    return reply.code(201).send({ id, api_key: key });
+    // La llave se muestra una sola vez. El código de activación es lo que se lleva al local: al canjearlo, el HQ entrega
+    // una llave nueva directo al equipo (la llave de aquí queda para quien integre sin activar).
+    const activation = await issueCode(id);
+    return reply.code(201).send({
+      id,
+      api_key: key,
+      activation_code: activation.code,
+      activation_expires_at: activation.expires_at,
+    });
   });
 
   app.get("/api/hq/branches", async (req) => {
     const s = orgSession(req);
-    return db
+    const rows = (await db
       .prepare(
-        "SELECT id, name, last_seen, active, created_at FROM hq_branches WHERE org_id=? ORDER BY name",
+        "SELECT id, name, last_seen, active, created_at, activated_at, fingerprint FROM hq_branches WHERE org_id=? ORDER BY name",
       )
-      .all(s.org);
+      .all(s.org)) as { fingerprint: string | null }[];
+    // La huella completa no sale del HQ; se muestra una forma corta para atender un cambio de equipo
+    return rows.map(({ fingerprint, ...r }) => ({
+      ...r,
+      activated: !!fingerprint,
+      fingerprint_short: fingerprint ? shortFingerprint(fingerprint) : null,
+    }));
   });
 
   app.patch("/api/hq/branches/:id", async (req) => {
@@ -380,17 +479,89 @@ export async function hqRoutes(app: FastifyInstance, opts: HqOptions) {
   // ---------- Licencia ----------
   app.get("/api/hq/license", async (req) => {
     const b = await branchSession(req);
-    const plan = PLANS[b.plan] ?? PLANS.gratis!;
-    const now = Date.now();
-    const payload: LicensePayload = {
-      org: b.org_id,
-      branch: b.id,
-      plan: b.plan,
-      limits: { users: plan.users, printers: plan.printers },
-      features: plan.features,
-      iat: now,
-      exp: now + LICENSE_DAYS * 86_400_000,
+    const row = (await db.prepare("SELECT fingerprint FROM hq_branches WHERE id=?").get(b.id)) as {
+      fingerprint: string | null;
     };
-    return { token: signLicense(keys.priv, payload), plan: b.plan };
+    const asked = String(req.headers["x-device-fp"] ?? "");
+    // Una sucursal activada solo recibe licencia para su equipo: otra huella exige un código nuevo
+    if (row.fingerprint && asked !== row.fingerprint)
+      throw new HttpError(403, "equipo_distinto", "Esta sucursal está activada en otro equipo");
+    return { token: licenseFor(b, row.fingerprint), plan: b.plan };
+  });
+
+  // ---------- Activación (plan 03) ----------
+  /** Código nuevo para una sucursal (cambio de equipo o código perdido). La plataforma puede hacerlo para cualquiera. */
+  app.post("/api/hq/branches/:id/activation-code", async (req) => {
+    const { id } = z.object({ id: z.string() }).parse(req.params);
+    const platform = isPlatformAdmin(req);
+    const orgId = platform ? null : owner(req).org;
+    const branch = (await db.prepare("SELECT id, org_id FROM hq_branches WHERE id=?").get(id)) as
+      | { id: string; org_id: string }
+      | undefined;
+    if (!branch || (orgId && branch.org_id !== orgId)) throw new HttpError(404, "no_encontrado");
+    return issueCode(id);
+  });
+
+  /**
+   * Canje del código desde el local (público: el código es la credencial). Un solo uso: ata la sucursal a la huella
+   * del equipo, rota la llave de la sucursal y devuelve la llave nueva y la licencia firmada.
+   */
+  app.post("/api/hq/activate", async (req) => {
+    if (tooMany(req.ip)) throw new HttpError(429, "demasiados_intentos", "Espera unos minutos");
+    const b = z
+      .object({
+        code: z.string().min(8).max(40),
+        fingerprint: z.string().regex(/^[0-9a-f]{32}$/),
+        device: z.string().max(80).optional(),
+      })
+      .parse(req.body);
+    const invalid = () =>
+      new HttpError(404, "codigo_invalido", "Código inválido, ya usado o vencido");
+    const apiKey = `bk_${randomBytes(24).toString("hex")}`;
+    let result: {
+      branch: { id: string; org_id: string; plan: string; name: string; org: string };
+    } | null = null;
+    await db.transaction(async () => {
+      const c = (await db
+        .prepare(
+          "SELECT id, branch_id, expires_at, used_at FROM hq_activation_codes WHERE code_hash=?",
+        )
+        .get(hashCode(b.code))) as
+        | { id: string; branch_id: string; expires_at: number; used_at: number | null }
+        | undefined;
+      if (!c || c.used_at || c.expires_at < Date.now()) return;
+      const br = (await db
+        .prepare(
+          "SELECT b.id, b.org_id, b.name, o.plan, o.name AS org FROM hq_branches b JOIN hq_orgs o ON o.id=b.org_id WHERE b.id=? AND b.active=1 AND o.active=1",
+        )
+        .get(c.branch_id)) as
+        | { id: string; org_id: string; plan: string; name: string; org: string }
+        | undefined;
+      if (!br) return;
+      const used = await db
+        .prepare("UPDATE hq_activation_codes SET used_at=? WHERE id=? AND used_at IS NULL")
+        .run(Date.now(), c.id);
+      if (used.changes === 0) return; // otra solicitud lo canjeó primero
+      await db
+        .prepare("UPDATE hq_branches SET fingerprint=?, activated_at=?, key_hash=? WHERE id=?")
+        .run(b.fingerprint, Date.now(), hashKey(apiKey), br.id);
+      await db
+        .prepare(
+          "INSERT INTO hq_activations (id,branch_id,fingerprint,device,ip,created_at) VALUES (?,?,?,?,?,?)",
+        )
+        .run(newId(), br.id, b.fingerprint, b.device ?? null, req.ip, Date.now());
+      result = { branch: br };
+    })();
+    if (!result) throw invalid();
+    const { branch } = result as {
+      branch: { id: string; org_id: string; plan: string; name: string; org: string };
+    };
+    return {
+      api_key: apiKey,
+      token: licenseFor(branch, b.fingerprint),
+      plan: branch.plan,
+      org: branch.org,
+      branch: branch.name,
+    };
   });
 }

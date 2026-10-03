@@ -743,4 +743,31 @@ INSERT INTO recipe_categories (id, name, sort) VALUES
   (lower(hex(randomblob(12))), 'Postres', 3);
 `,
   },
+  {
+    id: 11,
+    name: "licencias_activacion",
+    sql: `
+-- Licencias atadas al equipo: la sucursal se activa con un código de un solo uso y queda ligada a la huella de su equipo
+ALTER TABLE hq_branches ADD COLUMN fingerprint TEXT;
+ALTER TABLE hq_branches ADD COLUMN activated_at INTEGER;
+CREATE TABLE hq_activation_codes (
+  id TEXT PRIMARY KEY,
+  branch_id TEXT NOT NULL REFERENCES hq_branches(id),
+  code_hash TEXT NOT NULL UNIQUE,
+  expires_at INTEGER NOT NULL,
+  used_at INTEGER,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX idx_hq_codes_branch ON hq_activation_codes(branch_id);
+-- Bitácora de activaciones (quién, cuándo y con qué huella): sirve para atender un cambio de equipo
+CREATE TABLE hq_activations (
+  id TEXT PRIMARY KEY,
+  branch_id TEXT NOT NULL REFERENCES hq_branches(id),
+  fingerprint TEXT NOT NULL,
+  device TEXT,
+  ip TEXT,
+  created_at INTEGER NOT NULL
+);
+`,
+  },
 ];

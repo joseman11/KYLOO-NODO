@@ -1,6 +1,6 @@
 # Plan 02 — Empaquetado, instalación y primer arranque
 
-> **Etapa cerrada** (2026-10-03, rama `feature/sesion-autonoma-2026-10-03`). Continúa a [`PLAN-01`](PLAN-01-LINEA-BASE-Y-CALIDAD.md). Resuelve las decisiones D5 (cierre) y D7 de [`PLAN-00`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) y los hallazgos E18, E19, E20 y E21 de [`ESTADO-ACTUAL`](ESTADO-ACTUAL.md).
+> **Etapa cerrada** (2026-10-03, rama `feature/fundacion`). Continúa a [`PLAN-01`](PLAN-01-LINEA-BASE-Y-CALIDAD.md). Resuelve las decisiones D5 (cierre) y D7 de [`PLAN-00`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) y los hallazgos E18, E19, E20 y E21 de [`ESTADO-ACTUAL`](ESTADO-ACTUAL.md).
 >
 > 🤖 Sesión autónoma (el dueño duerme): lo abierto lo decide la sesión y queda en el Registro.
 >

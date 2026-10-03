@@ -61,11 +61,11 @@ Dos commits del 2026-10-01 sobre `main`, 64 archivos (+2965 −2312):
 - `f4fb335` — **Capa de datos asíncrona (`Store`)** con motor SQLite: toda la aplicación pasa de la API síncrona de `better-sqlite3` a una interfaz asíncrona (`prepare().get/all/run`, `exec`, `transaction`).
 - `64cce7d` — **Motor PostgreSQL** (`pg`): un **esquema por restaurante** en una base compartida (`search_path` fijo por conexión), dialecto SQL portable y migraciones propias (`store/pg*.ts`). La suite completa pasa en SQLite y en PostgreSQL (`NODO_PG_URL`).
 
-Es decir, es la base técnica para correr **el mismo código** en el local (SQLite) y en una nube multi-restaurante (PostgreSQL). No incluye despliegue, interfaz web de nube ni sincronización de datos; solo la abstracción de datos y el segundo motor. Integrada en `feature/sesion-autonoma-2026-10-03` (merge `e6c9057`). Verificada: **350 pruebas de servidor en SQLite y 351 en PostgreSQL 16**. Sus cambios a las e2e no eran la causa de los rojos (esos eran de entorno, `CLAUDE.md` trampa 4). Lo que **aún no incluye:** despliegue, sincronización de datos ni interfaz de nube.
+Es decir, es la base técnica para correr **el mismo código** en el local (SQLite) y en una nube multi-restaurante (PostgreSQL). No incluye despliegue, interfaz web de nube ni sincronización de datos; solo la abstracción de datos y el segundo motor. Integrada en `feature/fundacion` (merge `e6c9057`). Verificada: **350 pruebas de servidor en SQLite y 351 en PostgreSQL 16**. Sus cambios a las e2e no eran la causa de los rojos (esos eran de entorno, `CLAUDE.md` trampa 4). Lo que **aún no incluye:** despliegue, sincronización de datos ni interfaz de nube.
 
 ## 6. Verificación
 
-**Al 2026-10-03, tras el plan 01** (rama `feature/sesion-autonoma-2026-10-03`):
+**Al 2026-10-03, tras el plan 01** (rama `feature/fundacion`):
 
 | Chequeo | Resultado |
 |---|---|
