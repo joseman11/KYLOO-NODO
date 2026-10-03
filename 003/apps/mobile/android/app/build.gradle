@@ -7,8 +7,9 @@ android {
         applicationId "mx.com.kyloo.nodo"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // Los pone scripts/build-apk.mjs desde la versión del servidor (1.2.3 → código 10203)
+        versionCode = (System.getenv("NODO_VERSION_CODE") ?: "1").toInteger()
+        versionName = System.getenv("NODO_VERSION_NAME") ?: "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +17,20 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Firma de entrega: la llave NO está en el repositorio; se pasa por variables de entorno (ver docs/deploy/APP-TABLET.md)
+    signingConfigs {
+        release {
+            if (System.getenv("NODO_KEYSTORE")) {
+                storeFile file(System.getenv("NODO_KEYSTORE"))
+                storePassword System.getenv("NODO_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("NODO_KEY_ALIAS")
+                keyPassword System.getenv("NODO_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
+            if (System.getenv("NODO_KEYSTORE")) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

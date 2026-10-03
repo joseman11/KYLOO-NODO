@@ -23,7 +23,19 @@ cd 003/apps/mobile
 JAVA_HOME=<JDK 21> ANDROID_HOME=~/Library/Android/sdk node scripts/build-apk.mjs      # → dist/nodo-<v>-debug.apk
 ```
 
-Compila la interfaz, la copia al proyecto Android (`cap sync`) y corre Gradle. Para entregar: `--release` con las variables `NODO_KEYSTORE`, `NODO_KEYSTORE_PASSWORD`, `NODO_KEY_ALIAS`, `NODO_KEY_PASSWORD`.
+Compila la interfaz, la copia al proyecto Android (`cap sync`) y corre Gradle. ## APK firmado (entrega)
+
+La llave de firma **ya existe**: `~/.nodo-keys/android/nodo-release.jks` (RSA 4096, válida 10 000 días) con sus variables en `~/.nodo-keys/android/signing.env` (permisos 600, fuera del repositorio). Para generar el APK de entrega:
+
+```bash
+source ~/.nodo-keys/android/signing.env
+JAVA_HOME=<JDK 21> ANDROID_HOME=~/Library/Android/sdk node scripts/build-apk.mjs --release   # → dist/nodo-<v>-release.apk
+$ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs dist/nodo-<v>-release.apk
+```
+
+Huella (SHA-256) del certificado: `74d60a73…5284df`. El `versionCode` sale de la versión del servidor (`1.2.3` → `10203`).
+
+⚠️ **Haz copia fuera de línea de `~/.nodo-keys/android/`.** Android solo permite actualizar una app con la **misma llave** con la que se instaló: si se pierde, las tablets de los clientes habría que reinstalarlas desde cero. El APK de entrega no es depurable (no sirve para `emulator-test.mjs`: para probar usa el de depuración).
 
 ## Probar en un emulador o tablet por USB
 
@@ -49,8 +61,7 @@ En el emulador **«7in WSVGA (Tablet)»** (1024×600, 2 núcleos y 2 GB de RAM; 
 ## Qué falta
 
 - 🔴 **Probar en una tableta física económica** (táctil real, WiFi del local, rendimiento).
-- 🟠 **APK firmado** para entregar (llave de firma de la app) y, más adelante, publicación en Play Store si se quiere.
-- 🟠 **Icono y pantalla de inicio** propios (hoy son los de Capacitor).
+- ✅ **APK firmado** y **icono y pantalla de inicio** propios (2026-10-03). Falta, si se quiere, publicar en Play Store.
 - 🟡 **Escaneo del QR** de *Conectar* desde la app (hoy se escribe la dirección). Requiere el servicio de Google en la tablet o una biblioteca propia.
 - 🟡 **iOS:** necesita Xcode y cuenta de Apple Developer; se hace cuando un cliente lo pida.
 - 🟡 **Modo quiosco** (que la tablet no salga de la app): se configura con el «anclaje de pantalla» de Android o un gestor de dispositivos; no lo hace la app.

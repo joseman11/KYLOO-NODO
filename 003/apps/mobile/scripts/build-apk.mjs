@@ -28,6 +28,10 @@ if (release && !process.env.NODO_KEYSTORE)
   throw new Error("Falta NODO_KEYSTORE para firmar el APK de entrega");
 
 const version = JSON.parse(readFileSync(join(ROOT, "apps/server/package.json"), "utf8")).version;
+// versionCode estable y creciente: 1.2.3 → 10203
+const [maj, min, pat] = version.split(".").map(Number);
+process.env.NODO_VERSION_NAME = version;
+process.env.NODO_VERSION_CODE = String((maj ?? 0) * 10000 + (min ?? 0) * 100 + (pat ?? 0));
 console.log("▸ compilando la interfaz web");
 run("npx", ["-y", "pnpm@11.21.0", "--filter", "@003/web", "build"], ROOT);
 console.log("▸ copiando la interfaz al proyecto Android");
