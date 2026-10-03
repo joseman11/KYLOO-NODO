@@ -90,3 +90,10 @@ Con autorización del dueño se generó la **clave de producción** de licencias
 - **Deuda de accesibilidad:** avisos de lint de 566 a 44 (ventanas modales accesibles y `type="button"` en 299 botones).
 - **Cifras finales:** 491 pruebas de servidor en SQLite y 492 en PostgreSQL (+ 6 de `shared`), 4 del empaquetado, e2e completas en verde, typecheck limpio.
 - **Cuidado:** la reserva promovida corre en plan gratuito hasta activarla con un código nuevo (la licencia va atada al equipo).
+
+## Actualización final 2: rediseño UX/UI (`PLAN-08`)
+- Auditoría con capturas, sistema visual v2 (`docs/DESIGN.md`) y rediseño de todos los módulos: estados con icono + palabra, un solo naranja para la acción, ayuda de una línea en cada pantalla, 13 borrados con confirmación, cocina sin `prompt()`, cada rol entra a su pantalla (antes, al recargar, cocina caía en «Mesas»).
+- Medido: `axe-core` WCAG 2.1 AA con cero hallazgos serios en 9 pantallas; `sin-scroll` de 1024×600 a 800×1100; e2e 129/129; servidor 491/492.
+- **Para ver el rediseño en la tablet hay que reconstruir el APK** (`node scripts/build-apk.mjs --release`): la interfaz va dentro de la app.
+- **Lo que solo tú puedes confirmar:** que un mesero nuevo abra una mesa y cobre en 5 minutos sin explicación. Observa a alguien y apunta dónde duda.
+- `railway.json`: **no hace falta que lo migres tú**. Railway lo marca obsoleto (sigue funcionando hasta 2026-12-01). `railway config migrate` genera una definición que renombraría los servicios y perdería la política de reinicio; lo haré con `railway config plan` antes de aplicarlo, con tu visto bueno, porque toca el servicio en producción.
