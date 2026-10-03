@@ -630,6 +630,14 @@ describe("activación de una sucursal con código", () => {
     });
   });
 
+  it("el estado de la nube publica los días de gracia para el aviso de vencimiento", async () => {
+    const local = await makeLocal(FP_A);
+    await local.call("POST", "/api/license/activate", { code });
+    const st = (await local.call("GET", "/api/cloud/status")).json();
+    expect(st.grace_days).toBe(GRACE_DAYS);
+    expect(st.license.expires_at).toBeGreaterThan(Date.now());
+  });
+
   it("el HQ firma con la clave del entorno y su clave pública coincide", async () => {
     const pub = (await hqApp.inject({ method: "GET", url: "/api/hq/public-key" })).json()
       .public_key;

@@ -124,6 +124,19 @@ describe("activar con un código", () => {
       20_000,
     );
     expect(await hasText(ctx.page, "todavía no está activado")).toBe(false);
+    // la barra superior avisa que la suscripción vence (la prueba usa una licencia de 30 días)
+    await ctx.page.reload({ waitUntil: "networkidle0" });
+    await until(
+      async () => (await hasText(ctx.page, "Tu suscripción vence en")) || null,
+      "aviso de vencimiento",
+      20_000,
+    );
+    expect(await hasText(ctx.page, "Cerrar por hoy")).toBe(true);
+    await tap(ctx.page, "Cerrar por hoy", "button");
+    await until(
+      async () => !(await hasText(ctx.page, "Tu suscripción vence en")) || null,
+      "aviso cerrado",
+    );
     const lic = (await nodo.db.prepare("SELECT value FROM settings WHERE key='license'").get()) as
       | { value: string }
       | undefined;

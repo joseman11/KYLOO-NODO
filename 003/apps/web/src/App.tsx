@@ -21,6 +21,7 @@ import {
 import { Icon } from "./icons";
 import { NodoMark } from "./Logo";
 import { ROLE_LABEL, UserAvatar } from "./Avatar";
+import { LicenseNotice } from "./views/LicenseNotice";
 import { Login } from "./views/Login";
 import { ServerSetup } from "./views/ServerSetup";
 import { Floor } from "./views/Floor";
@@ -275,6 +276,7 @@ function Staff() {
             Salir
           </button>
         </div>
+        <LicenseNotice />
         {pending > 0 && (
           <div className="banner">
             {pending} operación(es) guardada(s) sin enviar — se enviarán al reconectar

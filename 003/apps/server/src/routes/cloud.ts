@@ -5,6 +5,7 @@ import { HttpError } from "../domain";
 import { hostname } from "node:os";
 import { machineFingerprint, shortFingerprint } from "../fingerprint";
 import {
+  GRACE_DAYS,
   type LicensingContext,
   OPEN_LICENSING,
   getLicense,
@@ -357,6 +358,8 @@ export async function cloudRoutes(app: FastifyInstance, opts: { http: HttpLike }
     const fp = app.licensing.fingerprint ?? (await machineFingerprint());
     return {
       mode: app.licensing.mode,
+      // Días de gracia tras vencer: la pantalla los usa para avisar cuánto falta para perder funciones
+      grace_days: GRACE_DAYS,
       fingerprint: fp ? shortFingerprint(fp) : null,
       linked: !!(await setting(db, "hq_url")),
       url: (await setting(db, "hq_url")) ?? null,

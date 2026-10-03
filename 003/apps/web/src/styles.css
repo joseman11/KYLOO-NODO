@@ -634,6 +634,10 @@ input[type="checkbox"] {
   padding-right: 4px;
 }
 .banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   flex: none;
   padding: 10px 16px;
   border-radius: 14px;
@@ -641,6 +645,10 @@ input[type="checkbox"] {
   color: var(--warn);
   font-weight: 600;
   font-size: 14px;
+}
+.banner[data-license-notice="urgente"] {
+  background: var(--ember, #ff5900);
+  color: #fff;
 }
 .nav {
   flex: none;
