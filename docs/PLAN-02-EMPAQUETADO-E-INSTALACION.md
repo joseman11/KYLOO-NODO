@@ -1,6 +1,6 @@
 # Plan 02 — Empaquetado, instalación y primer arranque
 
-> **Etapa abierta** (2026-10-03, rama `feature/sesion-autonoma-2026-10-03`). Continúa a [`PLAN-01`](PLAN-01-LINEA-BASE-Y-CALIDAD.md). Resuelve las decisiones D5 (cierre) y D7 de [`PLAN-00`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) y los hallazgos E18, E19, E20 y E21 de [`ESTADO-ACTUAL`](ESTADO-ACTUAL.md).
+> **Etapa cerrada** (2026-10-03, rama `feature/sesion-autonoma-2026-10-03`). Continúa a [`PLAN-01`](PLAN-01-LINEA-BASE-Y-CALIDAD.md). Resuelve las decisiones D5 (cierre) y D7 de [`PLAN-00`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) y los hallazgos E18, E19, E20 y E21 de [`ESTADO-ACTUAL`](ESTADO-ACTUAL.md).
 >
 > 🤖 Sesión autónoma (el dueño duerme): lo abierto lo decide la sesión y queda en el Registro.
 >
@@ -56,14 +56,14 @@ Resumen: que instalar Nodo en el local sea un proceso corto, repetible y sin her
 
 ## 4. Orden
 
-- [ ] **F2.1 — `node:sqlite` en lugar de `better-sqlite3`.** Se comprueba con las 350 pruebas y la de PostgreSQL.
-- [ ] **F2.2 — Configuración central y carpeta de datos** (`config.ts`), versión visible en `/api/health`.
-- [ ] **F2.3 — Registros con rotación, apagado ordenado y errores no capturados.**
-- [ ] **F2.4 — Asistente de primer arranque** (servidor, pantalla y pruebas, también e2e).
-- [ ] **F2.5 — Copia antes de migrar.**
-- [ ] **F2.6 — Construcción del paquete** (`packaging/`): bundle, ensamblado, prueba de humo del paquete en esta máquina.
-- [ ] **F2.7 — Artefactos de Windows** (WinSW, scripts, NSIS si es posible) y `docs/deploy/INSTALACION.md`.
-- [ ] **F2.8 — Cierre.**
+- [x] **F2.1 — `node:sqlite` en lugar de `better-sqlite3`.** `9bccb89`.
+- [x] **F2.2 — Configuración central y carpeta de datos** (`config.ts`), versión visible en `/api/health`. `0b9aafe`.
+- [x] **F2.3 — Registros con rotación, apagado ordenado y errores no capturados.** `0b9aafe`.
+- [x] **F2.4 — Asistente de primer arranque** (servidor, pantalla y pruebas, también e2e). `0cde153`.
+- [x] **F2.5 — Copia antes de migrar.** `0b9aafe`.
+- [x] **F2.6 — Construcción del paquete** (`packaging/`): bundle, ensamblado, prueba de humo del paquete en esta máquina.
+- [x] **F2.7 — Artefactos de Windows** (WinSW, scripts, NSIS) y `docs/deploy/INSTALACION.md`. **Sin probar en Windows.**
+- [x] **F2.8 — Cierre.**
 
 ## 5. Decidido con el dueño
 
@@ -71,4 +71,30 @@ Resumen: que instalar Nodo en el local sea un proceso corto, repetible y sin her
 
 ## 6. Registro
 
-*(se rellena al cerrar cada fase)*
+- **2026-10-03 (noche, sesión autónoma)** — Cierre del plan.
+  - **Hecho:** F2.1 a F2.8.
+  - **Medido:**
+    - Servidor empaquetado en macOS: **94 MB de RAM** en reposo; `node` 110 MB + `server.mjs` 2.8 MB + app web; paquete de **132 MB en disco y 39 MB comprimido**. Windows: 118 MB en disco, **ZIP de 42 MB y `Nodo-Setup-0.1.0.exe` de 30 MB**.
+    - Suite de servidor con `node:sqlite`: 376 en SQLite y 376 en PostgreSQL (duración igual que con `better-sqlite3`: 12–13 s). e2e: **97/97** (con las 5 nuevas del asistente).
+    - Prueba de humo del paquete (`smoke.mjs`): salud y versión, instalación nueva, alta, acceso, **apagado con SIGTERM (código 0, registrado)** y reinicio sin perder datos.
+    - Scripts de Windows: sintaxis verificada con el analizador de PowerShell 7.4 (descargado en el scratchpad) y sustitución del puerto en el XML probada.
+  - **Salió por el camino:**
+    - Vitest (Vite) reescribe `node:sqlite` a «sqlite»: el adaptador carga el módulo con `process.getBuiltinModule` (`CLAUDE.md`, trampa 12).
+    - El `define` de esbuild no veía `env.NODO_VERSION`: la versión empaquetada salía «dev»; ahora se lee `process.env.NODO_VERSION` literal al cargar el módulo.
+    - Fastify 5.12 deprecó `disableRequestLogging` (hay que usar `logController`) y con esa opción **tampoco registra los errores 5xx**: se registran a mano en el manejador de errores.
+    - 🔴 **Riesgo hallado y corregido:** el respaldo «al arrancar» + retención de 14 hacía que un servicio que se reinicia en bucle **desplazara los respaldos buenos con copias idénticas**. Ahora solo respalda al arrancar si el último automático tiene más de 12 h y las copias previas a migrar tienen su propia retención (5).
+    - La `.exe` de WinSW 2.12 pesa 18 MB (autocontenida, no exige .NET): se fijó su SHA-256.
+    - No existen imágenes arm64 de PowerShell en Docker; se usó el tarball de macOS.
+  - **Decisiones tomadas por la sesión:** D2.1 a D2.6 del plan (con las recomendaciones del plan 00); además, se **eliminó `003/scripts/install-windows-service.ps1`** (sembraba claves de fábrica y exigía código fuente) y la acción de firewall limita a la red local en cualquier perfil (Windows suele marcar la red de un local como «Pública»).
+  - **Encontrado de paso, anterior a esta etapa y sin arreglar aquí:**
+    - Un error 500 devuelve `err.message` al cliente (puede filtrar texto interno). Revisar en el plan de seguridad.
+    - `GET /api/auth/users` es público (nombre, rol y foto de cada usuario) por diseño del login por PIN; el bloqueo por intentos es por usuario, no por IP.
+  - **Estado de la máquina:** `makensis` instalado con Homebrew (`/opt/homebrew/bin/makensis`) para generar el `.exe`; PowerShell portable en el scratchpad; contenedor `nodo-pg` en marcha.
+
+### Cómo retomarlo
+Plan 02 cerrado. Seguir con `PLAN-03` (licencias y activación).
+
+### Pendiente
+- 🔴 **Instalación real en una PC con Windows** (instalador, servicio, reinicio tras caída, firewall, actualización sobre una instalación previa).
+- 🟠 Firmar el instalador (certificado de firma de código).
+- 🟡 Apagado ordenado en Windows (WinSW termina el proceso; SQLite lo tolera).

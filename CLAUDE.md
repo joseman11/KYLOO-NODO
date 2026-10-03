@@ -11,7 +11,9 @@
 
 | Documento | Estado | Cuándo consultarlo |
 |---|---|---|
-| [`docs/PLAN-01-LINEA-BASE-Y-CALIDAD.md`](docs/PLAN-01-LINEA-BASE-Y-CALIDAD.md) | **Etapa abierta** (2026-10-03), sesión autónoma | Línea base verde, `nube-web` integrada y herramientas de calidad. |
+| [`docs/PLAN-02-EMPAQUETADO-E-INSTALACION.md`](docs/PLAN-02-EMPAQUETADO-E-INSTALACION.md) | **Etapa abierta** (2026-10-03), sesión autónoma | Antes de tocar el arranque del servidor, la base local o el instalador. |
+| [`docs/deploy/INSTALACION.md`](docs/deploy/INSTALACION.md) | Vivo | Cómo se instala, actualiza y desinstala Nodo; cómo construir el paquete. |
+| [`docs/PLAN-01-LINEA-BASE-Y-CALIDAD.md`](docs/PLAN-01-LINEA-BASE-Y-CALIDAD.md) | **Cerrado** (2026-10-03) | Para saber por qué `nube-web` está integrada y cómo se diagnosticaron los rojos de e2e. |
 | [`docs/PLAN-00-ESTRUCTURA-DE-TRABAJO.md`](docs/PLAN-00-ESTRUCTURA-DE-TRABAJO.md) | **Etapa abierta** (2026-10-03), en conversación con el dueño | **Antes de hacer nada.** Es el plan vivo: léelo entero. No se escribe código de producto hasta que sus decisiones estén cerradas. |
 | [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md) | Vivo | Antes de proponer algo: qué existe, qué mide, qué está roto, qué deuda hay. |
 | [`STRUCTURE.md`](STRUCTURE.md) | Vivo | **Antes de crear un archivo nuevo.** |
@@ -46,6 +48,9 @@
 9. ⚠️ **El formateador de Biome no es idempotente a la primera** en cadenas de métodos (`reply.code().send()`): tras formatear en masa, repetir `biome format --write` hasta que diga «No fixes applied». El hook `pre-commit` lo detecta.
 10. ⚠️ **Los commits pasan por commitlint** (`.husky/commit-msg`): el tipo debe ser uno de la skill. Un merge usa el mensaje que genera git («Merge branch…»), que commitlint ignora.
 11. ⚠️ **La suite de servidor en PostgreSQL necesita un contenedor** y se salta sola si no hay `NODO_PG_URL` (`pg-smoke.test.ts`; con la variable cada «base en memoria» es un esquema nuevo). Ver «Comandos».
+12. ⚠️ **SQLite local es `node:sqlite` (Node ≥ 24), no `better-sqlite3`** (plan 02, D2.1). Dos trampas: Vitest reescribe `import "node:sqlite"` a `sqlite` y falla, por eso `store/sqlite.ts` usa `process.getBuiltinModule("node:sqlite")`; y `node:sqlite` solo acepta `null`, números, texto y binarios (el adaptador convierte booleanos y `undefined`). Imprime un `ExperimentalWarning`: el paquete lo silencia con `--disable-warning=ExperimentalWarning`.
+13. ✅ **Una instalación nueva no se siembra** (`seed` y `seed:demo` son solo de desarrollo): el asistente de `/api/setup` crea al administrador. No reintroducir claves de fábrica.
+14. ⚠️ **Los respaldos automáticos se llaman `003-…` y las copias previas a migrar `pre-migracion-…`** y tienen retención distinta (14 y 5): no mezclar sus prefijos (`routes/reports.ts`, `db.ts`).
 
 ## Estado
 
@@ -64,7 +69,12 @@ p --filter @003/shared --filter @003/server test      # unitarias en SQLite: ~13
 p --filter @003/web build                # obligatorio antes de servir o de las e2e
 p --filter @003/server seed              # datos mínimos (admin / admin1234; PIN 1111, 2222, 3333)
 p --filter @003/server seed:demo         # demo de mariscos (usa DB_FILE y PHOTOS_DIR propios)
-p --filter @003/server start             # http://<ip>:3003
+p --filter @003/server start             # http://<ip>:3003 (sin base: arranca el asistente de primer arranque)
+
+# Paquete instalable (ver docs/deploy/INSTALACION.md):
+p --filter @003/packaging build                       # plataforma actual
+p --filter @003/packaging build -- --platform win32 --arch x64   # ZIP + Nodo-Setup-<v>.exe (necesita makensis)
+p --filter @003/packaging smoke                       # prueba de humo del paquete
 
 # Suite de servidor en PostgreSQL (en lote; ~2 min):
 docker run -d --name nodo-pg -e POSTGRES_PASSWORD=nodo -e POSTGRES_DB=nodo_test -p 5433:5432 postgres:16-alpine

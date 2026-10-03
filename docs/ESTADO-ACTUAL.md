@@ -27,7 +27,7 @@ Impresoras térmicas
 
 | Pieza | Tecnología | Tamaño (2026-10-03) |
 |---|---|---|
-| `003/apps/server` | Fastify 5, `better-sqlite3` 13, `@fastify/jwt`, `@fastify/websocket`, Zod, scrypt | 7.5k líneas, 51 archivos, 26 módulos de rutas, 62 tablas, 10 migraciones |
+| `003/apps/server` | Fastify 5, `node:sqlite` (SQLite 3.53, Node ≥ 24), `@fastify/jwt`, `@fastify/websocket`, Zod, scrypt | 7.5k líneas, 51 archivos, 26 módulos de rutas, 62 tablas, 10 migraciones |
 | `003/apps/web` | React 19, Vite 8, PWA (`sw.js` solo en contexto seguro), sin librería de UI | 5.2k líneas, 40 archivos, 28 vistas |
 | `003/packages/shared` | Permisos, máquina de estados de comanda, motor de rutas | 220 líneas |
 | Pruebas de servidor | Vitest, base `:memory:` | 3.8k líneas, 13 archivos, 350 pruebas |
@@ -102,10 +102,10 @@ Es decir, es la base técnica para correr **el mismo código** en el local (SQLi
 | E15 | 🟠 | **El servidor del local es punto único de falla.** Hay reinicio automático (tarea programada, 999 reintentos cada minuto) pero no hay servidor de reserva, ni restauración guiada, ni aviso a los dispositivos de «servidor caído» más allá de la reconexión del WebSocket. |
 | E16 | 🟠 | **Impresión: decidido que todas serán de red (2026-10-03), así que USB no es requisito** (`PLAN-FASE1` lo prometía; no existe y no se construye). **Falta apertura de cajón** (pulso ESC/POS por la impresora), descubrimiento de impresoras en la red (escaneo del puerto 9100 y asignación de IP fija) y estado visible por impresora. **Sin evidencia de prueba con impresora física en este repo** (las pruebas usan `FakeTransport`). |
 | E17 | 🟡 | **Sin descubrimiento del servidor** (mDNS `nodo.local`, QR de acceso): `PLAN-FASE1` lo prometía; hoy se teclea la IP, que debe ser fija. |
-| E18 | 🟡 | **Sin registros ni observabilidad:** `Fastify({ logger: false })` (`app.ts:80`). Un fallo en un local no deja rastro. |
-| E19 | 🟡 | **Sin instalador ni actualizaciones:** el despliegue es un script de PowerShell sobre el código fuente (`pnpm install` en el local). Sin versión visible, sin actualización remota, sin migración guiada. |
-| E20 | 🔴 | **Credenciales por defecto en producción:** `seed` crea admin con contraseña `admin1234` si no se define `ADMIN_PASSWORD`, y meseros y caja con PIN 1111, 2222 y 3333 (`003/README.md`). El script de instalación llama al seed sin pedir nada. Una instalación real arranca con claves públicas conocidas. |
-| E21 | 🟠 | **El instalador exige código fuente y herramientas de desarrollo en el equipo del local:** `install-windows-service.ps1` hace `pnpm build` y ejecuta TypeScript con `tsx`; requiere Node, pnpm, el repositorio y conexión para instalar dependencias. El registro (`server.log`) se anexa sin rotación. |
+| E18 | ✅ | ✅ Registros en archivo con rotación (`logging.ts`), URL sin parámetros, solo 5xx y ciclo de vida (plan 02, `0b9aafe`). |
+| E19 | 🟡 | 🟡 Parcial: hay paquete instalable, instalador `.exe` y servicio (plan 02); falta probarlo en Windows, firmarlo y la actualización remota desde la nube. |
+| E20 | ✅ | ✅ Sin claves de fábrica: asistente de primer arranque, el seed quedó solo para desarrollo (plan 02, `0cde153`). |
+| E21 | ✅ | ✅ Paquete con Node oficial + un solo archivo JS, sin código fuente ni herramientas (plan 02). Falta probarlo en Windows real. |
 | E22 | 🔴 | **La licencia no resiste a un usuario con intención** (verificado en `license.ts` y `routes/cloud.ts`): la firma (Ed25519) es correcta, pero (1) la clave pública se guarda en la tabla `settings` del propio SQLite (`hq_public_key`) y se descarga del HQ cuya URL teclea el usuario: quien monte su HQ propio firma sus licencias; (2) sin licencia o sin clave, `getLicense` devuelve `null` = **sin límites** (E9): borrar la fila basta; (3) el código llega en claro (TypeScript con `tsx`) y se parchea con un editor; (4) no está atada al equipo, así que se copia entre locales. Aplica a todo software instalado en el cliente; ver D13. |
 | E12 | ⚪ | Sin auditoría de seguridad, de rendimiento ni de uso real (ninguno de los tres se ha hecho). |
 

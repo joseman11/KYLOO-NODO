@@ -2,31 +2,28 @@
 
 Servidor local (Node + SQLite) + PWA para tablets, pantallas táctiles, caja y KDS. Funciona sin Internet: todo viaja por la red local (WiFi o Ethernet) y las impresoras térmicas se alcanzan por TCP 9100 desde el servidor.
 
-## Arranque
+## Arranque (desarrollo)
 ```bash
-pnpm install
+pnpm install                          # Node 24 o superior; pnpm 11.21 (ver ../CLAUDE.md)
 pnpm --filter @003/web build          # compila la PWA
-pnpm --filter @003/server seed        # datos de ejemplo (admin / ADMIN_PASSWORD o admin1234; meseros PIN 1111, 2222; caja 3333)
-pnpm --filter @003/server start       # http://<ip-del-servidor>:3003
+pnpm --filter @003/server start       # http://<ip-del-servidor>:3003 — sin base, abre el asistente de primer arranque
+pnpm --filter @003/server seed        # solo desarrollo: datos de ejemplo (admin / ADMIN_PASSWORD o admin1234; PIN 1111, 2222, 3333)
+pnpm --filter @003/server seed:demo   # solo desarrollo y demos: marisquería de ejemplo
 ```
-Las tablets abren `http://<ip-del-servidor>:3003`. Variables: `PORT`, `HOST`, `DB_FILE`, `BACKUP_DIR`, `WEB_DIR`.
+Las tablets abren `http://<ip-del-servidor>:3003`. Variables: `NODO_DATA_DIR` (carpeta de datos: base, fotos, respaldos y registros), `PORT`, `HOST`, `NODO_LOG_LEVEL`, y las rutas sueltas `DB_FILE`, `BACKUP_DIR`, `PHOTOS_DIR`, `LOG_DIR`, `WEB_DIR`.
 
 ## Pruebas
 `pnpm test` · `pnpm typecheck`
 
 Documentación del proyecto (planes, estado, diseño): [`../docs/`](../docs/README.md).
 
-## Instalar en el equipo del local (Windows)
-Con una IP fija para el equipo, en PowerShell como Administrador:
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\install-windows-service.ps1
-```
-Crea la tarea `003-comandas` (arranca con Windows y se reinicia sola) y abre el puerto en la red privada.
+## Instalar en el equipo del local
+Se instala con un paquete sin herramientas de desarrollo: `Nodo-Setup-<versión>.exe` en Windows (servicio que arranca con el equipo y se reinicia solo). Procedimiento, actualización, desinstalación y cómo construir el paquete: [`../docs/deploy/INSTALACION.md`](../docs/deploy/INSTALACION.md). Una instalación nueva no trae usuarios ni claves: el asistente de primer arranque crea al administrador.
 
 ## Fase 2 (resumen)
 Inventario y recetas (descuento al enviar la comanda), proveedores y compras, descuentos con autorización y promociones (2x1, happy hour…), clientes, reservaciones, pedidos para llevar y delivery, "listos para entregar" y menú QR por mesa. Detalle y decisiones en `../docs/PLAN-FASE2.md`.
 
-Al actualizar, la base se migra sola al arrancar el servidor (migración 3). Conviene hacer un backup antes: Administración → "Backup ahora".
+Al actualizar, la base se migra sola al arrancar el servidor y, antes de migrar, se copia a `backups/pre-migracion-…sqlite`.
 
 ## Fase 3 (resumen)
 Analítica avanzada, integraciones (pedidos por API + webhooks firmados), sincronización offline por lotes, facturación electrónica con proveedor de timbrado conectable, nube HQ multi-organización y planes con licencia firmada. Decisiones y límites en `../docs/PLAN-FASE3.md`.

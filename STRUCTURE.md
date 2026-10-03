@@ -19,7 +19,7 @@ KYLOO-NODO/
 │  │  └─ e2e/           pruebas de navegador (puppeteer-core + Vitest)
 │  ├─ packages/
 │  │  └─ shared/        permisos, máquina de estados de comanda, motor de rutas (lo usan server y web)
-│  └─ scripts/          instalador del servicio de Windows
+│  └─ packaging/        construye el paquete instalable (build.mjs), su prueba de humo (smoke.mjs) y las plantillas de Windows
 └─ landing/             página de venta (Next.js 15), se despliega sola en Railway
    ├─ app/              página y estilos
    ├─ components/       video en bucle, olas WebGL, formulario
@@ -38,6 +38,9 @@ KYLOO-NODO/
 | Una prueba de servidor | `003/apps/server/test/<tema>.test.ts` |
 | Una prueba de navegador | `003/apps/e2e/tests/<tema>.test.ts` (reutiliza `harness.ts`) |
 | Un plan, auditoría, guion, investigación, decisión | `docs/` (ver `docs/README.md` para nombres) |
+| Un procedimiento de instalación o despliegue | `docs/deploy/` |
+| Configuración leída del entorno (rutas, puertos) | `003/apps/server/src/config.ts` (un solo sitio) |
+| Registros del servidor | `003/apps/server/src/logging.ts` |
 | Una trampa que ya mordió | `CLAUDE.md`, sección «Trampas» |
 | Un video o captura de la landing | `landing/public/` (los videos se generan desde `landing/video-src/`) |
 | Secretos, bases de datos, respaldos | **Nunca al repo** (`.gitignore`: `**/data/`, `*.sqlite*`, `.env*`) |
