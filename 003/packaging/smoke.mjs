@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const version = JSON.parse(readFileSync(join(HERE, "../apps/server/package.json"), "utf8")).version;
 const pkg = resolve(
-  process.argv[2] ?? join(HERE, "dist", `nodo-${version}-${process.platform}-${process.arch}`),
+  process.argv[2] ?? join(HERE, "dist", `nodo-${version}-dev-${process.platform}-${process.arch}`),
 );
 if (!existsSync(join(pkg, "app/server.mjs"))) throw new Error(`No es un paquete de Nodo: ${pkg}`);
 
@@ -85,6 +85,22 @@ try {
   const login = await post("/api/auth/login", { username: "admin", password: "clave-de-prueba-9" });
   assert.equal(login.status, 200);
   ok("alta del administrador y acceso");
+
+  // El modo de licencia del paquete coincide con lo que dice su VERSION y, sin activar, no impide operar
+  const expected = /producción/.test(readFileSync(join(pkg, "VERSION"), "utf8"))
+    ? "enforced"
+    : "open";
+  const status = await json("/api/cloud/status", {
+    headers: { authorization: `Bearer ${login.body.token}` },
+  });
+  assert.equal(status.body.mode, expected, "el modo de licencia no es el esperado");
+  if (expected === "enforced") {
+    assert.equal(status.body.license?.restricted, true, "sin activar debe quedar restringido");
+    assert.equal(status.body.license?.plan, "gratis");
+  }
+  ok(
+    `licencia: modo ${status.body.mode}${expected === "enforced" ? " (restringido hasta activar, sin bloquear)" : ""}`,
+  );
 
   const code = await stop(child);
   assert.equal(code, 0, `apagado ordenado esperado (código 0), salió con ${code}`);

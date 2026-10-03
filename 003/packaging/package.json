@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
-    "smoke": "node smoke.mjs"
+    "smoke": "node smoke.mjs",
+    "test": "node --test",
+    "build:dev": "node build.mjs --license open"
   },
   "devDependencies": {
     "esbuild": "^0.28.0"

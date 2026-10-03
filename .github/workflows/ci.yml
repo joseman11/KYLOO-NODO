@@ -37,6 +37,9 @@ jobs:
         working-directory: 003
       - run: pnpm --filter @003/web build
         working-directory: 003
+      - name: El modo de licencia del paquete queda fijo
+        run: pnpm --filter @003/packaging test
+        working-directory: 003
 
   servidor-postgres:
     runs-on: ubuntu-latest

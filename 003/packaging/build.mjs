@@ -1,7 +1,12 @@
 /**
  * Construye el paquete instalable del servidor de Nodo para una plataforma:
  *
- *   node build.mjs [--platform win32|darwin|linux] [--arch x64|arm64] [--skip-web] [--node 24.21.0]
+ *   node build.mjs (--license-public-key <pem>[,<pem>…] | --license open) [--hq-url <url>]
+ *                  [--platform win32|darwin|linux] [--arch x64|arm64] [--skip-web] [--node 24.21.0]
+ *
+ * Licencia (obligatoria elegir): un paquete de PRODUCCIÓN lleva incrustada la clave pública de Nodo (`--license-public-key`)
+ * y exige una licencia atada al equipo; un paquete de DESARROLLO (`--license open`) no limita nada y se marca «-dev» en
+ * el nombre para no distribuirlo por error.
  *
  * Resultado en `dist/nodo-<versión>-<plataforma>-<arquitectura>/` (y su .zip/.tar.gz con suma SHA-256):
  *   node(.exe)        el Node oficial de esa plataforma, descargado y verificado contra SHASUMS256.txt de nodejs.org
@@ -53,12 +58,24 @@ const opt = (name, fallback) => {
 const platform = opt("platform", process.platform);
 const arch = opt("arch", process.arch);
 const nodeVersion = opt("node", NODE_VERSION);
+const keyFiles = opt("license-public-key", "");
+const licenseOpen = opt("license", "") === "open";
+if (!keyFiles && !licenseOpen)
+  throw new Error(
+    "Falta elegir la licencia: --license-public-key <archivo.pem> (producción) o --license open (desarrollo, no distribuir)",
+  );
+const publicKeys = keyFiles ? keyFiles.split(",").map((f) => readFileSync(f.trim(), "utf8")) : [];
+if (publicKeys.some((k) => !k.includes("BEGIN PUBLIC KEY")))
+  throw new Error(
+    "--license-public-key debe apuntar a una clave PÚBLICA en PEM (nunca la privada)",
+  );
+const hqUrl = opt("hq-url", "");
 if (!["win32", "darwin", "linux"].includes(platform))
   throw new Error(`Plataforma no soportada: ${platform}`);
 if (!["x64", "arm64"].includes(arch)) throw new Error(`Arquitectura no soportada: ${arch}`);
 
 const version = JSON.parse(readFileSync(join(ROOT, "apps/server/package.json"), "utf8")).version;
-const name = `nodo-${version}-${platform}-${arch}`;
+const name = `nodo-${version}${licenseOpen ? "-dev" : ""}-${platform}-${arch}`;
 const dir = join(OUT, name);
 
 const log = (m) => console.log(`▸ ${m}`);
@@ -135,7 +152,17 @@ async function main() {
     sourcemap: false,
     minify: false, // el minificado ahorra poco y empeora los errores de un local; la ofuscación va en el plan de licencias
     legalComments: "none",
-    define: { "process.env.NODO_VERSION": JSON.stringify(version) },
+    define: {
+      "process.env.NODO_VERSION": JSON.stringify(version),
+      // Producción: modo y claves quedan fijos en el ejecutable; ninguna variable de entorno los cambia
+      ...(licenseOpen
+        ? {}
+        : {
+            "process.env.NODO_LICENSE_MODE": JSON.stringify("enforced"),
+            "process.env.NODO_LICENSE_PUBLIC_KEYS": JSON.stringify(JSON.stringify(publicKeys)),
+          }),
+      ...(hqUrl ? { "process.env.NODO_HQ_URL": JSON.stringify(hqUrl) } : {}),
+    },
     // Algunas dependencias CommonJS usan `require` dentro del paquete ESM
     banner: {
       js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);",
@@ -149,7 +176,10 @@ async function main() {
   if (platform !== "win32") chmodSync(join(dir, "node"), 0o755);
 
   // 4) Archivos de la plataforma
-  writeFileSync(join(dir, "VERSION"), `${version}\nNode ${nodeVersion}\n`);
+  writeFileSync(
+    join(dir, "VERSION"),
+    `${version}\nNode ${nodeVersion}\nlicencia: ${licenseOpen ? "ABIERTA (desarrollo, no distribuir)" : "producción (clave incrustada)"}\n`,
+  );
   if (platform === "win32") {
     const winsw = join(CACHE, `WinSW-${WINSW.version}-x64.exe`);
     await download(WINSW.url, winsw);
@@ -184,7 +214,7 @@ async function main() {
 
   // 4b) Instalador .exe de Windows (NSIS), si makensis está disponible en este equipo
   if (platform === "win32") {
-    const exe = `Nodo-Setup-${version}.exe`;
+    const exe = `Nodo-Setup-${version}${licenseOpen ? "-dev" : ""}.exe`;
     try {
       const nsi = readFileSync(join(HERE, "templates/installer.nsi"), "utf8")
         .replaceAll("{{VERSION}}", version)
