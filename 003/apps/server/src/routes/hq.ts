@@ -1,4 +1,14 @@
 import {
+  createReadStream,
+  createWriteStream,
+  mkdirSync,
+  renameSync,
+  rmSync,
+  statSync,
+} from "node:fs";
+import { join } from "node:path";
+import type { Readable } from "node:stream";
+import {
   createHash,
   createPrivateKey,
   createPublicKey,
@@ -28,6 +38,12 @@ export interface HqOptions {
   signingKey?: string;
   /** Identificador de la clave de firma (para rotarla). */
   keyId?: string;
+  /** Carpeta (volumen) donde se guardan los respaldos cifrados de las sucursales. Sin ella, el respaldo en nube no está disponible. */
+  backupStoreDir?: string;
+  /** Tamaño máximo de un respaldo (por defecto 512 MB). */
+  backupMaxBytes?: number;
+  /** Espacio máximo de respaldos por sucursal (por defecto 5 GB). */
+  branchQuotaBytes?: number;
 }
 
 // Sin caracteres que se confundan al dictarlos (0/O, 1/I): 32 símbolos = 5 bits cada uno, 12 símbolos = 60 bits
@@ -487,6 +503,161 @@ export async function hqRoutes(app: FastifyInstance, opts: HqOptions) {
     if (row.fingerprint && asked !== row.fingerprint)
       throw new HttpError(403, "equipo_distinto", "Esta sucursal está activada en otro equipo");
     return { token: licenseFor(b, row.fingerprint), plan: b.plan };
+  });
+
+  // ---------- Respaldos cifrados (plan 04) ----------
+  // El cuerpo llega como flujo (no se carga en memoria): se cuenta, se resume con SHA-256 y se verifica contra lo declarado
+  app.addContentTypeParser("application/octet-stream", (_req, payload, done) =>
+    done(null, payload),
+  );
+  const maxBytes = opts.backupMaxBytes ?? 512 * 1024 * 1024;
+  const quota = opts.branchQuotaBytes ?? 5 * 1024 * 1024 * 1024;
+  const NAME = /^[A-Za-z0-9._-]{6,80}\.nbk$/;
+
+  /** Sucursal autenticada, activada y desde el equipo con el que se activó. */
+  const backupBranch = async (req: FastifyRequest) => {
+    if (!opts.backupStoreDir)
+      throw new HttpError(501, "respaldo_no_disponible", "Este servidor no guarda respaldos");
+    const b = await branchSession(req);
+    const row = (await db.prepare("SELECT fingerprint FROM hq_branches WHERE id=?").get(b.id)) as {
+      fingerprint: string | null;
+    };
+    if (!row.fingerprint || String(req.headers["x-device-fp"] ?? "") !== row.fingerprint)
+      throw new HttpError(403, "equipo_distinto", "Esta sucursal no está activada en este equipo");
+    return b;
+  };
+  const storePath = (branchId: string, name: string) =>
+    join(opts.backupStoreDir as string, branchId, name);
+
+  /** 14 recientes + el más reciente de cada uno de los 6 meses anteriores; lo demás se borra. */
+  const retention = (rows: { name: string; created_at: number }[]) => {
+    // Misma hora: el nombre lleva la marca de tiempo, así que el mayor es el más reciente
+    const sorted = [...rows].sort(
+      (a, b) => b.created_at - a.created_at || (a.name < b.name ? 1 : -1),
+    );
+    const keep = new Set(sorted.slice(0, 14).map((r) => r.name));
+    const months = new Set<string>();
+    for (const r of sorted.slice(14)) {
+      const m = new Date(r.created_at).toISOString().slice(0, 7);
+      if (!months.has(m) && months.size < 6) {
+        months.add(m);
+        keep.add(r.name);
+      }
+    }
+    return sorted.filter((r) => !keep.has(r.name)).map((r) => r.name);
+  };
+
+  app.put("/api/hq/backups/:name", async (req, reply) => {
+    const b = await backupBranch(req);
+    const { name } = z.object({ name: z.string().regex(NAME) }).parse(req.params);
+    const sha = z
+      .string()
+      .regex(/^[0-9a-f]{64}$/)
+      .parse(String(req.headers["x-sha256"] ?? ""));
+    const declared = Number(req.headers["content-length"]);
+    if (!Number.isFinite(declared) || declared <= 0)
+      throw new HttpError(411, "falta_tamano", "Falta el tamaño del respaldo");
+    if (declared > maxBytes)
+      throw new HttpError(
+        413,
+        "respaldo_demasiado_grande",
+        `El respaldo supera el máximo de ${maxBytes} bytes`,
+      );
+    const used = (
+      (await db
+        .prepare("SELECT COALESCE(SUM(size),0) s FROM hq_backups WHERE branch_id=? AND name<>?")
+        .get(b.id, name)) as { s: number }
+    ).s;
+    if (used + declared > quota)
+      throw new HttpError(
+        413,
+        "cuota_excedida",
+        "La sucursal llegó al espacio de respaldos de su plan",
+      );
+
+    const dir = join(opts.backupStoreDir as string, b.id);
+    mkdirSync(dir, { recursive: true });
+    const tmp = join(dir, `.subiendo-${randomBytes(6).toString("hex")}`);
+    const hash = createHash("sha256");
+    let size = 0;
+    const out = createWriteStream(tmp);
+    try {
+      for await (const chunk of req.body as Readable) {
+        size += (chunk as Buffer).length;
+        if (size > declared || size > maxBytes)
+          throw new HttpError(413, "respaldo_demasiado_grande");
+        hash.update(chunk as Buffer);
+        if (!out.write(chunk)) await new Promise<void>((r) => out.once("drain", () => r()));
+      }
+      await new Promise<void>((r) => out.end(() => r()));
+      if (size !== declared)
+        throw new HttpError(400, "subida_incompleta", "La subida se cortó antes de terminar");
+      if (hash.digest("hex") !== sha)
+        throw new HttpError(
+          422,
+          "suma_no_coincide",
+          "El respaldo llegó alterado (la suma no coincide)",
+        );
+      renameSync(tmp, storePath(b.id, name));
+    } catch (e) {
+      out.destroy();
+      rmSync(tmp, { force: true });
+      throw e;
+    }
+    await db.transaction(async () => {
+      await db.prepare("DELETE FROM hq_backups WHERE branch_id=? AND name=?").run(b.id, name);
+      await db
+        .prepare(
+          "INSERT INTO hq_backups (id,branch_id,name,size,sha256,created_at) VALUES (?,?,?,?,?,?)",
+        )
+        .run(newId(), b.id, name, size, sha, Date.now());
+    })();
+    const all = (await db
+      .prepare("SELECT name, created_at FROM hq_backups WHERE branch_id=?")
+      .all(b.id)) as { name: string; created_at: number }[];
+    const drop = retention(all);
+    for (const old of drop) {
+      await db.prepare("DELETE FROM hq_backups WHERE branch_id=? AND name=?").run(b.id, old);
+      rmSync(storePath(b.id, old), { force: true });
+    }
+    return reply.code(201).send({ ok: true, name, size, kept: all.length - drop.length });
+  });
+
+  app.get("/api/hq/backups", async (req) => {
+    const b = await backupBranch(req);
+    return db
+      .prepare(
+        "SELECT name, size, sha256, created_at FROM hq_backups WHERE branch_id=? ORDER BY created_at DESC",
+      )
+      .all(b.id);
+  });
+
+  app.get("/api/hq/backups/:name", async (req, reply) => {
+    const b = await backupBranch(req);
+    const { name } = z.object({ name: z.string().regex(NAME) }).parse(req.params);
+    const row = (await db
+      .prepare("SELECT size, sha256 FROM hq_backups WHERE branch_id=? AND name=?")
+      .get(b.id, name)) as { size: number; sha256: string } | undefined;
+    if (!row) throw new HttpError(404, "no_encontrado");
+    reply.header("content-type", "application/octet-stream");
+    reply.header("content-length", String(statSync(storePath(b.id, name)).size));
+    reply.header("x-sha256", row.sha256);
+    return reply.send(createReadStream(storePath(b.id, name)));
+  });
+
+  /** El propietario ve qué respaldos tiene cada una de sus sucursales (sin poder leerlos: están cifrados). */
+  app.get("/api/hq/branches/:id/backups", async (req) => {
+    const s = owner(req);
+    const { id } = z.object({ id: z.string() }).parse(req.params);
+    const br = (await db.prepare("SELECT org_id FROM hq_branches WHERE id=?").get(id)) as
+      | { org_id: string }
+      | undefined;
+    if (!br || br.org_id !== s.org) throw new HttpError(404, "no_encontrado");
+    return db
+      .prepare(
+        "SELECT name, size, created_at FROM hq_backups WHERE branch_id=? ORDER BY created_at DESC",
+      )
+      .all(id);
   });
 
   // ---------- Activación (plan 03) ----------

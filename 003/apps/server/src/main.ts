@@ -1,5 +1,7 @@
 import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { buildApp } from "./app";
+import { startCloudBackupWorker, streamUpload } from "./cloud-backup";
 import { loadConfig } from "./config";
 import { noteClock } from "./license";
 import { defaultHqUrl, loadLicensing } from "./licensing";
@@ -11,6 +13,12 @@ import { tcpTransport } from "./printing/transport";
 import { syncWithHq } from "./routes/cloud";
 import { createBackup, listBackups } from "./routes/reports";
 import { startWebhookWorker } from "./webhooks";
+
+// `server.mjs restore …`: recupera un local en una PC nueva desde el respaldo de la nube y termina (sin arrancar el servidor)
+if (process.argv[2] === "restore") {
+  const { restoreCli } = await import("./restore");
+  process.exit(await restoreCli(process.argv.slice(3)));
+}
 
 const config = loadConfig();
 mkdirSync(config.dataDir, { recursive: true });
@@ -64,6 +72,15 @@ const app = buildApp(db, {
 });
 
 const stopPrint = startPrintWorker(db, tcpTransport, hub);
+// Respaldo cifrado en la nube (solo un local vinculado; el HQ no se respalda a sí mismo)
+const stopCloudBackup = isHq
+  ? () => undefined
+  : startCloudBackupWorker(db, {
+      upload: streamUpload,
+      photosDir: config.photosDir,
+      workDir: join(config.backupDir, ".trabajo"),
+      fingerprint: licensing.fingerprint,
+    });
 const stopWebhooks = startWebhookWorker(db, (url, init) => fetch(url, init));
 
 // Backup automático cada 24 h (y uno al arrancar); se conservan los últimos 14
@@ -105,6 +122,7 @@ async function shutdown(signal: string) {
   // Si algo se queda colgado (una conexión abierta), no se espera para siempre
   setTimeout(() => process.exit(1), 10_000).unref();
   stopPrint();
+  stopCloudBackup();
   stopWebhooks();
   for (const t of timers) clearTimeout(t);
   try {

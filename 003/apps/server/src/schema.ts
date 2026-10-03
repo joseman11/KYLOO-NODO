@@ -770,4 +770,21 @@ CREATE TABLE hq_activations (
 );
 `,
   },
+  {
+    id: 12,
+    name: "respaldos_nube",
+    sql: `
+-- Respaldos cifrados de las sucursales (el HQ solo guarda texto cifrado; el archivo vive en el volumen)
+CREATE TABLE hq_backups (
+  id TEXT PRIMARY KEY,
+  branch_id TEXT NOT NULL REFERENCES hq_branches(id),
+  name TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  UNIQUE (branch_id, name)
+);
+CREATE INDEX idx_hq_backups_branch ON hq_backups(branch_id, created_at);
+`,
+  },
 ];

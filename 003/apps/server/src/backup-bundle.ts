@@ -198,5 +198,10 @@ export async function restoreBackupBundle(opts: {
   }
 }
 
-/** Lee un archivo como flujo de trozos (para `restoreBackupBundle`). */
-export const fileSource = (file: string) => createReadStream(file) as AsyncIterable<Buffer>;
+/**
+ * Lee un archivo como flujo de trozos (para `restoreBackupBundle`). Es perezoso a propósito: no abre el archivo hasta que
+ * alguien lo consume, así si la restauración se niega antes de empezar no queda un flujo abierto sobre un archivo que se borra.
+ */
+export async function* fileSource(file: string): AsyncGenerator<Buffer> {
+  for await (const chunk of createReadStream(file)) yield chunk as Buffer;
+}

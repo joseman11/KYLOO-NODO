@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { existsSync } from "node:fs";
 import Fastify, {
   LogController,
@@ -38,7 +39,9 @@ import { analyticsRoutes } from "./routes/analytics";
 import { integrationRoutes } from "./routes/integrations";
 import { syncRoutes } from "./routes/sync";
 import { invoiceRoutes, sandboxProvider, type InvoiceProvider } from "./routes/invoices";
+import { type Uploader, streamUpload } from "./cloud-backup";
 import { cloudRoutes, type HttpLike } from "./routes/cloud";
+import { cloudBackupRoutes } from "./routes/cloud-backup";
 import { hqRoutes, type HqOptions } from "./routes/hq";
 import { connectWebhooks } from "./webhooks";
 import {
@@ -91,6 +94,8 @@ export interface AppOptions {
   hq?: HqOptions | false;
   /** Carpeta donde se guardan las fotos de los platillos. */
   photosDir?: string;
+  /** Subida de respaldos al HQ (inyectable en pruebas). */
+  uploader?: Uploader;
   /** Registro de la aplicación (archivo con rotación). Sin él no se registra nada, como en las pruebas. */
   logger?: { stream: { write(s: string): void }; level: LogLevel };
   /** Cómo se aplica la licencia (por defecto `open`: sin licencia no hay límites; solo el paquete de producción usa `enforced`). */
@@ -252,6 +257,11 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
   app.register(syncRoutes);
   app.register(invoiceRoutes, { provider: options.invoiceProvider ?? sandboxProvider });
   app.register(cloudRoutes, { http: options.http ?? ((url, init) => fetch(url, init)) });
+  app.register(cloudBackupRoutes, {
+    upload: options.uploader ?? streamUpload,
+    photosDir: options.photosDir,
+    workDir: join(options.backupDir ?? "data/backups", ".trabajo"),
+  });
   if (options.hq) app.register(hqRoutes, options.hq);
 
   // Webhooks salientes: cada evento en tiempo real también se encola para los endpoints suscritos
