@@ -14,6 +14,7 @@
 | [`docs/PLAN-02-EMPAQUETADO-E-INSTALACION.md`](docs/PLAN-02-EMPAQUETADO-E-INSTALACION.md) | **Etapa abierta** (2026-10-03), sesión autónoma | Antes de tocar el arranque del servidor, la base local o el instalador. |
 | [`docs/deploy/INSTALACION.md`](docs/deploy/INSTALACION.md) | Vivo | Cómo se instala, actualiza y desinstala Nodo; cómo construir el paquete. |
 | [`docs/AUDITORIA-SEGURIDAD-2026-10-03.md`](docs/AUDITORIA-SEGURIDAD-2026-10-03.md) | **Cerrada** (2026-10-03) | Antes de tocar acceso, sesiones, cabeceras o errores; lista lo que sigue abierto. |
+| [`docs/PLAN-07-SERVIDOR-DE-RESERVA.md`](docs/PLAN-07-SERVIDOR-DE-RESERVA.md) · [`docs/deploy/RESERVA.md`](docs/deploy/RESERVA.md) | **Cerrado** (2026-10-03) | Antes de tocar `standby*.ts`, el arranque (`main.ts`) o el cambio de servidor de las tablets. |
 | [`docs/PLAN-06-APP-ENVOLTORIO.md`](docs/PLAN-06-APP-ENVOLTORIO.md) · [`docs/deploy/APP-TABLET.md`](docs/deploy/APP-TABLET.md) | **Cerrado** (2026-10-03) | Antes de tocar `apps/mobile`, CORS o cualquier llamada de la interfaz al servidor. |
 | [`docs/PLAN-05-IMPRESION-Y-RED-LOCAL.md`](docs/PLAN-05-IMPRESION-Y-RED-LOCAL.md) · [`docs/deploy/RED-LOCAL.md`](docs/deploy/RED-LOCAL.md) | **Cerrado** (2026-10-03) | Antes de tocar impresión, cajón, el cliente sin conexión o cómo se conectan las tablets. |
 | [`docs/PLAN-04-RESPALDO-EN-NUBE.md`](docs/PLAN-04-RESPALDO-EN-NUBE.md) · [`docs/deploy/RESPALDOS.md`](docs/deploy/RESPALDOS.md) · [`docs/deploy/HQ-RAILWAY.md`](docs/deploy/HQ-RAILWAY.md) | **Cerrado** (2026-10-03) | Antes de tocar respaldos, restauración o el despliegue del HQ. |
@@ -67,9 +68,14 @@
 23. 🔴 **Toda llamada de la interfaz al servidor pasa por `serverUrl()`/`serverBase()`** (`web/src/api.ts`): la app de tablet lleva la UI dentro y el servidor es otro origen. Un `fetch("/api/…")` a pelo funciona en el navegador y falla en la app sin avisar. Si cambias la API de forma que rompa a una interfaz anterior, sube `API_CONTRACT` (`packages/shared/src/contract.ts`).
 24. ⚠️ **Gradle no soporta el JDK 25 de Android Studio**: para el APK usar JDK 17 a 21 (`JAVA_HOME`).
 
+25. 🔴 **La reserva no copia la licencia a su favor** (atada al equipo): promovida, trabaja en plan gratuito hasta activarse con un código nuevo. Y **nunca promover con el principal encendido** (dos servidores = datos distintos); por eso la promoción es manual y pide la clave.
+26. ⚠️ **La clave del APK (`~/.nodo-keys/android/`) no se pierde ni se cambia**: Android solo actualiza con la misma firma. Copia fuera de línea obligatoria.
+27. ⚠️ **Ventanas modales con `backdrop()`** (`web/src/sheet.ts`): cierra con clic en el fondo o Escape comprobando `e.target`; no volver a `onClick` + `stopPropagation` en la ventana. Todo `<button>` lleva `type` (los de formulario, `submit`).
+28. 🔴 **`biome check --write --unsafe` rompe comportamiento sin avisar**: cambió `[urls.join("|")]` por `[urls.map]` (el QR dejó de generarse), `useEffect(…, [])` por `[load]` (efectos que se repiten) y quitó `autoFocus`. Nunca `--unsafe` en masa; revisar el diff (las e2e lo atraparon). `noAutofocus` está apagada a propósito: en un comandero el campo de la ventana debe tomar el foco.
+
 ## Estado
 
-Ver [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md). Resumen al 2026-10-03 (rama `feature/fundacion`, sin integrar en `main`): typecheck limpio; 460 pruebas de servidor en SQLite y 461 en PostgreSQL; 110 e2e; `nube-web` integrada; planes 01 a 05 cerrados.
+Ver [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md). Resumen al 2026-10-03 (rama `feature/fundacion`, sin integrar en `main`): typecheck limpio; 460 pruebas de servidor en SQLite y 461 en PostgreSQL; 110 e2e; `nube-web` integrada; planes 01 a 07 cerrados.
 
 Puertos: servidor de Nodo `3003` (por defecto), HQ `3004`, demo de marisquería `3005`/`3006` (convención de los videos), landing `3000`, e2e de landing `3047`.
 

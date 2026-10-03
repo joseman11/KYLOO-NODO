@@ -43,6 +43,7 @@ import { invoiceRoutes, sandboxProvider, type InvoiceProvider } from "./routes/i
 import { type Uploader, streamUpload } from "./cloud-backup";
 import { cloudRoutes, type HttpLike } from "./routes/cloud";
 import { cloudBackupRoutes } from "./routes/cloud-backup";
+import { standbyRoutes } from "./routes/standby";
 import { hqRoutes, type HqOptions } from "./routes/hq";
 import { connectWebhooks } from "./webhooks";
 import {
@@ -279,6 +280,7 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
   const startedAt = Date.now();
   app.get("/api/health", async () => ({
     ok: true,
+    role: "primary",
     devices,
     version,
     // Versión del contrato con la interfaz (la app envoltorio de las tablets lleva su propia copia de la interfaz)
@@ -337,6 +339,10 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
   app.register(cloudRoutes, { http: options.http ?? ((url, init) => fetch(url, init)) });
   app.register(cloudBackupRoutes, {
     upload: options.uploader ?? streamUpload,
+    photosDir: options.photosDir,
+    workDir: join(options.backupDir ?? "data/backups", ".trabajo"),
+  });
+  app.register(standbyRoutes, {
     photosDir: options.photosDir,
     workDir: join(options.backupDir ?? "data/backups", ".trabajo"),
   });

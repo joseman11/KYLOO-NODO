@@ -7,6 +7,8 @@ import { noteClock } from "./license";
 import { startMdns } from "./mdns";
 import { defaultHqUrl, loadLicensing } from "./licensing";
 import { openDb } from "./db";
+import { readStandby } from "./standby";
+import { runStandby } from "./standby-app";
 import { Hub } from "./hub";
 import { Logger, RotatingLog, errorFields } from "./logging";
 import { startPrintWorker } from "./printing/queue";
@@ -19,6 +21,12 @@ import { startWebhookWorker } from "./webhooks";
 if (process.argv[2] === "restore") {
   const { restoreCli } = await import("./restore");
   process.exit(await restoreCli(process.argv.slice(3)));
+}
+
+// `server.mjs standby --of http://<ip>:3003 --key <clave>` deja este equipo como servidor de reserva; `standby --off` lo quita
+if (process.argv[2] === "standby") {
+  const { standbyCli } = await import("./standby-cli");
+  process.exit(standbyCli(process.argv.slice(3)));
 }
 
 const config = loadConfig();
@@ -44,6 +52,23 @@ log.info("arrancando", {
 });
 
 const isHq = config.role === "hq";
+
+// Servidor de reserva: no atiende comandas; copia al principal y espera a que lo promuevan (plan 07)
+const standbyState = isHq ? null : readStandby(config.dataDir);
+if (standbyState && !standbyState.promoted) {
+  log.info("modo reserva", { principal: standbyState.primary });
+  await runStandby({
+    dataDir: config.dataDir,
+    dbFile: config.dbFile,
+    photosDir: config.photosDir,
+    dir: join(config.dataDir, "reserva"),
+    state: standbyState,
+    port: config.port,
+    host: config.host,
+    version: config.version,
+    log: (msg, fields) => log.info(msg, fields),
+  });
+}
 // El HQ de producción vive en PostgreSQL (DATABASE_URL); un local siempre usa su archivo SQLite
 const usePg = isHq && !!config.databaseUrl;
 if (isHq && usePg && !process.env.HQ_SIGNING_KEY) {

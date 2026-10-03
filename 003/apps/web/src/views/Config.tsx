@@ -5,7 +5,7 @@ import { PagedRows, SubTabs } from "../fit";
 import { Promotions, QrCodes } from "./ConfigExtra";
 import { Settings } from "./ConfigSettings";
 import { Cloud, Integrations } from "./ConfigCloud";
-import { Connect } from "./ConfigConnect";
+import { Connect, Standby } from "./ConfigConnect";
 import { Areas, Categories, Products } from "./ConfigMenu";
 import { Tickets } from "./ConfigTickets";
 import { Salon } from "./Salon";
@@ -97,7 +97,12 @@ export function Config() {
       {finder && (
         <PrinterFinder onClose={() => setFinder(false)} onAdded={() => printers.reload()} />
       )}
-      {tab === "conectar" && <Connect />}
+      {tab === "conectar" && (
+        <>
+          <Connect />
+          <Standby />
+        </>
+      )}
       {tab === "areas" && <Areas />}
 
       {tab === "impresoras" && (

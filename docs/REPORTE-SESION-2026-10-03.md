@@ -79,3 +79,14 @@ Con autorización del dueño se generó la **clave de producción** de licencias
 - **HQ redesplegado** con el código final (`contract: 1`, PostgreSQL).
 - **Cifras finales:** 481 pruebas de servidor en SQLite y 482 en PostgreSQL, 113 e2e, 4 del empaquetado.
 - **Firma de código del instalador de Windows:** certificado de firma (OV/EV), orden de magnitud de cientos de dólares al año; se compra cuando vaya a haber un instalador entregado a alguien que no sea el dueño. Ver la respuesta en la conversación; los precios cambian y deben confirmarse con el proveedor.
+
+## Actualización final: marca, firma, reserva y calidad
+- **Icono de Nodo** (la sartén con huevo, bordes redondeados) generado desde una sola geometría (`apps/mobile/scripts/make-icons.mjs`) para Android (clásico, redondo, adaptativo, monocromo, pantallas de inicio), PWA y landing. Verificado en el lanzador del emulador.
+- **APK de entrega firmado** con llave propia (`~/.nodo-keys/android/`, RSA 4096); verificado con `apksigner`. **Copia fuera de línea de `~/.nodo-keys/`**: hay un archivo cifrado en el Escritorio (`nodo-keys-respaldo.enc`); muévelo a un USB o a tu gestor de contraseñas.
+- **Aviso de suscripción** en la barra superior (30 días antes, en gracia, vencida/retirada), solo para quien administra.
+- **Consola del HQ**: espacio de respaldos por sucursal, descarga y borrado.
+- **Escaneo de QR** en la app de tablet (lector propio, sin servicios de Google). La cámara abre en el emulador; **sin probar con un QR real frente a una cámara física**.
+- **Servidor de reserva** (`PLAN-07`, `deploy/RESERVA.md`): copia cifrada del principal cada 5 min, promoción manual con la clave, cambio automático de las tablets de la app. Probado con dos procesos reales.
+- **Deuda de accesibilidad:** avisos de lint de 566 a 44 (ventanas modales accesibles y `type="button"` en 299 botones).
+- **Cifras finales:** 491 pruebas de servidor en SQLite y 492 en PostgreSQL (+ 6 de `shared`), 4 del empaquetado, e2e completas en verde, typecheck limpio.
+- **Cuidado:** la reserva promovida corre en plan gratuito hasta activarla con un código nuevo (la licencia va atada al equipo).

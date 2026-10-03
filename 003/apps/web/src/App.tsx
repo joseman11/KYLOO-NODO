@@ -18,6 +18,7 @@ import {
   useOnline,
   type SessionUser,
 } from "./api";
+import { learnServers, useFailover } from "./failover";
 import { Icon } from "./icons";
 import { NodoMark } from "./Logo";
 import { ROLE_LABEL, UserAvatar } from "./Avatar";
@@ -82,11 +83,13 @@ function Staff() {
   const [pending, setPending] = useState(pendingCount());
   const [toasts, setToasts] = useState<Toast[]>([]);
   const online = useOnline();
+  const failover = useFailover(!!user && isNativeApp(), online);
 
   useEffect(() => {
     if (!user) return;
     startRealtime();
     void prefetchReference(); // el menú queda en el dispositivo por si se cae la red
+    if (isNativeApp()) void learnServers(); // y a dónde irse si el servidor se cae (servidor de reserva)
     return () => stopRealtime();
   }, [user]);
 
@@ -279,6 +282,21 @@ function Staff() {
           </button>
         </div>
         <LicenseNotice />
+        {!online && failover.searching && (
+          <div className="banner" role="alert">
+            {failover.standbyUrl ? (
+              <span>
+                El servidor principal no responde. Hay un servidor de reserva en{" "}
+                {failover.standbyUrl}: ábrelo en el navegador y pulsa «Promover a principal».
+              </span>
+            ) : (
+              <span>
+                El servidor principal no responde: buscando el servidor de reserva. Mientras tanto,
+                las comandas se guardan en este dispositivo.
+              </span>
+            )}
+          </div>
+        )}
         {pending > 0 && (
           <div className="banner">
             {pending} operación(es) guardada(s) sin enviar — se enviarán al reconectar

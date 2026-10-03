@@ -99,7 +99,7 @@ Es decir, es la base técnica para correr **el mismo código** en el local (SQLi
 | E11 | ⚪ | JWT en `localStorage`; sin límite de intentos de PIN comprobado más allá de `attempt()` en `auth.ts` (no auditado). |
 | E13 | 🟠 | **Sin HTTPS ni contexto seguro en la LAN** (verificado: no hay TLS en `app.ts`/`main.ts`). El service worker (`sw.js`) solo se registra con `isSecureContext` (`main.tsx:13`), así que sobre `http://<ip>:3003` no se registra: la app no se instala y, si la tablet recarga sin red, queda en blanco. |
 | E14 | 🟡 | 🟡 Parcial: Cola con apertura de mesa en sombra, orden garantizado, menú precargado y recarga con lo pendiente (plan 05, `docs/deploy/RED-LOCAL.md`). Falta IndexedDB para colas muy largas. |
-| E15 | 🟠 | **El servidor del local es punto único de falla.** Hay reinicio automático (tarea programada, 999 reintentos cada minuto) pero no hay servidor de reserva, ni restauración guiada, ni aviso a los dispositivos de «servidor caído» más allá de la reconexión del WebSocket. |
+| E15 | ✅ | **El servidor del local era punto único de falla.** Resuelto con el **servidor de reserva** (plan 07): copia cifrada cada 5 min y promoción manual con un botón; las tablets de la app se pasan solas. Queda acotada la pérdida a los últimos minutos (réplica continua pendiente) y sin probar en dos equipos físicos. |
 | E16 | 🟡 | 🟡 Parcial: Cajón de dinero, búsqueda de impresoras y prueba desde la pantalla (plan 05). Falta probar con impresora y cajón físicos. |
 | E17 | ✅ | ✅ mDNS `nodo.local` y pantalla Conectar con QR (plan 05). |
 | E18 | ✅ | ✅ Registros en archivo con rotación (`logging.ts`), URL sin parámetros, solo 5xx y ciclo de vida (plan 02, `0b9aafe`). |

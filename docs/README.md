@@ -15,9 +15,11 @@ Aquí vive **toda la documentación persistente** de KYLOO-NODO. Lo que no está
 | [`PLAN-03-LICENCIAS-Y-ACTIVACION.md`](PLAN-03-LICENCIAS-Y-ACTIVACION.md) | Licencias atadas al equipo y activación por código | **Cerrado** (2026-10-03) |
 | [`PLAN-04-RESPALDO-EN-NUBE.md`](PLAN-04-RESPALDO-EN-NUBE.md) | Respaldo cifrado en la nube, restauración y HQ en Railway | **Cerrado** (2026-10-03) |
 | [`PLAN-06-APP-ENVOLTORIO.md`](PLAN-06-APP-ENVOLTORIO.md) | App envoltorio para tablets Android | **Cerrado** (2026-10-03) |
+| [`PLAN-07-SERVIDOR-DE-RESERVA.md`](PLAN-07-SERVIDOR-DE-RESERVA.md) | Servidor de reserva: copia del principal y promoción manual | **Cerrado** (2026-10-03) |
 | [`PLAN-05-IMPRESION-Y-RED-LOCAL.md`](PLAN-05-IMPRESION-Y-RED-LOCAL.md) | Impresión (cajón, descubrimiento), conexión de tablets y cliente sin conexión | **Cerrado** (2026-10-03) |
 | [`deploy/INSTALACION.md`](deploy/INSTALACION.md) | Cómo se instala, actualiza y desinstala Nodo en un local | Vivo |
 | [`deploy/LICENCIAS.md`](deploy/LICENCIAS.md) | Cómo se emiten, activan y protegen las licencias | Vivo |
+| [`deploy/RESERVA.md`](deploy/RESERVA.md) | Montar y usar el servidor de reserva del local | Vivo |
 | [`deploy/RESPALDOS.md`](deploy/RESPALDOS.md) | Respaldos cifrados en la nube y recuperación de un local | Vivo |
 | [`deploy/APP-TABLET.md`](deploy/APP-TABLET.md) | App de tablet Android: instalar, construir y probar en emulador | Vivo |
 | [`deploy/RED-LOCAL.md`](deploy/RED-LOCAL.md) | Red del local, impresoras, cajón y qué pasa sin conexión | Vivo |
