@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@003/shared": "workspace:*",
-    "@fastify/jwt": "^9.0.0",
+    "@fastify/jwt": "^10.2.2",
     "@fastify/static": "^10.1.5",
     "@fastify/websocket": "^11.3.1",
     "bonjour-service": "^1.4.4",

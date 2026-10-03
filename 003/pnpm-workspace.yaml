@@ -4,3 +4,6 @@ packages:
   - "packaging"
 allowBuilds:
   esbuild: true
+# Versión corregida de una dependencia indirecta de `qrcode` (solo se usa su CLI, no entra a la app web)
+overrides:
+  "ansi-regex@<5.0.1": ">=5.0.1"

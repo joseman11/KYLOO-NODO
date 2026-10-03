@@ -33,19 +33,36 @@ const setupSchema = z.object({
     .refine((p) => !COMMON.has(p.toLowerCase()), "Esa contraseña es demasiado común"),
 });
 
+/** Dirección de este mismo equipo (IPv4, IPv6 o IPv4 mapeada a IPv6). */
+export const isLoopback = (ip: string) =>
+  ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
+
 /**
  * Primer arranque: una instalación nueva no trae usuarios ni claves. Mientras no exista ningún usuario, cualquiera
- * en la red local puede crear al administrador; en cuanto existe uno, la ruta deja de funcionar para siempre.
- * (Instalar es una acción de quien tiene el equipo delante: la ventana de exposición es la de la instalación.)
+ * **en el propio equipo** puede crear al administrador; en cuanto existe uno, la ruta deja de funcionar para siempre. Solo
+ * desde el mismo equipo (el instalador abre el navegador ahí): si no, cualquiera en la red local que llegara antes que el
+ * dueño se quedaría con el sistema. `NODO_SETUP_REMOTE=1` lo permite desde la red (desarrollo y contenedores).
  */
 export async function setupRoutes(app: FastifyInstance) {
   const { db } = app;
   const needsSetup = async () =>
     ((await db.prepare("SELECT COUNT(*) c FROM users").get()) as { c: number }).c === 0;
 
-  app.get("/api/setup/status", async () => ({ needsSetup: await needsSetup() }));
+  const allowed = (ip: string) => isLoopback(ip) || process.env.NODO_SETUP_REMOTE === "1";
+
+  // `local`: este dispositivo es el propio equipo del servidor (la pantalla indica dónde configurar si no lo es)
+  app.get("/api/setup/status", async (req) => ({
+    needsSetup: await needsSetup(),
+    local: allowed(req.ip),
+  }));
 
   app.post("/api/setup", async (req, reply) => {
+    if (!allowed(req.ip))
+      throw new HttpError(
+        403,
+        "solo_en_el_equipo",
+        "La configuración inicial se hace desde el propio equipo donde está instalado Nodo",
+      );
     const body = setupSchema.parse(req.body);
     let created = false;
     // Dos solicitudes simultáneas: la transacción vuelve a comprobar dentro y solo gana una

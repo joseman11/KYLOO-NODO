@@ -28,6 +28,7 @@ describe("primer arranque", () => {
   it("una instalación nueva pide configuración y no trae ningún usuario", async () => {
     expect((await app.inject({ method: "GET", url: "/api/setup/status" })).json()).toEqual({
       needsSetup: true,
+      local: true,
     });
     expect((await db.prepare("SELECT COUNT(*) c FROM users").get()) as { c: number }).toEqual({
       c: 0,
@@ -39,6 +40,7 @@ describe("primer arranque", () => {
     expect(r.statusCode).toBe(201);
     expect((await app.inject({ method: "GET", url: "/api/setup/status" })).json()).toEqual({
       needsSetup: false,
+      local: true,
     });
     expect((await app.inject({ method: "GET", url: "/api/auth/info" })).json()).toEqual({
       name: "Mariscos El Faro",
@@ -104,5 +106,48 @@ describe("primer arranque", () => {
       false,
     );
     expect((await post(valid)).statusCode).toBe(409);
+  });
+
+  it("solo se configura desde el propio equipo: desde la red local responde 403 y no crea nada", async () => {
+    const remote = {
+      method: "POST" as const,
+      url: "/api/setup",
+      remoteAddress: "192.168.1.77",
+      payload: valid,
+    };
+    const r = await app.inject(remote);
+    expect(r.statusCode).toBe(403);
+    expect(r.json().error).toBe("solo_en_el_equipo");
+    expect(((await db.prepare("SELECT COUNT(*) c FROM users").get()) as { c: number }).c).toBe(0);
+    // el estado sí se puede consultar, y dice que ese dispositivo no es el equipo
+    const st = await app.inject({
+      method: "GET",
+      url: "/api/setup/status",
+      remoteAddress: "192.168.1.77",
+    });
+    expect(st.json()).toEqual({ needsSetup: true, local: false });
+    // desde el propio equipo (IPv4 o IPv6) sí
+    expect(
+      (await app.inject({ method: "GET", url: "/api/setup/status", remoteAddress: "::1" })).json()
+        .local,
+    ).toBe(true);
+    expect((await post(valid)).statusCode).toBe(201);
+  });
+
+  it("NODO_SETUP_REMOTE=1 lo permite desde la red (desarrollo y contenedores)", async () => {
+    process.env.NODO_SETUP_REMOTE = "1";
+    try {
+      const r = await app.inject({
+        method: "POST",
+        url: "/api/setup",
+        remoteAddress: "10.0.0.5",
+        payload: valid,
+      });
+      expect(r.statusCode).toBe(201);
+    } finally {
+      process.env.NODO_SETUP_REMOTE = undefined;
+      // biome-ignore lint/performance/noDelete: process.env no admite undefined como valor
+      delete process.env.NODO_SETUP_REMOTE;
+    }
   });
 });

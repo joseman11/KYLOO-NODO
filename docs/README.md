@@ -8,6 +8,7 @@ Aquí vive **toda la documentación persistente** de KYLOO-NODO. Lo que no está
 |---|---|---|
 | [`PLAN-00-ESTRUCTURA-DE-TRABAJO.md`](PLAN-00-ESTRUCTURA-DE-TRABAJO.md) | Cómo trabajamos y qué haremos: la estructura del proyecto, el rumbo y el orden de las etapas | **Abierto** (2026-10-03) |
 | [`ESTADO-ACTUAL.md`](ESTADO-ACTUAL.md) | Qué hay hoy: arquitectura, módulos, medidas, deuda, ramas | Vivo |
+| [`AUDITORIA-SEGURIDAD-2026-10-03.md`](AUDITORIA-SEGURIDAD-2026-10-03.md) | Auditoría de seguridad: hallazgos, arreglos y lo abierto | **Cerrada** (2026-10-03) |
 | [`PLAN-01-LINEA-BASE-Y-CALIDAD.md`](PLAN-01-LINEA-BASE-Y-CALIDAD.md) | Línea base verde, `nube-web` integrada, herramientas de calidad | **Cerrado** (2026-10-03) |
 | [`PLAN-02-EMPAQUETADO-E-INSTALACION.md`](PLAN-02-EMPAQUETADO-E-INSTALACION.md) | Empaquetado, instalación y primer arranque | **Cerrado** (2026-10-03) |
 | [`PLAN-03-LICENCIAS-Y-ACTIVACION.md`](PLAN-03-LICENCIAS-Y-ACTIVACION.md) | Licencias atadas al equipo y activación por código | **Cerrado** (2026-10-03) |

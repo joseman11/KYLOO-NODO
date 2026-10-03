@@ -52,6 +52,7 @@ import {
   usage,
 } from "./license";
 import { appVersion } from "./config";
+import { RateLimiter } from "./ratelimit";
 import { type LogLevel, fastifyLoggerOptions } from "./logging";
 
 export interface AuthUser {
@@ -98,6 +99,12 @@ export interface AppOptions {
   photosDir?: string;
   /** Subida de respaldos al HQ (inyectable en pruebas). */
   uploader?: Uploader;
+  /**
+   * Límite de intentos de acceso por IP (ventana en milisegundos). Sin él no se limita (pruebas); el servidor real lo activa.
+   */
+  rateLimit?: { max: number; windowMs: number } | false;
+  /** El servidor está detrás de un proxy (Railway): la IP real viene en X-Forwarded-For. */
+  trustProxy?: boolean;
   /** Registro de la aplicación (archivo con rotación). Sin él no se registra nada, como en las pruebas. */
   logger?: { stream: { write(s: string): void }; level: LogLevel };
   /** Cómo se aplica la licencia (por defecto `open`: sin licencia no hay límites; solo el paquete de producción usa `enforced`). */
@@ -118,6 +125,7 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
       : false,
     // Una línea por petición llenaría el disco de un local; solo se registran los errores
     logController: new LogController({ disableRequestLogging: true }),
+    trustProxy: options.trustProxy ?? false,
     bodyLimit: 2 * 1024 * 1024,
   });
   // Un cuerpo JSON vacío (p. ej. DELETE desde un cliente que declara JSON) se acepta como «sin cuerpo»; el JSON mal formado sigue siendo 400
@@ -198,9 +206,55 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
       return reply.code(409).send({ error: "conflicto", message: friendly, detail: err.message });
     }
     // Los 5xx son lo único que se registra de una petición (Fastify, con disableRequestLogging, no lo hace solo)
-    if ((err.statusCode ?? 500) >= 500) req.log.error({ req, err }, err.message);
+    if ((err.statusCode ?? 500) >= 500) {
+      req.log.error({ req, err }, err.message);
+      // El texto interno de un fallo (rutas, SQL, nombres de tablas) no sale del servidor: el cliente recibe un identificador
+      // con el que se busca la línea del registro
+      return reply
+        .code(err.statusCode ?? 500)
+        .send({ error: "error_interno", message: "Algo salió mal en el servidor", id: req.id });
+    }
     return reply.code(err.statusCode ?? 500).send({ error: err.message });
   });
+
+  // Cabeceras de seguridad en todas las respuestas. La política de contenido permite lo que la app usa (estilos en línea,
+  // imágenes de datos o blob de las fotos, WebSocket y WebGL del fondo) y nada de fuera; sin marcos ni cambio de base.
+  const CSP = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self'",
+    "connect-src 'self' ws: wss:",
+    "media-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join("; ");
+  app.addHook("onSend", async (_req, reply) => {
+    reply.header("x-content-type-options", "nosniff");
+    reply.header("x-frame-options", "DENY");
+    reply.header("referrer-policy", "no-referrer");
+    reply.header("permissions-policy", "camera=(self), geolocation=(), microphone=()");
+    reply.header("content-security-policy", CSP);
+  });
+
+  // Límite de intentos de acceso por IP (además del bloqueo por usuario)
+  if (options.rateLimit) {
+    const limiter = new RateLimiter(options.rateLimit.max, options.rateLimit.windowMs);
+    const LOGINS = new Set(["/api/auth/pin", "/api/auth/login", "/api/hq/login"]);
+    app.addHook("onRequest", async (req, reply) => {
+      if (req.method !== "POST" || !LOGINS.has(req.url.split("?")[0] ?? "")) return;
+      const r = limiter.hit(req.ip);
+      if (r.ok) return;
+      reply.header("retry-after", String(r.retryAfterSec));
+      return reply.code(429).send({
+        error: "demasiados_intentos",
+        message: "Demasiados intentos desde este equipo: espera un momento",
+      });
+    });
+  }
 
   // Dispositivos conectados por WebSocket (tablets, KDS, caja)
   let devices = 0;

@@ -94,6 +94,9 @@ const app = buildApp(db, {
     : false,
   licensing,
   hqUrl: defaultHqUrl(),
+  // 120 intentos de acceso por IP cada 5 minutos: de sobra para un turno, frena a quien prueba claves en bloque
+  rateLimit: { max: 120, windowMs: 5 * 60_000 },
+  trustProxy: isHq, // el HQ corre detrás del proxy de Railway
   logger: { stream, level: config.logLevel },
   version: config.version,
 });

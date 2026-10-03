@@ -18,7 +18,10 @@ export function Login({ onLogin }: { onLogin: (u: SessionUser) => void }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const info = useLive(() => api<{ name: string | null }>("/api/auth/info"), []);
-  const setup = useLive(() => api<{ needsSetup: boolean }>("/api/setup/status"), []);
+  const setup = useLive(
+    () => api<{ needsSetup: boolean; local: boolean }>("/api/setup/status"),
+    [],
+  );
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 15000);
@@ -58,7 +61,7 @@ export function Login({ onLogin }: { onLogin: (u: SessionUser) => void }) {
   });
   const list = (users ?? []).filter((u) => u.role !== "admin");
   // Instalación nueva: no hay usuarios, se crea el administrador
-  if (setup.data?.needsSetup) return <Setup onLogin={onLogin} />;
+  if (setup.data?.needsSetup) return <Setup onLogin={onLogin} local={setup.data.local} />;
   const chosen = list.find((u) => u.id === selected) ?? null;
 
   return (

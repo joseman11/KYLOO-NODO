@@ -7,7 +7,14 @@ import { WaveCanvas } from "../WaveCanvas";
  * Primer arranque de una instalación nueva: se crea el administrador y se nombra el local.
  * No hay usuarios ni claves de fábrica; esta pantalla solo existe mientras no haya ningún usuario.
  */
-export function Setup({ onLogin }: { onLogin: (u: SessionUser) => void }) {
+export function Setup({
+  onLogin,
+  local = true,
+}: {
+  onLogin: (u: SessionUser) => void;
+  /** Este dispositivo es el propio equipo del servidor: solo desde ahí se crea al administrador. */
+  local?: boolean;
+}) {
   const [establishment, setEstablishment] = useState("");
   const [adminName, setAdminName] = useState("");
   const [username, setUsername] = useState("");
@@ -62,56 +69,64 @@ export function Setup({ onLogin }: { onLogin: (u: SessionUser) => void }) {
             </p>
           </div>
         </div>
-        <form
-          className="col"
-          data-setup
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submit();
-          }}
-        >
-          <input
-            placeholder="Nombre del local"
-            value={establishment}
-            onChange={(e) => setEstablishment(e.target.value)}
-            autoFocus
-            required
-          />
-          <input
-            placeholder="Tu nombre"
-            value={adminName}
-            onChange={(e) => setAdminName(e.target.value)}
-            required
-          />
-          <input
-            placeholder="Usuario de administrador"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoCapitalize="none"
-            autoCorrect="off"
-            required
-          />
-          <input
-            placeholder="Contraseña (mínimo 8 caracteres)"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
-            required
-          />
-          <input
-            placeholder="Repite la contraseña"
-            type="password"
-            value={repeat}
-            onChange={(e) => setRepeat(e.target.value)}
-            autoComplete="new-password"
-            required
-          />
-          {error && <p className="err">{error}</p>}
-          <button className="btn primary" type="submit" disabled={busy}>
-            {busy ? "Creando…" : "Crear y entrar"}
-          </button>
-        </form>
+        {!local ? (
+          <p className="err">
+            Nodo todavía no está configurado. Abre esta misma dirección desde el propio equipo donde
+            se instaló (en su navegador, <strong>http://localhost:3003</strong>) para crear al
+            administrador. Por seguridad no se puede hacer desde otro dispositivo.
+          </p>
+        ) : (
+          <form
+            className="col"
+            data-setup
+            onSubmit={(e) => {
+              e.preventDefault();
+              void submit();
+            }}
+          >
+            <input
+              placeholder="Nombre del local"
+              value={establishment}
+              onChange={(e) => setEstablishment(e.target.value)}
+              autoFocus
+              required
+            />
+            <input
+              placeholder="Tu nombre"
+              value={adminName}
+              onChange={(e) => setAdminName(e.target.value)}
+              required
+            />
+            <input
+              placeholder="Usuario de administrador"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoCapitalize="none"
+              autoCorrect="off"
+              required
+            />
+            <input
+              placeholder="Contraseña (mínimo 8 caracteres)"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+              required
+            />
+            <input
+              placeholder="Repite la contraseña"
+              type="password"
+              value={repeat}
+              onChange={(e) => setRepeat(e.target.value)}
+              autoComplete="new-password"
+              required
+            />
+            {error && <p className="err">{error}</p>}
+            <button className="btn primary" type="submit" disabled={busy}>
+              {busy ? "Creando…" : "Crear y entrar"}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
