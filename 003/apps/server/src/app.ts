@@ -114,8 +114,10 @@ export function buildApp(db: Db, options: AppOptions = {}): FastifyInstance {
         : /UNIQUE/.test(err.message) ? "Ya existe un registro con ese valor"
         : /FOREIGN KEY/.test(err.message) ? "No se puede completar: está relacionado con otros datos"
         : err.message;
+      if (process.env.NODO_DEBUG) console.error("[409]", err.message);
       return reply.code(409).send({ error: "conflicto", message: friendly, detail: err.message });
     }
+    if (process.env.NODO_DEBUG) console.error("[500]", err.message);
     return reply.code(err.statusCode ?? 500).send({ error: err.message });
   });
 

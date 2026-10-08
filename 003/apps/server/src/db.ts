@@ -7,6 +7,11 @@ export type { Db } from "./store/types";
 
 /** Abre (y migra) la base local de SQLite. */
 export async function openDb(file: string): Promise<Db> {
+  // Pruebas: con NODO_PG_URL, cada base «en memoria» es un esquema nuevo y desechable de PostgreSQL (misma suite, otro motor)
+  if (file === ":memory:" && process.env.NODO_PG_URL) {
+    const { openPgTemp } = await import("./store/pg-migrate");
+    return openPgTemp(process.env.NODO_PG_URL);
+  }
   const db = new SqliteDb(file);
   await migrate(db);
   await loadCache(db);

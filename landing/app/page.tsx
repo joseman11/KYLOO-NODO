@@ -121,20 +121,20 @@ export default function Home() {
       <main id="inicio">
         {/* ───────── Portada ───────── */}
         <section className="hero wrap">
+          <div className="hero-copy">
           <p className="kicker">Comandero para restaurantes · funciona en tu red local</p>
           <h1>
             Se cae el internet.
             <br />
             El servicio <span className="sigue">sigue.<Garabato /></span>
           </h1>
-          <div className="hero-sub">
-            <p>
-              Nodo conecta tablets, cocina, barra, caja e impresoras de tickets por tu propia red. Los meseros toman pedidos, la cocina los ve al instante y la caja cobra, aunque el WiFi ande mal.
-            </p>
-            <div className="hero-cta">
-              <a className="btn-ink" href="#contacto">Pedir una demo</a>
-              <a className="btn-text" href="#como">Ver cómo funciona ↓</a>
-            </div>
+          <p className="hero-p">
+            Nodo conecta tablets, cocina, barra, caja e impresoras de tickets por tu propia red. Los meseros toman pedidos, la cocina los ve al instante y la caja cobra, aunque el WiFi ande mal.
+          </p>
+          <div className="hero-cta">
+            <a className="btn-ink" href="#contacto">Pedir una demo</a>
+            <a className="btn-text" href="#como">Ver cómo funciona ↓</a>
+          </div>
           </div>
 
           <figure className="hero-vid">
